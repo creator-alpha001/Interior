@@ -11,10 +11,13 @@ import type { NextRequest } from "next/server";
  * Named `proxy` rather than `middleware`: the middleware convention is
  * deprecated in this version of Next.
  */
-const USER = process.env.PREVIEW_USER ?? "team";
-const PASSWORD = process.env.PREVIEW_PASSWORD;
-
 export function proxy(request: NextRequest) {
+  // Read per request, not at module scope: an edge bundle can freeze
+  // module-level process.env at build time, which would leave the site open if
+  // the variable were added to the project afterwards.
+  const USER = process.env.PREVIEW_USER ?? "team";
+  const PASSWORD = process.env.PREVIEW_PASSWORD;
+
   if (!PASSWORD) return NextResponse.next();
 
   const header = request.headers.get("authorization");
