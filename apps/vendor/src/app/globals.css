@@ -1,0 +1,105 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ *
+ * Professional (vendor) panel.
+ *
+ * Shares the ops density — vendors work this on a phone between sites and
+ * need information per screen, not whitespace — but keeps the customer-facing
+ * palette so the platform reads as one product to everyone who touches it.
+ * ------------------------------------------------------------------ */
+
+@theme {
+  /* Neutrals — warm, not blue-grey */
+  --color-paper: #fbf9f6;
+  --color-surface: #ffffff;
+  --color-surface-2: #f4f1eb;
+  --color-line: #e7e2d9;
+  --color-line-strong: #d6cfc2;
+  --color-ink: #1a1815;
+  --color-ink-2: #4a453e;
+  --color-ink-3: #7c756a;
+  --color-ink-4: #a49c8f;
+
+  /* Brand */
+  --color-brand: #1f4e43;
+  --color-brand-hover: #174036;
+  --color-brand-soft: #e8f0ed;
+  --color-brand-line: #c3d8d1;
+
+  /* Accent */
+  --color-clay: #b4602f;
+  --color-clay-soft: #fbeee5;
+  --color-clay-line: #eccdb5;
+
+  /* Status */
+  --color-positive: #2f6d4f;
+  --color-positive-soft: #e7f2ec;
+  --color-warning: #9a6a12;
+  --color-warning-soft: #fbf1dd;
+  --color-danger: #a33a2c;
+  --color-danger-soft: #fbeae7;
+
+  /* Domain tints — used by the media placeholders and domain chips */
+  --color-domain-interior: #8a6b4f;
+  --color-domain-furniture: #7a6a4a;
+  --color-domain-fabrication: #5a6472;
+  --color-domain-painting: #4b6b63;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-display), ui-serif, Georgia, serif;
+
+  --radius-card: 10px;
+
+  --shadow-card: 0 1px 2px rgba(26, 24, 21, 0.04), 0 8px 24px -12px rgba(26, 24, 21, 0.14);
+  --shadow-lift: 0 2px 6px rgba(26, 24, 21, 0.06), 0 18px 40px -18px rgba(26, 24, 21, 0.22);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    background-color: var(--color-surface-2);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  /* Headings stay sans here — a serif reads as marketing, not as a console. */
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-sans);
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    color: var(--color-ink);
+  }
+
+  ::selection {
+    background: var(--color-brand);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+
+  /* Numeric columns line up when digits are tabular. */
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+}

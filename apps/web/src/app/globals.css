@@ -1,0 +1,203 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------ *
+ * Design tokens
+ *
+ * Warm neutral paper, deep green as the brand voice, clay as the accent.
+ * Photography carries the pages, so the chrome stays quiet on purpose.
+ * ------------------------------------------------------------------ */
+
+@theme {
+  /* Neutrals — warm, not blue-grey */
+  --color-paper: #fbf9f6;
+  --color-surface: #ffffff;
+  --color-surface-2: #f4f1eb;
+  --color-line: #e7e2d9;
+  --color-line-strong: #d6cfc2;
+  --color-ink: #1a1815;
+  --color-ink-2: #4a453e;
+  --color-ink-3: #7c756a;
+  --color-ink-4: #a49c8f;
+
+  /* Brand */
+  --color-brand: #1f4e43;
+  --color-brand-hover: #174036;
+  --color-brand-soft: #e8f0ed;
+  --color-brand-line: #c3d8d1;
+
+  /* Accent */
+  --color-clay: #b4602f;
+  --color-clay-soft: #fbeee5;
+  --color-clay-line: #eccdb5;
+
+  /* Status */
+  --color-positive: #2f6d4f;
+  --color-positive-soft: #e7f2ec;
+  --color-warning: #9a6a12;
+  --color-warning-soft: #fbf1dd;
+  --color-danger: #a33a2c;
+  --color-danger-soft: #fbeae7;
+
+  /* Domain tints — used by the media placeholders and domain chips */
+  --color-domain-interior: #8a6b4f;
+  --color-domain-furniture: #7a6a4a;
+  --color-domain-fabrication: #5a6472;
+  --color-domain-painting: #4b6b63;
+
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-display: var(--font-display), ui-serif, Georgia, "Times New Roman", serif;
+
+  --radius-card: 14px;
+
+  --shadow-card: 0 1px 2px rgba(26, 24, 21, 0.04), 0 8px 24px -12px rgba(26, 24, 21, 0.14);
+  --shadow-lift: 0 2px 6px rgba(26, 24, 21, 0.06), 0 18px 40px -18px rgba(26, 24, 21, 0.22);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    scroll-behavior: smooth;
+  }
+
+  /*
+   * Mobile first: 16px base on phones. Anything smaller invites the browser
+   * to zoom on focus, and small type is the first thing that makes a site
+   * feel like a shrunken desktop page rather than something built for a phone.
+   */
+  body {
+    background-color: var(--color-paper);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    font-size: 16px;
+    line-height: 1.6;
+  }
+
+  @media (min-width: 640px) {
+    body {
+      font-size: 15px;
+    }
+  }
+
+  /*
+   * iOS zooms the page when a focused input is under 16px. Every text input
+   * therefore starts at 16px and only tightens on larger screens.
+   */
+  input,
+  textarea,
+  select {
+    font-size: 16px;
+  }
+
+  @media (min-width: 640px) {
+    input,
+    textarea,
+    select {
+      font-size: inherit;
+    }
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 400;
+    letter-spacing: -0.01em;
+    line-height: 1.12;
+    color: var(--color-ink);
+  }
+
+  ::selection {
+    background: var(--color-brand);
+    color: #fff;
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+}
+
+@layer components {
+  /* Editorial body copy for blog articles and long-form descriptions. */
+  .prose-article {
+    color: var(--color-ink-2);
+    font-size: 17px;
+    line-height: 1.7;
+  }
+  @media (min-width: 640px) {
+    .prose-article {
+      line-height: 1.75;
+    }
+  }
+  .prose-article > * + * {
+    margin-top: 1.15em;
+  }
+  .prose-article h2 {
+    font-size: 1.6rem;
+    margin-top: 2.2em;
+    margin-bottom: 0.6em;
+    color: var(--color-ink);
+  }
+  .prose-article h3 {
+    font-size: 1.25rem;
+    margin-top: 1.8em;
+    margin-bottom: 0.4em;
+    color: var(--color-ink);
+  }
+  .prose-article strong {
+    color: var(--color-ink);
+    font-weight: 600;
+  }
+  .prose-article ul,
+  .prose-article ol {
+    padding-left: 1.3em;
+  }
+  .prose-article ul {
+    list-style: disc;
+  }
+  .prose-article ol {
+    list-style: decimal;
+  }
+  .prose-article li + li {
+    margin-top: 0.4em;
+  }
+  .prose-article table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 15px;
+  }
+  .prose-article th,
+  .prose-article td {
+    border-bottom: 1px solid var(--color-line);
+    padding: 0.6em 0.8em;
+    text-align: left;
+  }
+  .prose-article th {
+    color: var(--color-ink);
+    font-weight: 600;
+    background: var(--color-surface-2);
+  }
+  .prose-article blockquote {
+    border-left: 3px solid var(--color-brand-line);
+    padding-left: 1.1em;
+    color: var(--color-ink-3);
+    font-style: italic;
+  }
+  .prose-article code {
+    background: var(--color-surface-2);
+    padding: 0.1em 0.35em;
+    border-radius: 4px;
+    font-size: 0.9em;
+  }
+}
+
+@layer utilities {
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
