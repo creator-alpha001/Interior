@@ -22,11 +22,14 @@ export function SearchBox({ className }: { className?: string }) {
   const [active, setActive] = useState(-1);
   const boxRef = useRef<HTMLDivElement>(null);
 
+  // Too short to search: derive an empty list rather than clearing state from
+  // inside the effect, which would cause an extra render on every keystroke.
+  const isSearchable = query.trim().length >= 2;
+  const visible = isSearchable ? suggestions : [];
+
   useEffect(() => {
-    if (query.trim().length < 2) {
-      setSuggestions([]);
-      return;
-    }
+    if (!isSearchable) return;
+
     const controller = new AbortController();
     const timer = setTimeout(async () => {
       try {
@@ -42,7 +45,7 @@ export function SearchBox({ className }: { className?: string }) {
       clearTimeout(timer);
       controller.abort();
     };
-  }, [query]);
+  }, [query, isSearchable]);
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -75,10 +78,10 @@ export function SearchBox({ className }: { className?: string }) {
           onKeyDown={(e) => {
             if (e.key === "Enter") {
               e.preventDefault();
-              go(active >= 0 ? suggestions[active]?.href : undefined);
+              go(active >= 0 ? visible[active]?.href : undefined);
             } else if (e.key === "ArrowDown") {
               e.preventDefault();
-              setActive((a) => Math.min(a + 1, suggestions.length - 1));
+              setActive((a) => Math.min(a + 1, visible.length - 1));
             } else if (e.key === "ArrowUp") {
               e.preventDefault();
               setActive((a) => Math.max(a - 1, -1));
@@ -92,9 +95,9 @@ export function SearchBox({ className }: { className?: string }) {
         />
       </div>
 
-      {open && suggestions.length > 0 ? (
+      {open && visible.length > 0 ? (
         <div className="absolute left-0 right-0 top-full z-50 mt-2 overflow-hidden rounded-xl border border-line bg-surface p-1.5 shadow-[var(--shadow-lift)]">
-          {suggestions.map((s, i) => (
+          {visible.map((s, i) => (
             <button
               key={s.href}
               type="button"

@@ -34,8 +34,13 @@ export default async function SearchPage({
           <h1 className="mt-4 text-[32px] leading-tight sm:text-[38px]">
             {q ? <>Results for “{q}”</> : "Search"}
           </h1>
+          {/* Without this the page is a dead end: results with no way to
+              change the query, which is exactly where a phone user lands
+              after tapping the header's search icon. */}
+          <SearchField initial={q} />
+
           {q ? (
-            <p className="mt-3 text-[15.5px] sm:text-[14.5px] text-ink-3">
+            <p className="mt-4 text-[15.5px] text-ink-3 sm:text-[14.5px]">
               {results.total} {results.total === 1 ? "result" : "results"} · prices shown for{" "}
               {city.name}
             </p>

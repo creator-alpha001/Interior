@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import type { City } from "@repo/types";
 import { CitySwitcher } from "@/components/site/city-switcher";
 import { SearchBox } from "@/components/site/search-box";
@@ -28,10 +28,16 @@ export function HeaderNav({ cities, selectedCity }: { cities: City[]; selectedCi
   const [open, setOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
 
-  useEffect(() => {
+  // Navigating should close both menus. Adjusting state during render when a
+  // value changes is React's own recommended pattern for this — an effect
+  // would render the new page with the menu still open, then close it, which
+  // is the cascading render the linter is warning about.
+  const [renderedPath, setRenderedPath] = useState(pathname);
+  if (pathname !== renderedPath) {
+    setRenderedPath(pathname);
     setOpen(false);
     setServicesOpen(false);
-  }, [pathname]);
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-line bg-paper/85 backdrop-blur-md">
