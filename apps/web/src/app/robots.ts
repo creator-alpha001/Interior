@@ -2,7 +2,14 @@ import type { MetadataRoute } from "next";
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://aangan.example.com";
 
+/** Only the real production site should ever be crawlable. */
+const IS_PRODUCTION = process.env.NEXT_PUBLIC_DEPLOY_ENV === "production";
+
 export default function robots(): MetadataRoute.Robots {
+  if (!IS_PRODUCTION) {
+    return { rules: { userAgent: "*", disallow: "/" } };
+  }
+
   return {
     rules: {
       userAgent: "*",

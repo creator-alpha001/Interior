@@ -8,6 +8,9 @@ const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://aangan.example.com
  * every one of those pages belongs in the sitemap.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
+  // Preview deployments publish nothing.
+  if (process.env.NEXT_PUBLIC_DEPLOY_ENV !== "production") return [];
+
   const [domains, products, packages, posts, pros] = await Promise.all([
     listDomains(),
     listProducts(),

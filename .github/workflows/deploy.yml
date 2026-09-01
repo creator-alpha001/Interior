@@ -1,0 +1,71 @@
+name: Deploy previews
+
+# Three apps, three Vercel projects, one pipeline. They deploy in parallel
+# because nothing in a build depends on another app — only on the shared
+# packages, which each build compiles for itself.
+#
+# The Vercel CLI runs from the repository root, not from the app directory:
+# each project already carries its own Root Directory setting (apps/web and so
+# on), and running the CLI inside that directory would nest it twice.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  # A newer push supersedes an in-flight deploy rather than racing it.
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    name: Deploy ${{ matrix.app }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - app: web
+            project_id_secret: VERCEL_PROJECT_ID_WEB
+          - app: admin
+            project_id_secret: VERCEL_PROJECT_ID_ADMIN
+          - app: vendor
+            project_id_secret: VERCEL_PROJECT_ID_VENDOR
+
+    env:
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets[matrix.project_id_secret] }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      # Pulls the project's settings, including which subdirectory to build.
+      - name: Pull Vercel environment
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Build
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+      - name: Deploy
+        id: deploy
+        run: |
+          url=$(vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }})
+          echo "url=$url" >> "$GITHUB_OUTPUT"
+
+      - name: Summary
+        run: |
+          {
+            echo "### ${{ matrix.app }}"
+            echo ""
+            echo "${{ steps.deploy.outputs.url }}"
+            echo ""
+            echo "Behind basic auth — credentials are in DEPLOYMENT.md."
+          } >> "$GITHUB_STEP_SUMMARY"
