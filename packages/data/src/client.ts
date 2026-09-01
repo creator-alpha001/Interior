@@ -1,0 +1,165 @@
+/**
+ * The HTTP seam.
+ *
+ * Every function in this package currently resolves against an in-memory store.
+ * When the backend exists, they call `api()` instead — and nothing above this
+ * package changes, because the view models they return stay identical.
+ *
+ * The switch is one environment variable. With `NEXT_PUBLIC_API_URL` unset the
+ * apps run entirely on seed data, which is what keeps local development and the
+ * team preview working with no backend at all.
+ */
+
+export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
+
+/** True once a real backend is configured. */
+export const USING_API = API_BASE_URL.length > 0;
+
+/**
+ * A failed request, carrying enough for the UI to say something useful rather
+ * than "something went wrong".
+ */
+export class ApiError extends Error {
+  constructor(
+    readonly status: number,
+    readonly code: string,
+    message: string,
+    readonly details?: unknown,
+  ) {
+    super(message);
+    this.name = "ApiError";
+  }
+
+  /** The caller sent something the server rejected — do not retry. */
+  get isClientError(): boolean {
+    return this.status >= 400 && this.status < 500;
+  }
+
+  /** Not signed in, or the session expired. */
+  get isUnauthorised(): boolean {
+    return this.status === 401;
+  }
+
+  /** Signed in, but not allowed to see this. */
+  get isForbidden(): boolean {
+    return this.status === 403;
+  }
+
+  get isNotFound(): boolean {
+    return this.status === 404;
+  }
+
+  /** Worth retrying: the server or the network failed, not the request. */
+  get isRetryable(): boolean {
+    return this.status === 0 || this.status === 429 || this.status >= 500;
+  }
+}
+
+export interface ApiOptions {
+  method?: "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+  /** Serialised as JSON. */
+  body?: unknown;
+  /** Appended as a query string; undefined and null values are dropped. */
+  query?: Record<string, string | number | boolean | undefined | null>;
+  /**
+   * Forwarded verbatim. Server components pass the session cookie through here
+   * so the backend can identify the caller.
+   */
+  headers?: Record<string, string>;
+  /** Next.js cache tags, so a mutation can invalidate exactly what it changed. */
+  tags?: string[];
+  revalidate?: number | false;
+  signal?: AbortSignal;
+}
+
+function buildUrl(path: string, query?: ApiOptions["query"]): string {
+  const url = new URL(path.replace(/^\//, ""), `${API_BASE_URL.replace(/\/$/, "")}/`);
+  for (const [key, value] of Object.entries(query ?? {})) {
+    if (value !== undefined && value !== null && value !== "") {
+      url.searchParams.set(key, String(value));
+    }
+  }
+  return url.toString();
+}
+
+/**
+ * One place where every request is shaped, so authentication, error mapping and
+ * caching are decided once rather than at 115 call sites.
+ */
+export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
+  if (!USING_API) {
+    throw new ApiError(
+      0,
+      "no_api_configured",
+      "NEXT_PUBLIC_API_URL is not set, so this build has no backend to call.",
+    );
+  }
+
+  const { method = "GET", body, query, headers, tags, revalidate, signal } = options;
+
+  let response: Response;
+  try {
+    response = await fetch(buildUrl(path, query), {
+      method,
+      headers: {
+        Accept: "application/json",
+        ...(body ? { "Content-Type": "application/json" } : {}),
+        ...headers,
+      },
+      body: body ? JSON.stringify(body) : undefined,
+      signal,
+      // Mutations must never be cached; reads opt in explicitly.
+      next:
+        method === "GET"
+          ? { tags, revalidate: revalidate === false ? undefined : revalidate }
+          : undefined,
+      cache: method === "GET" ? undefined : "no-store",
+    });
+  } catch (cause) {
+    // Network failure, DNS, timeout — status 0 marks it retryable.
+    throw new ApiError(0, "network_error", "Could not reach the server.", cause);
+  }
+
+  if (response.status === 204) return undefined as T;
+
+  const text = await response.text();
+  const payload = text ? safeJson(text) : undefined;
+
+  if (!response.ok) {
+    const problem = payload as { code?: string; message?: string } | undefined;
+    throw new ApiError(
+      response.status,
+      problem?.code ?? String(response.status),
+      problem?.message ?? response.statusText ?? "Request failed",
+      payload,
+    );
+  }
+
+  return payload as T;
+}
+
+function safeJson(text: string): unknown {
+  try {
+    return JSON.parse(text);
+  } catch {
+    return text;
+  }
+}
+
+/**
+ * Chooses between the seed store and the real backend.
+ *
+ * Written this way so migration is function by function: point one at the API,
+ * leave the rest on seed data, and the app keeps working throughout.
+ *
+ * ```ts
+ * export const listDomains = () =>
+ *   fromApiOrMock(() => api<Domain[]>("/domains", { tags: ["domains"] }), mockListDomains);
+ * ```
+ */
+export async function fromApiOrMock<T>(
+  fromApi: () => Promise<T>,
+  fromMock: () => Promise<T>,
+): Promise<T> {
+  return USING_API ? fromApi() : fromMock();
+}

@@ -5,6 +5,8 @@
  * against an in-memory mock store; when the backend is built, only the bodies
  * change — every signature, view model and screen stays exactly as it is.
  */
+export * from "./client";
+export * from "./session";
 export * from "./catalogue";
 export * from "./client-actions";
 export * from "./estimator";
