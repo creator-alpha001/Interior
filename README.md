@@ -2,11 +2,11 @@
 
 A marketplace connecting customers to verified professionals across four trades — **Interior Design, Furniture Work, Fabrication and Painting** — with the platform coordinating every conversation between the two sides.
 
-This is the **frontend build**: three applications running against a shared in-memory data layer with realistic seed data. No backend yet; the data layer is deliberately shaped so it can be swapped for real API calls without touching a single screen.
+This is the **frontend build**: two applications running against a shared in-memory data layer with realistic seed data. No backend yet; the data layer is deliberately shaped so it can be swapped for real API calls without touching a single screen.
 
 ---
 
-## The three surfaces
+## The surfaces
 
 | App | Audience | Port | What it is |
 | --- | --- | --- | --- |
@@ -19,7 +19,9 @@ npm run dev:web      # or dev:admin
 npm run build        # builds both
 ```
 
-Each app is signed in as a fixed demo identity (see each app's `src/lib/session.ts`) — Priya Sharma on the customer site, Kavita Bisht in ops, Studio Aarohi Interiors in the vendor panel. That single constant becomes a session lookup when auth is built.
+The professional portal lives at `/partner` on the customer site, so vendors sign in at the same address customers use rather than needing a URL of their own. The admin panel stays a separate deployment — it carries commission figures, vendor margins and customer contact details, and that is worth keeping as a network boundary rather than a route check.
+
+Each surface is signed in as a fixed demo identity — Priya Sharma on the customer site (`src/lib/session.ts`), Studio Aarohi Interiors in the portal (`src/lib/partner-session.ts`), Kavita Bisht in ops. That single constant becomes a session lookup when auth is built.
 
 ---
 

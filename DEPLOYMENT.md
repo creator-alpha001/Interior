@@ -3,9 +3,9 @@
 Two apps, two Vercel projects, one repository. Everything runs on seed data
 — there is no backend or database to provision.
 
-**Setup happens three times. Deployment happens once.** Creating the projects is
-a one-off: a Vercel project maps to exactly one app and one URL, so there are
-three of them. After that, a single `git push` rebuilds both.
+**Setup happens twice. Deployment happens once.** Creating the projects is a
+one-off: a Vercel project maps to exactly one app and one URL, so there are two
+of them. After that, a single `git push` rebuilds both.
 
 The previews are **password-protected and non-indexable**. This is unreleased
 work sitting on sample data; nobody should reach it by stumbling across a URL.
@@ -64,9 +64,9 @@ set, the apps run entirely on seed data.
 git push origin main
 ```
 
-All three projects watch this repository. Vercel rebuilds whichever apps a
-commit affects, and both when something in `packages/` changes — which is
-correct, since they share it.
+Both projects watch this repository. Vercel rebuilds whichever app a commit
+affects, and both when something in `packages/` changes — which is correct,
+since they share it.
 
 Nothing else to run. No secrets, no workflow to trigger.
 
@@ -84,7 +84,7 @@ connected it would deploy everything a second time. Use it from *Actions → Dep
 previews → Run workflow* if you ever disconnect that integration, or want to
 deploy without pushing. It needs these repository secrets, which are otherwise
 unnecessary: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID_WEB`,
-`VERCEL_PROJECT_ID_ADMIN`, `VERCEL_PROJECT_ID_VENDOR`.
+`VERCEL_PROJECT_ID_ADMIN`.
 
 ---
 
@@ -106,21 +106,21 @@ built alongside the backend.
 
 ## Sharing the previews
 
-Send both links together — the platform only makes sense seen from every
-side:
+Send both links together — the platform only makes sense seen from every side:
 
 - **Customer site** — browse the catalogue, submit a requirement, compare quotes
+- **`/partner` on that same site** — the professional's view: a masked customer,
+  the quote builder, stage evidence
 - **Ops panel** — the same lead from the inside: the relay console, assignment,
   stage approval
-- **Vendor panel** — the third view: a masked customer, the quote builder, stage
-  evidence
 
-The most convincing walkthrough is one lead seen from both: `LD-1042` in
-ops, the same job in the vendor panel, and the customer's own view of it.
+The most convincing walkthrough is one lead seen from all three angles:
+`LD-1042` in ops, the same job under `/partner`, and the customer's own view.
 
 Two things worth saying out loud before a walkthrough:
 
-- Each app is signed in as a fixed demo identity (`src/lib/session.ts`). Everyone
+- Each surface is signed in as a fixed demo identity (`src/lib/session.ts` and
+  `src/lib/partner-session.ts`). Everyone
   shares that identity **and the same in-memory data**, so changes one reviewer
   makes are visible to the next until the server restarts.
 - All imagery is designed placeholder tiles, not photographs of real work.
