@@ -1,7 +1,5 @@
 import type { Metadata } from "next";
 import { Instrument_Serif, Inter } from "next/font/google";
-import { SiteHeader } from "@/components/site/site-header";
-import { SiteFooter } from "@/components/site/site-footer";
 import "./globals.css";
 
 const inter = Inter({
@@ -26,14 +24,14 @@ export const metadata: Metadata = {
     "Tell us what you need, meet three verified professionals, compare their quotes side by side, and hire the one you trust. Interiors, furniture, fabrication and painting.",
 };
 
+/**
+ * Only the document shell. The customer site and the professional portal each
+ * bring their own chrome — see (site)/layout.tsx and partner/layout.tsx.
+ */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${inter.variable} ${display.variable}`}>
-      <body className="min-h-screen bg-paper antialiased">
-        <SiteHeader />
-        <main>{children}</main>
-        <SiteFooter />
-      </body>
+      <body className="min-h-screen bg-paper antialiased">{children}</body>
     </html>
   );
 }

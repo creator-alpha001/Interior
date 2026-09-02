@@ -25,6 +25,8 @@ const columns = [
     title: "For professionals",
     links: [
       { name: "Join as a professional", href: "/join-as-professional" },
+      { name: "Professional sign in", href: "/partner" },
+      { name: "Professional sign in", href: "/partner" },
       { name: "How assignment works", href: "/how-it-works#professionals" },
       { name: "Commission & invoicing", href: "/how-it-works#commission" },
     ],

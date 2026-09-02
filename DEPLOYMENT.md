@@ -1,11 +1,11 @@
 # Deploying the previews
 
-Three apps, three Vercel projects, one repository. Everything runs on seed data
+Two apps, two Vercel projects, one repository. Everything runs on seed data
 — there is no backend or database to provision.
 
 **Setup happens three times. Deployment happens once.** Creating the projects is
 a one-off: a Vercel project maps to exactly one app and one URL, so there are
-three of them. After that, a single `git push` rebuilds all three.
+three of them. After that, a single `git push` rebuilds both.
 
 The previews are **password-protected and non-indexable**. This is unreleased
 work sitting on sample data; nobody should reach it by stumbling across a URL.
@@ -14,15 +14,14 @@ work sitting on sample data; nobody should reach it by stumbling across a URL.
 
 ## One-time setup
 
-### 1. Create three Vercel projects
+### 1. Create two Vercel projects
 
-Import this repository three times. Only two fields differ each time:
+Import this repository twice. Only two fields differ each time:
 
 | Project name | Root Directory |
 | --- | --- |
-| `interior-web` | `apps/web` |
+| `interior-web` | `apps/web` — customer site and `/partner` portal |
 | `interior-admin` | `apps/admin` |
-| `interior-vendor` | `apps/vendor` |
 
 Vercel detects Next.js automatically. One setting matters:
 
@@ -43,7 +42,7 @@ the import screen:
 | Variable | Value |
 | --- | --- |
 | `PREVIEW_USER` | a shared username, e.g. `team` |
-| `PREVIEW_PASSWORD` | a shared password — use the same one on all three |
+| `PREVIEW_PASSWORD` | a shared password — use the same one on both |
 | `NEXT_PUBLIC_DEPLOY_ENV` | `preview` |
 
 `PREVIEW_PASSWORD` is what turns the access gate on. Without it, the first
@@ -66,7 +65,7 @@ git push origin main
 ```
 
 All three projects watch this repository. Vercel rebuilds whichever apps a
-commit affects, and all three when something in `packages/` changes — which is
+commit affects, and both when something in `packages/` changes — which is
 correct, since they share it.
 
 Nothing else to run. No secrets, no workflow to trigger.
@@ -77,8 +76,8 @@ Nothing else to run. No secrets, no workflow to trigger.
 
 | Workflow | Trigger | Purpose |
 | --- | --- | --- |
-| `ci.yml` | pull requests and pushes to `main` | Builds all three apps and lints. A type error in a shared package breaks every app, so all three are built rather than only the one that changed. |
-| `deploy.yml` | **manual only** | A fallback that deploys all three through the Vercel CLI. Not needed while the Git integration is connected. |
+| `ci.yml` | pull requests and pushes to `main` | Builds both apps and lints. A type error in a shared package breaks every app, so both are built rather than only the one that changed. |
+| `deploy.yml` | **manual only** | A fallback that deploys both through the Vercel CLI. Not needed while the Git integration is connected. |
 
 `deploy.yml` is deliberately not on `push`: with Vercel's Git integration
 connected it would deploy everything a second time. Use it from *Actions → Deploy
@@ -107,7 +106,7 @@ built alongside the backend.
 
 ## Sharing the previews
 
-Send all three links together — the platform only makes sense seen from every
+Send both links together — the platform only makes sense seen from every
 side:
 
 - **Customer site** — browse the catalogue, submit a requirement, compare quotes
@@ -116,7 +115,7 @@ side:
 - **Vendor panel** — the third view: a masked customer, the quote builder, stage
   evidence
 
-The most convincing walkthrough is one lead seen from all three: `LD-1042` in
+The most convincing walkthrough is one lead seen from both: `LD-1042` in
 ops, the same job in the vendor panel, and the customer's own view of it.
 
 Two things worth saying out loud before a walkthrough:

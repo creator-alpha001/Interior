@@ -1,6 +1,6 @@
 name: Deploy previews
 
-# Three apps, three Vercel projects, one pipeline. They deploy in parallel
+# Two apps, two Vercel projects, one pipeline. They deploy in parallel
 # because nothing in a build depends on another app — only on the shared
 # packages, which each build compiles for itself.
 #
@@ -33,8 +33,6 @@ jobs:
             project_id_secret: VERCEL_PROJECT_ID_WEB
           - app: admin
             project_id_secret: VERCEL_PROJECT_ID_ADMIN
-          - app: vendor
-            project_id_secret: VERCEL_PROJECT_ID_VENDOR
 
     env:
       VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}

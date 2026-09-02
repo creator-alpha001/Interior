@@ -201,3 +201,37 @@
     scrollbar-width: none;
   }
 }
+
+/* ------------------------------------------------------------------ *
+ * Professional portal
+ *
+ * Same palette as the customer site — it is one product to everyone who
+ * touches it — but denser. Vendors work these screens on a phone between
+ * sites and need information per screen, not whitespace. Scoped to
+ * .partner-portal so the customer experience is untouched.
+ * ------------------------------------------------------------------ */
+
+.partner-portal {
+  --radius-card: 10px;
+  font-size: 15px;
+}
+
+@media (min-width: 640px) {
+  .partner-portal {
+    font-size: 14px;
+  }
+}
+
+/* A serif heading reads as marketing; the portal is a tool. */
+.partner-portal h1,
+.partner-portal h2,
+.partner-portal h3 {
+  font-family: var(--font-sans);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+}
+
+/* Numeric columns line up when digits are tabular. */
+.tnum {
+  font-variant-numeric: tabular-nums;
+}

@@ -10,14 +10,13 @@ This is the **frontend build**: three applications running against a shared in-m
 
 | App | Audience | Port | What it is |
 | --- | --- | --- | --- |
-| `apps/web` | Customers | 3001 | Public site — catalogue, packages, blog, cost estimator, requirement form, and the client dashboard |
+| `apps/web` | Customers **and professionals** | 3001 | Public site — catalogue, packages, blog, estimator, requirement form, client dashboard — plus the professional portal at `/partner` |
 | `apps/admin` | Internal staff | 3002 | Sales queue, the relay console, vendor verification, commission, domain configuration, reporting |
-| `apps/vendor` | Professionals | 3003 | Leads, quoting, onboarding and partner agreement, projects with stage evidence, payments |
 
 ```bash
 npm install
-npm run dev:web      # or dev:admin / dev:vendor
-npm run build        # builds all three
+npm run dev:web      # or dev:admin
+npm run build        # builds both
 ```
 
 Each app is signed in as a fixed demo identity (see each app's `src/lib/session.ts`) — Priya Sharma on the customer site, Kavita Bisht in ops, Studio Aarohi Interiors in the vendor panel. That single constant becomes a session lookup when auth is built.
@@ -34,7 +33,7 @@ packages/mock    Seed data — 59 catalogue products, 15 packages, 8 blog posts,
                  stage from enquiry to completed project.
 packages/data    The repository layer. Every screen imports from here and
                  nowhere else.
-packages/ui      The design system, shared across all three apps.
+packages/ui      The design system, shared across both apps.
 ```
 
 **The seam that matters:** screens call `@repo/data`, never `@repo/mock`. Today those functions resolve against an in-memory store; when the backend lands, only the function bodies change. Signatures, view models and screens stay as they are.
