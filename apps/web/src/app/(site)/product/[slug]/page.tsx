@@ -39,10 +39,12 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
   if (!view) notFound();
 
   const { product, domain, category } = view;
-  const [related, pros] = await Promise.all([
+  const [related, proPage] = await Promise.all([
     listRelatedProducts(product.id, city.id, 4),
     listProfessionals({ domainSlug: domain.slug, cityId: city.id, verifiedOnly: true, limit: 3 }),
   ]);
+
+  const pros = proPage.items;
 
   return (
     <>

@@ -8,6 +8,7 @@
 import type { Project, Rupees } from "@repo/types";
 import { domainById } from "./mappers";
 import { listOpsLeads, type OpsLeadRow } from "./ops";
+import { currentAgentId } from "./session";
 import { delay, nowIso, store } from "./store";
 
 function rupees(amount: number): string {
@@ -288,9 +289,10 @@ export interface MyDayView {
  * Deliberately excludes finished work. A closed lead is not a thing to do, and
  * a day screen that lists them buries the handful that need action today.
  */
-export async function getMyDay(agentId?: string): Promise<MyDayView> {
-  const all = await listOpsLeads(agentId ? { agentId } : {});
-  const agent = agentId ? store.salesAgents.find((s) => s.id === agentId) : undefined;
+export async function getMyDay(): Promise<MyDayView> {
+  const agentId = await currentAgentId();
+  const all = await listOpsLeads({ agentId });
+  const agent = store.salesAgents.find((s) => s.id === agentId);
   const agentUser = agent ? store.users.find((u) => u.id === agent.userId) : undefined;
   const today = nowIso().slice(0, 10);
 

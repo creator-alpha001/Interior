@@ -1,5 +1,4 @@
 import { listAgreementsForClient, listLeadsForClient, listNotifications } from "@repo/data";
-import { DEMO_USER_ID } from "@/lib/session";
 import { AccountNav } from "@/components/account/account-nav";
 import { Container } from "@repo/ui";
 
@@ -7,7 +6,7 @@ export default async function AccountLayout({ children }: { children: React.Reac
   const [leads, agreements, notifications] = await Promise.all([
     listLeadsForClient(),
     listAgreementsForClient(),
-    listNotifications(DEMO_USER_ID),
+    listNotifications(),
   ]);
 
   const unread = notifications.filter((n) => !n.isRead).length;

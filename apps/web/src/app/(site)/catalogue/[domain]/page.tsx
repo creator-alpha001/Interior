@@ -61,7 +61,7 @@ export default async function DomainCataloguePage({
 
   const city = await getSelectedCity();
 
-  const [categories, products, packages, pros, posts] = await Promise.all([
+  const [categories, productPage, packages, proPage, postPage] = await Promise.all([
     listCategories(slug),
     listProducts({
       domainSlug: slug,
@@ -74,6 +74,10 @@ export default async function DomainCataloguePage({
     listProfessionals({ domainSlug: slug, cityId: city.id, verifiedOnly: true, limit: 3 }),
     listPosts({ domainSlug: slug, limit: 3 }),
   ]);
+
+  const products = productPage.items;
+  const pros = proPage.items;
+  const posts = postPage.items;
 
   const activeCategory = categories.find((c) => c.slug === category);
   const base = `/catalogue/${slug}`;

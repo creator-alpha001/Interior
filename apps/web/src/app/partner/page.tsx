@@ -9,16 +9,15 @@ import {
 } from "@repo/data";
 import { Badge, formatDateTime } from "@repo/ui";
 import { Metric, PageBody, PageHeader, Panel } from "@/components/partner/panel-ui";
-import { CURRENT_PROFESSIONAL_ID } from "@/lib/partner-session";
 
 export const metadata = { title: "Home" };
 
 export default async function VendorHomePage() {
   const [dashboard, leads, visits, onboarding] = await Promise.all([
-    getVendorDashboard(CURRENT_PROFESSIONAL_ID),
-    listVendorLeads(CURRENT_PROFESSIONAL_ID),
-    listVendorVisits(CURRENT_PROFESSIONAL_ID),
-    getVendorOnboarding(CURRENT_PROFESSIONAL_ID),
+    getVendorDashboard(),
+    listVendorLeads(),
+    listVendorVisits(),
+    getVendorOnboarding(),
   ]);
 
   const today = new Date().toISOString().slice(0, 10);

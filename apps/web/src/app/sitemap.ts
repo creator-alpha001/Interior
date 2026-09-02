@@ -1,5 +1,6 @@
 import type { MetadataRoute } from "next";
-import { listDomains, listPackages, listPosts, listProducts, listProfessionals } from "@repo/data";
+import {
+  collectAll, listDomains, listPackages, listPosts, listProducts, listProfessionals } from "@repo/data";
 
 const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://aangan.example.com";
 
@@ -11,12 +12,14 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Preview deployments publish nothing.
   if (process.env.NEXT_PUBLIC_DEPLOY_ENV !== "production") return [];
 
+  // A sitemap is the one place that really does want every row, so it walks
+  // the cursor rather than inventing an enormous page size.
   const [domains, products, packages, posts, pros] = await Promise.all([
     listDomains(),
-    listProducts(),
+    collectAll((cursor) => listProducts({ cursor })),
     listPackages(),
-    listPosts(),
-    listProfessionals({ verifiedOnly: true }),
+    collectAll((cursor) => listPosts({ cursor })),
+    collectAll((cursor) => listProfessionals({ verifiedOnly: true, cursor })),
   ]);
 
   const staticRoutes = [

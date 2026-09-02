@@ -10,6 +10,8 @@
  * team preview working with no backend at all.
  */
 
+import type { Paginated } from "@repo/types";
+
 export const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "";
 
 /** True once a real backend is configured. */
@@ -162,4 +164,80 @@ export async function fromApiOrMock<T>(
   fromMock: () => Promise<T>,
 ): Promise<T> {
   return USING_API ? fromApi() : fromMock();
+}
+
+/* ------------------------------------------------------------------ *
+ * Pagination
+ * ------------------------------------------------------------------ */
+
+/**
+ * Turns a filtered, sorted array into one page of results.
+ *
+ * The mock adapter's cursor is just an encoded offset. A real backend will use
+ * something keyset-based, which is why callers must treat it as opaque and pass
+ * it back unread — swapping the encoding must not be a frontend change.
+ */
+export function paginate<T>(rows: T[], limit: number, cursor?: string | null): Paginated<T> {
+  const offset = decodeCursor(cursor);
+  const items = rows.slice(offset, offset + limit);
+  const next = offset + items.length;
+  return {
+    items,
+    nextCursor: next < rows.length ? encodeCursor(next) : null,
+    total: rows.length,
+  };
+}
+
+function encodeCursor(offset: number): string {
+  return Buffer.from(`o:${offset}`, "utf8").toString("base64url");
+}
+
+function decodeCursor(cursor?: string | null): number {
+  if (!cursor) return 0;
+  try {
+    const decoded = Buffer.from(cursor, "base64url").toString("utf8");
+    const offset = Number(decoded.replace(/^o:/, ""));
+    return Number.isFinite(offset) && offset >= 0 ? offset : 0;
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * Walks every page of a paginated list.
+ *
+ * For the handful of places that genuinely need the whole set — the sitemap,
+ * an export — rather than each of them inventing an enormous `limit`.
+ */
+export async function collectAll<T>(
+  fetchPage: (cursor: string | null) => Promise<Paginated<T>>,
+): Promise<T[]> {
+  const all: T[] = [];
+  let cursor: string | null = null;
+  // Bounded so a backend returning a non-advancing cursor cannot hang a render.
+  for (let page = 0; page < 200; page += 1) {
+    const result: Paginated<T> = await fetchPage(cursor);
+    all.push(...result.items);
+    if (!result.nextCursor) break;
+    cursor = result.nextCursor;
+  }
+  return all;
+}
+
+/**
+ * A read that goes to the backend when there is one, and to the seed store
+ * when there is not.
+ *
+ * The point of the helper is that each repository function stays one readable
+ * statement: the endpoint, its cache tags, and the mock that stands in for it.
+ * Migrating one read means deleting nothing — the mock arm simply stops being
+ * taken once `NEXT_PUBLIC_API_URL` is set.
+ */
+export async function readThrough<T>(
+  path: string,
+  options: ApiOptions,
+  fromMock: () => T | Promise<T>,
+): Promise<T> {
+  if (USING_API) return api<T>(path, options);
+  return fromMock();
 }

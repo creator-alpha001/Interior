@@ -23,6 +23,16 @@ derives the caller from it. Endpoints below never take a `clientId` or
 matters: `GET /me/requirements` must return the signed-in customer's leads, not
 whichever id the client asked for.
 
+The frontend already holds up its half of that: no data function accepts the
+caller's own id. They ask `packages/data/src/session.ts`, which each app wires
+up in its `instrumentation.ts`. Connecting real auth means replacing one
+function body there — the `configureSession` callback — and nothing else.
+
+Until that callback returns a real actor, the data layer falls back to a seeded
+demo identity per role. **That fallback switches itself off the moment
+`NEXT_PUBLIC_API_URL` is set**: with a backend present, no session means
+`NotAuthenticatedError`, never somebody else's rows.
+
 **Errors** — JSON body `{ code, message, details? }` with a meaningful status.
 `packages/data/src/client.ts` maps these to `ApiError`, which the UI uses to
 distinguish "not signed in" from "not found" from "server broke".
@@ -30,6 +40,12 @@ distinguish "not signed in" from "not found" from "server broke".
 **Money** — whole rupees, integers. No paise anywhere.
 
 **Dates** — ISO-8601 timestamps; `YYYY-MM-DD` where only a date matters.
+
+**Pagination** — every list marked *paged* below returns
+`{ items, nextCursor, total }` and accepts `limit` and `cursor`. The cursor is
+opaque: the frontend passes back whatever it was given and never parses it, so
+moving from offsets to keyset paging is a backend-only change. `limit` defaults
+to 24. `total` counts rows matching the filters, ignoring the page.
 
 ---
 
@@ -40,24 +56,30 @@ distinguish "not signed in" from "not found" from "server broke".
 | GET | `/domains` | `Domain[]` | Active trades, sorted |
 | GET | `/domains/:slug` | `Domain` | |
 | GET | `/cities` | `City[]` | |
-| GET | `/products` | `ProductView[]` | Filters: `domain`, `category`, `search`, `city`, `tags`, `maxPrice`, `sort`, `limit`, `cursor` |
+| GET | `/products` | `Paginated<ProductView>` | **Paged.** Filters: `domain`, `category`, `search`, `city`, `tags`, `maxPrice`, `sort` |
 | GET | `/products/:slug` | `ProductView` | `city` affects `effectivePrice` |
 | GET | `/products/:slug/related` | `ProductView[]` | |
 | GET | `/categories` | `ProductCategory[]` | Filter: `domain` |
 | GET | `/packages` | `PackageView[]` | Filter: `domain` |
 | GET | `/packages/:slug` | `PackageView` | |
-| GET | `/professionals` | `ProfessionalSummary[]` | Filters: `domain`, `city`, `search`, `verifiedOnly` |
+| GET | `/professionals` | `Paginated<ProfessionalSummary>` | **Paged.** Filters: `domain`, `city`, `search`, `verifiedOnly` |
 | GET | `/professionals/:id` | `ProfessionalProfile` | |
 | GET | `/portfolio` | `PortfolioItem[]` | Filter: `domain`. Approved items only |
-| GET | `/posts` | `BlogPostView[]` | Filters: `category`, `tag`, `domain`, `search` |
+| GET | `/posts` | `Paginated<BlogPostView>` | **Paged.** Filters: `category`, `tag`, `domain`, `search` |
 | GET | `/posts/:slug` | `BlogPostView` | |
 | GET | `/search` | `SearchResults` | `q`, `city` |
 | GET | `/search/suggest` | `{ label, hint, href }[]` | Type-ahead; keep it fast |
+| GET | `/posts/categories`, `/posts/tags` | `BlogCategory[]`, `BlogTag[]` | |
 | GET | `/banners`, `/testimonials`, `/stats` | | Home page content |
+| GET | `/catalogue/counts` | `{ domainId, products, packages }[]` | Home screen tiles |
 
-**Pagination is not implemented in the frontend yet.** `listProducts()` returns
-everything. Design these endpoints with `cursor` and `limit` from the start —
-adding them later means touching every call site.
+**Every function in this section is already wired to these endpoints.** They
+call the URL above when `NEXT_PUBLIC_API_URL` is set and fall back to seed data
+when it is not, so this is the section to build first — it can be switched on
+with no frontend change at all.
+
+The one caller that genuinely wants every row is the sitemap, and it walks the
+cursor via `collectAll()` rather than asking for an enormous page.
 
 ---
 
@@ -107,7 +129,7 @@ Scoped to the signed-in professional.
 | GET | `/vendor/agreements` | `VendorAgreementView[]` |
 | GET | `/vendor/projects` | `VendorProjectView[]` |
 | GET | `/vendor/projects/:id` | `VendorProjectView` |
-| POST | `/vendor/projects/:id/stages/:stageId/proof` | multipart: photos + note |
+| POST | `/vendor/projects/:id/stages/:stageId/proof` | `{ note, proof: MediaAsset[] }` — ids from `/uploads/tickets`, not bytes |
 | GET | `/vendor/invoices` | commission invoices |
 | GET | `/vendor/onboarding` | `VendorOnboarding` |
 | POST | `/vendor/onboarding/agreement` | `PartnerAgreement` |
@@ -123,6 +145,25 @@ is the whole permitted surface.
 **Signing gates assignment.** A professional with no signed current-version
 partner agreement must not appear in any vendor pool, however verified their
 account or approved their trades.
+
+---
+
+## Uploads
+
+| Method | Path | Response |
+| --- | --- | --- |
+| POST | `/uploads/tickets` | `UploadTicket` — body `{ purpose, fileName, contentType, sizeBytes }` |
+
+`UploadTicket` is `{ uploadUrl, headers, assetId, publicUrl }`. The browser PUTs
+the file straight at `uploadUrl` and then submits `assetId` with the form, so
+photographs never pass through the application server — a vendor uploading eight
+site photos on mobile data would otherwise hold a request open for minutes.
+
+`purpose` is one of `requirement_photo`, `milestone_proof`, `portfolio_item`,
+`vendor_document`, and decides where the file is stored and who may read it back.
+The frontend enforces size and type limits before requesting a ticket
+(`packages/data/src/uploads.ts`); **the backend must enforce them again** — those
+checks are a courtesy to the user, not a control.
 
 ---
 
@@ -172,7 +213,7 @@ not be reimplemented as HTTP calls from the browser.
 | `assignProfessionals` | Writes assignments, notifies both sides, records an unmet vendor preference | Authorisation-sensitive |
 | `reviewMilestoneProof` | Approves a stage, recomputes completion, closes the project at 100% | Determines what the customer is shown as done |
 | `submitReview` | Writes the review and recalculates per-domain and overall ratings | Ratings must not be client-writable |
-| `signPartnerAgreement` | Records signature, clauses, timestamp; unlocks lead assignment | Legal record |
+| `signPartnerAgreement` | Records signature, clauses, timestamp; unlocks lead assignment | Legal record. The IP and user-agent it stores are placeholders — those must be captured server-side |
 | `recomputeLeadStatus` | Derives lead status from its lead-domains | Single source of truth |
 
 `recomputeLeadStatus` is the clearest example: `leads.overallStatus` is
@@ -186,15 +227,20 @@ recompute client-side, the answers race.
 The seam is per function, so this can be done incrementally with the app working
 throughout:
 
-1. **Read-only public data first** — domains, catalogue, blog. Lowest risk, and
-   proves the plumbing.
-2. **Authentication**, replacing `DEMO_ACTORS` in `packages/data/src/session.ts`
-   with a real session read. Data functions then stop taking a caller id.
+1. **Read-only public data** — domains, catalogue, blog, directory, search.
+   **Already wired.** Set `NEXT_PUBLIC_API_URL`, implement these endpoints, and
+   they switch over with no frontend change. Do this first: it proves the
+   plumbing against the least dangerous data.
+2. **Authentication** — fill in the `configureSession` callback in each app's
+   `instrumentation.ts`. The call sites are already correct, because no function
+   takes a caller id.
 3. **Customer reads**, then customer mutations.
 4. **Vendor and staff surfaces**, which carry the masking and gating rules.
-5. **File uploads** — stage proof and requirement photos currently use
-   `URL.createObjectURL` and never leave the browser. They need presigned URLs,
-   progress and failure states.
+5. **Uploads** — implement `/uploads/tickets`. `uploadFile()` already does
+   validation, the ticket request and the PUT.
 
-Use `fromApiOrMock()` from `packages/data/src/client.ts` to move one function at
-a time.
+Sections 3–5 still resolve against the seed store. Wiring one is mechanical:
+wrap the body in `readThrough(path, options, mock)` — or, where the query needs
+mapping, an explicit `if (USING_API) return api(...)`. Both live in
+`packages/data/src/client.ts`, alongside `fromApiOrMock()` for the same job in
+expression form.

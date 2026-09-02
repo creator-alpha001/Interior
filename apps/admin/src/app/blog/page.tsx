@@ -1,4 +1,4 @@
-import { listBlogCategories, listDomains, listPosts } from "@repo/data";
+import { collectAll, listBlogCategories, listDomains, listPosts } from "@repo/data";
 import { Badge, formatDate } from "@repo/ui";
 import { DataTable, FilterBar, FilterGroup, Metric, PageBody, PageHeader, Panel } from "@/components/ops-ui";
 
@@ -10,12 +10,13 @@ export default async function BlogAdminPage({
   searchParams: Promise<{ category?: string; domain?: string }>;
 }) {
   const sp = await searchParams;
-  const [all, posts, categories, domains] = await Promise.all([
-    listPosts(),
-    listPosts({ categorySlug: sp.category, domainSlug: sp.domain }),
+  const [all, postPage, categories, domains] = await Promise.all([
+    collectAll((cursor) => listPosts({ cursor })),
+    listPosts({ categorySlug: sp.category, domainSlug: sp.domain, limit: 100 }),
     listBlogCategories(),
     listDomains(),
   ]);
+  const posts = postPage.items;
 
   const href = (patch: Record<string, string | undefined>) => {
     const params = new URLSearchParams();

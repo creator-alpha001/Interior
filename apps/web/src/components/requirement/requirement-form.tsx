@@ -1,8 +1,15 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { City, Domain, MaterialSource, SiteAccessibilityTag, Urgency } from "@repo/types";
-import { formatRupeesShort } from "@repo/data";
+import type {
+  City,
+  Domain,
+  MaterialSource,
+  MediaAsset,
+  SiteAccessibilityTag,
+  Urgency,
+} from "@repo/types";
+import { UploadError, formatRupeesShort, maxFilesFor, uploadFile } from "@repo/data";
 import { createRequirementAction } from "@/app/actions";
 import { Badge, Button, cn } from "@repo/ui";
 
@@ -82,7 +89,29 @@ export function RequirementForm({
   const [budgetSet, setBudgetSet] = useState(false);
   const [name, setName] = useState("");
   const [mobile, setMobile] = useState("");
-  const [photos, setPhotos] = useState<Array<{ name: string; url: string }>>([]);
+  const [photos, setPhotos] = useState<MediaAsset[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  // Photos go up as they are chosen rather than being held as raw files until
+  // submit, so a too-large photo is rejected while the customer is still on
+  // that step instead of after they have filled in everything else.
+  async function addPhotos(files: File[]) {
+    setUploadError(null);
+    setUploading(true);
+    try {
+      for (const file of files) {
+        const asset = await uploadFile(file, "requirement_photo");
+        setPhotos((prev) => [...prev, asset]);
+      }
+    } catch (error) {
+      setUploadError(
+        error instanceof UploadError ? error.message : "That photo could not be uploaded.",
+      );
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const selectedDomains = domains.filter((d) => domainIds.includes(d.id));
 
@@ -452,18 +481,22 @@ export function RequirementForm({
               <div className="mt-3 flex flex-wrap gap-3">
                 {photos.map((photo, i) => (
                   <div
-                    key={photo.url}
+                    key={photo.id}
                     className="group relative h-20 w-20 overflow-hidden rounded-lg border border-line"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={photo.url} alt={photo.name} className="h-full w-full object-cover" />
+                    <img
+                      src={photo.url}
+                      alt={photo.caption ?? "Site photo"}
+                      className="h-full w-full object-cover"
+                    />
                     <button
                       type="button"
                       onClick={() =>
                         setPhotos((prev) => prev.filter((_, index) => index !== i))
                       }
                       className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-[12px] sm:text-[11px] text-white opacity-0 transition-opacity group-hover:opacity-100"
-                      aria-label={`Remove ${photo.name}`}
+                      aria-label={`Remove ${photo.caption ?? "photo"}`}
                     >
                       ×
                     </button>
@@ -481,22 +514,23 @@ export function RequirementForm({
                     multiple
                     className="hidden"
                     onChange={(e) => {
-                      const files = Array.from(e.target.files ?? []).slice(0, 6 - photos.length);
-                      setPhotos((prev) => [
-                        ...prev,
-                        ...files.map((file) => ({
-                          name: file.name,
-                          url: URL.createObjectURL(file),
-                        })),
-                      ]);
+                      const files = Array.from(e.target.files ?? []).slice(
+                        0,
+                        maxFilesFor("requirement_photo") - photos.length,
+                      );
                       e.target.value = "";
+                      void addPhotos(files);
                     }}
                   />
                 </label>
               </div>
-              {photos.length > 0 ? (
+              {uploadError ? (
+                <p className="mt-2 text-[13px] sm:text-[12px] text-danger">{uploadError}</p>
+              ) : uploading ? (
+                <p className="mt-2 text-[13px] sm:text-[12px] text-ink-4">Uploading…</p>
+              ) : photos.length > 0 ? (
                 <p className="mt-2 text-[13px] sm:text-[12px] text-ink-4">
-                  {photos.length} of 6 · uploaded when you submit
+                  {photos.length} of {maxFilesFor("requirement_photo")} uploaded
                 </p>
               ) : null}
             </div>

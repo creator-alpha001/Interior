@@ -1,4 +1,5 @@
-import type { PackageView, ProductCategory, ProductView } from "@repo/types";
+import { DEFAULT_PAGE_SIZE, type PackageView, type Paginated, type ProductCategory, type ProductView } from "@repo/types";
+import { USING_API, api, paginate, readThrough } from "./client";
 import { toPackageView, toProductView } from "./mappers";
 import { delay, store } from "./store";
 
@@ -10,10 +11,30 @@ export interface ProductQuery {
   cityId?: string;
   maxPrice?: number;
   sort?: "featured" | "price_asc" | "price_desc" | "rating";
+  /** Page size. Defaults to DEFAULT_PAGE_SIZE — never "everything". */
   limit?: number;
+  /** Opaque, from a previous page's `nextCursor`. */
+  cursor?: string | null;
 }
 
-export async function listProducts(query: ProductQuery = {}): Promise<ProductView[]> {
+export async function listProducts(query: ProductQuery = {}): Promise<Paginated<ProductView>> {
+  if (USING_API) {
+    return api<Paginated<ProductView>>("/products", {
+      tags: ["products"],
+      query: {
+        domain: query.domainSlug,
+        category: query.categorySlug,
+        search: query.search,
+        tags: query.tags?.join(","),
+        city: query.cityId,
+        maxPrice: query.maxPrice,
+        sort: query.sort,
+        limit: query.limit ?? DEFAULT_PAGE_SIZE,
+        cursor: query.cursor,
+      },
+    });
+  }
+
   const domain = query.domainSlug
     ? store.domains.find((d) => d.slug === query.domainSlug)
     : undefined;
@@ -50,15 +71,17 @@ export async function listProducts(query: ProductQuery = {}): Promise<ProductVie
   };
   views.sort(sorters[query.sort ?? "featured"]);
 
-  return delay(query.limit ? views.slice(0, query.limit) : views);
+  return delay(paginate(views, query.limit ?? DEFAULT_PAGE_SIZE, query.cursor));
 }
 
 export async function getProductBySlug(
   slug: string,
   cityId?: string,
 ): Promise<ProductView | null> {
-  const product = store.products.find((p) => p.slug === slug);
-  return delay(product ? toProductView(product.id, cityId) : null);
+  return readThrough(`/products/${slug}`, { tags: ["products"], query: { city: cityId } }, () => {
+    const product = store.products.find((p) => p.slug === slug);
+    return delay(product ? toProductView(product.id, cityId) : null);
+  });
 }
 
 export async function listRelatedProducts(
@@ -66,6 +89,13 @@ export async function listRelatedProducts(
   cityId?: string,
   limit = 4,
 ): Promise<ProductView[]> {
+  if (USING_API) {
+    return api<ProductView[]>(`/products/${productId}/related`, {
+      tags: ["products"],
+      query: { city: cityId, limit },
+    });
+  }
+
   const product = store.products.find((p) => p.id === productId);
   if (!product) return delay([]);
   const related = store.products
@@ -81,6 +111,13 @@ export async function listRelatedProducts(
 }
 
 export async function listCategories(domainSlug?: string): Promise<ProductCategory[]> {
+  if (USING_API) {
+    return api<ProductCategory[]>("/categories", {
+      tags: ["categories"],
+      query: { domain: domainSlug },
+    });
+  }
+
   const domain = domainSlug ? store.domains.find((d) => d.slug === domainSlug) : undefined;
   return delay(
     store.productCategories
@@ -91,6 +128,10 @@ export async function listCategories(domainSlug?: string): Promise<ProductCatego
 }
 
 export async function listPackages(domainSlug?: string): Promise<PackageView[]> {
+  if (USING_API) {
+    return api<PackageView[]>("/packages", { tags: ["packages"], query: { domain: domainSlug } });
+  }
+
   const domain = domainSlug ? store.domains.find((d) => d.slug === domainSlug) : undefined;
   return delay(
     store.servicePackages
@@ -102,11 +143,20 @@ export async function listPackages(domainSlug?: string): Promise<PackageView[]> 
 }
 
 export async function getPackageBySlug(slug: string): Promise<PackageView | null> {
-  const pkg = store.servicePackages.find((p) => p.slug === slug);
-  return delay(pkg ? toPackageView(pkg.id) : null);
+  return readThrough(`/packages/${slug}`, { tags: ["packages"] }, () => {
+    const pkg = store.servicePackages.find((p) => p.slug === slug);
+    return delay(pkg ? toPackageView(pkg.id) : null);
+  });
 }
 
 export async function listFeaturedPackages(limit = 6): Promise<PackageView[]> {
+  if (USING_API) {
+    return api<PackageView[]>("/packages", {
+      tags: ["packages"],
+      query: { featured: true, limit },
+    });
+  }
+
   return delay(
     store.servicePackages
       .filter((p) => p.isActive && p.isFeatured)
@@ -119,6 +169,10 @@ export async function listFeaturedPackages(limit = 6): Promise<PackageView[]> {
 export async function countCatalogueByDomain(): Promise<
   Array<{ domainId: string; products: number; packages: number }>
 > {
+  if (USING_API) {
+    return api("/catalogue/counts", { tags: ["products", "packages"] });
+  }
+
   return delay(
     store.domains.map((d) => ({
       domainId: d.id,

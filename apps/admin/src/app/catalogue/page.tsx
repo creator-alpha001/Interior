@@ -1,5 +1,6 @@
 import Link from "next/link";
 import {
+  collectAll,
   formatRupees,
   listCategories,
   listDomains,
@@ -20,14 +21,15 @@ export default async function CataloguePage({
   const sp = await searchParams;
   const tab = sp.tab === "packages" ? "packages" : "products";
 
-  const [domains, allProducts, allPackages, products, packages, categories] = await Promise.all([
+  const [domains, allProducts, allPackages, productPage, packages, categories] = await Promise.all([
     listDomains(),
-    listProducts(),
+    collectAll((cursor) => listProducts({ cursor })),
     listPackages(),
-    listProducts({ domainSlug: sp.domain }),
+    listProducts({ domainSlug: sp.domain, limit: 100 }),
     listPackages(sp.domain),
     listCategories(sp.domain),
   ]);
+  const products = productPage.items;
 
   const href = (patch: Record<string, string | undefined>) => {
     const params = new URLSearchParams();

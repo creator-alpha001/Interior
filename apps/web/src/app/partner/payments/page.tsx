@@ -1,14 +1,13 @@
 import { formatRupees, formatRupeesShort, listVendorInvoices, listVendorProjects } from "@repo/data";
 import { Badge, formatDate, invoiceStatus } from "@repo/ui";
 import { Metric, PageBody, PageHeader, Panel } from "@/components/partner/panel-ui";
-import { CURRENT_PROFESSIONAL_ID } from "@/lib/partner-session";
 
 export const metadata = { title: "Payments" };
 
 export default async function VendorPaymentsPage() {
   const [invoices, projects] = await Promise.all([
-    listVendorInvoices(CURRENT_PROFESSIONAL_ID),
-    listVendorProjects(CURRENT_PROFESSIONAL_ID),
+    listVendorInvoices(),
+    listVendorProjects(),
   ]);
 
   const sum = (status: string) =>

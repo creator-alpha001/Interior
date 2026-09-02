@@ -12,13 +12,15 @@ import type {
   Urgency,
 } from "@repo/types";
 import { toAgreementView, toLeadView, toProjectView } from "./mappers";
-import { delay, demoClientId, nextId, nowIso, store } from "./store";
+import { currentAgentId, currentClientId, currentUserId } from "./session";
+import { delay, nextId, nowIso, store } from "./store";
 
 /* ------------------------------------------------------------------ *
  * Reads
  * ------------------------------------------------------------------ */
 
-export async function listLeadsForClient(clientId = demoClientId): Promise<LeadView[]> {
+export async function listLeadsForClient(): Promise<LeadView[]> {
+  const clientId = await currentClientId();
   return delay(
     store.leads
       .filter((l) => l.clientId === clientId && l.overallStatus !== "archived")
@@ -32,9 +34,8 @@ export async function getLead(leadId: string): Promise<LeadView | null> {
   return delay(exists ? toLeadView(leadId) : null);
 }
 
-export async function listAgreementsForClient(
-  clientId = demoClientId,
-): Promise<AgreementView[]> {
+export async function listAgreementsForClient(): Promise<AgreementView[]> {
+  const clientId = await currentClientId();
   return delay(
     store.agreements
       .filter((a) => a.clientId === clientId)
@@ -48,7 +49,8 @@ export async function getAgreement(agreementId: string): Promise<AgreementView |
   return delay(exists ? toAgreementView(agreementId) : null);
 }
 
-export async function listProjectsForClient(clientId = demoClientId): Promise<ProjectView[]> {
+export async function listProjectsForClient(): Promise<ProjectView[]> {
+  const clientId = await currentClientId();
   return delay(
     store.projects
       .filter((p) => p.clientId === clientId)
@@ -88,11 +90,8 @@ export async function listVendorMessages(
 }
 
 /** A client writing in. Always lands in the platform thread. */
-export async function sendClientMessage(
-  leadDomainId: string,
-  clientId: string,
-  body: string,
-): Promise<Message> {
+export async function sendClientMessage(leadDomainId: string, body: string): Promise<Message> {
+  const clientId = await currentClientId();
   return delay(
     push({
       leadDomainId,
@@ -112,10 +111,10 @@ export async function sendClientMessage(
  */
 export async function relayToVendors(
   leadDomainId: string,
-  agentId: string,
   body: string,
   sourceMessageId?: string,
 ): Promise<Message[]> {
+  const agentId = await currentAgentId();
   const vendorIds = store.leadDomainAssignments
     .filter((a) => a.leadDomainId === leadDomainId && a.responseStatus === "accepted")
     .map((a) => a.professionalId);
@@ -137,10 +136,10 @@ export async function relayToVendors(
 
 export async function replyToClient(
   leadDomainId: string,
-  agentId: string,
   body: string,
   sourceMessageId?: string,
 ): Promise<Message> {
+  const agentId = await currentAgentId();
   return delay(
     push({
       leadDomainId,
@@ -174,7 +173,8 @@ function push(
   return message;
 }
 
-export async function listNotifications(userId: string): Promise<Notification[]> {
+export async function listNotifications(): Promise<Notification[]> {
+  const userId = await currentUserId();
   return delay(
     store.notifications
       .filter((n) => n.userId === userId)
@@ -216,7 +216,6 @@ export interface RequirementInput {
     indicativePrice?: number | null;
     notes?: string | null;
   }>;
-  clientId?: string;
 }
 
 /**
@@ -225,7 +224,7 @@ export interface RequirementInput {
  * difference is how many lead_domain rows get written.
  */
 export async function submitRequirement(input: RequirementInput): Promise<LeadView> {
-  const clientId = input.clientId ?? demoClientId;
+  const clientId = await currentClientId();
   const leadId = nextId("lead");
   const sequence = 1062 + store.leads.filter((l) => l.id.startsWith("lead-1")).length;
 

@@ -1,5 +1,4 @@
 import { listSupportTickets } from "@repo/data";
-import { DEMO_USER_ID } from "@/lib/session";
 import { NewTicketForm } from "@/components/account/new-ticket-form";
 import { TicketReplyForm } from "@/components/account/ticket-reply-form";
 import { Badge, Card, EmptyState, cn, formatDateTime } from "@repo/ui";
@@ -32,7 +31,7 @@ export default async function SupportPage({
   searchParams: Promise<{ raised?: string }>;
 }) {
   const sp = await searchParams;
-  const tickets = await listSupportTickets(DEMO_USER_ID);
+  const tickets = await listSupportTickets();
 
   return (
     <div className="space-y-6">

@@ -22,12 +22,13 @@ export default async function BlogPage({
   searchParams: Promise<{ category?: string; tag?: string }>;
 }) {
   const { category, tag } = await searchParams;
-  const [posts, categories, tags] = await Promise.all([
-    listPosts({ categorySlug: category, tagSlug: tag }),
+  const [postPage, categories, tags] = await Promise.all([
+    listPosts({ categorySlug: category, tagSlug: tag, limit: 48 }),
     listBlogCategories(),
     listBlogTags(),
   ]);
 
+  const posts = postPage.items;
   const [lead, ...rest] = posts;
   const isFiltered = Boolean(category || tag);
 

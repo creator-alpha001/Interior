@@ -6,15 +6,14 @@ import {
 } from "@repo/data";
 import { Badge, Media, formatDate } from "@repo/ui";
 import { Metric, PageBody, PageHeader, Panel } from "@/components/partner/panel-ui";
-import { CURRENT_PROFESSIONAL_ID } from "@/lib/partner-session";
 
 export const metadata = { title: "Profile" };
 
 export default async function VendorProfilePage() {
   const [dashboard, performance, portfolio] = await Promise.all([
-    getVendorDashboard(CURRENT_PROFESSIONAL_ID),
-    getVendorPerformance(CURRENT_PROFESSIONAL_ID),
-    listVendorPortfolio(CURRENT_PROFESSIONAL_ID),
+    getVendorDashboard(),
+    getVendorPerformance(),
+    listVendorPortfolio(),
   ]);
 
   const { professional } = dashboard;

@@ -1,6 +1,5 @@
 import {
   formatRupeesShort,
-  hasSignedPartnerAgreement,
   listCities,
   listDomains,
   listVendors,
@@ -153,7 +152,7 @@ export default async function VendorsPage({
                   <Badge tone={statusTone[row.professional.verificationStatus]}>
                     {row.professional.verificationStatus}
                   </Badge>
-                  {!hasSignedPartnerAgreement(row.professional.id) ? (
+                  {!row.hasSignedPartnerAgreement ? (
                     <Badge tone="warning">Agreement unsigned</Badge>
                   ) : null}
                 </div>

@@ -1,4 +1,5 @@
 import type { BlogPostView, PackageView, ProductView, ProfessionalSummary } from "@repo/types";
+import { USING_API, api } from "./client";
 import { toPackageView, toProductView, toProfessionalSummary } from "./mappers";
 import { delay, store } from "./store";
 
@@ -17,6 +18,10 @@ export interface SearchResults {
  * about wardrobes — with guides last as supporting reading.
  */
 export async function search(query: string, cityId?: string): Promise<SearchResults> {
+  if (USING_API) {
+    return api<SearchResults>("/search", { query: { q: query, city: cityId }, revalidate: 60 });
+  }
+
   const q = query.trim().toLowerCase();
   if (q.length < 2) {
     return delay({ query, total: 0, products: [], packages: [], professionals: [], posts: [] });
@@ -71,6 +76,12 @@ export async function search(query: string, cityId?: string): Promise<SearchResu
 export async function searchSuggestions(query: string): Promise<
   Array<{ label: string; hint: string; href: string }>
 > {
+  if (USING_API) {
+    // Type-ahead: cached briefly rather than tagged, because it fires per
+    // keystroke and staleness costs nothing here.
+    return api("/search/suggest", { query: { q: query }, revalidate: 60 });
+  }
+
   const q = query.trim().toLowerCase();
   if (q.length < 2) return delay([]);
 

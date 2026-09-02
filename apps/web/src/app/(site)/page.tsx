@@ -47,8 +47,17 @@ const steps = [
 
 export default async function HomePage() {
   const city = await getSelectedCity();
-  const [domains, banners, counts, featuredPackages, featuredProducts, pros, testimonials, posts, stats] =
-    await Promise.all([
+  const [
+    domains,
+    banners,
+    counts,
+    featuredPackages,
+    productPage,
+    proPage,
+    testimonials,
+    postPage,
+    stats,
+  ] = await Promise.all([
       listDomains(),
       listBanners(),
       countCatalogueByDomain(),
@@ -59,6 +68,10 @@ export default async function HomePage() {
       listPosts({ limit: 3 }),
       getPlatformStats(),
     ]);
+
+  const featuredProducts = productPage.items;
+  const pros = proPage.items;
+  const posts = postPage.items;
 
   const countFor = (domainId: string) => counts.find((c) => c.domainId === domainId);
   const hero = banners[0];

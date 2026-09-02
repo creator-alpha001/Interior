@@ -7,6 +7,7 @@
  */
 export * from "./client";
 export * from "./session";
+export * from "./uploads";
 export * from "./catalogue";
 export * from "./client-actions";
 export * from "./estimator";
@@ -19,7 +20,6 @@ export * from "./vendor";
 export * from "./content";
 export * from "./directory";
 export * from "./leads";
-export { demoClientId, store } from "./store";
 export {
   cityById,
   domainById,

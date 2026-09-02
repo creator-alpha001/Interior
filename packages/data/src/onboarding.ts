@@ -13,13 +13,19 @@ import type {
   VendorOnboarding,
 } from "@repo/types";
 import { partnerTerms } from "@repo/mock";
+import { currentProfessionalId, currentStaffUserId } from "./session";
 import { delay, nextId, nowIso, store } from "./store";
 
-export function getPartnerTerms(): PartnerTerms {
-  return partnerTerms;
+export async function getPartnerTerms(): Promise<PartnerTerms> {
+  return delay(partnerTerms);
 }
 
-export function getPartnerAgreement(professionalId: string): PartnerAgreement | null {
+/**
+ * Synchronous lookup, for code inside this package that is already holding the
+ * store. Not exported: every caller outside gets the async version, because
+ * with a backend this is a request.
+ */
+function findPartnerAgreement(professionalId: string): PartnerAgreement | null {
   return (
     store.partnerAgreements.find(
       (a) => a.professionalId === professionalId && a.status !== "superseded",
@@ -27,21 +33,34 @@ export function getPartnerAgreement(professionalId: string): PartnerAgreement | 
   );
 }
 
-/** True only when the vendor has signed the current version of the terms. */
-export function hasSignedPartnerAgreement(professionalId: string): boolean {
-  const agreement = getPartnerAgreement(professionalId);
-  return (
-    agreement?.status === "signed" && agreement.termsVersion === partnerTerms.version
-  );
+export async function getPartnerAgreement(
+  professionalId: string,
+): Promise<PartnerAgreement | null> {
+  return delay(findPartnerAgreement(professionalId));
 }
 
-export async function getVendorOnboarding(
+/** True only when the vendor has signed the current version of the terms. */
+export function hasSignedPartnerAgreementSync(professionalId: string): boolean {
+  const agreement = findPartnerAgreement(professionalId);
+  return agreement?.status === "signed" && agreement.termsVersion === partnerTerms.version;
+}
+
+export async function hasSignedPartnerAgreement(professionalId: string): Promise<boolean> {
+  return delay(hasSignedPartnerAgreementSync(professionalId));
+}
+
+/**
+ * A staff view of someone else's onboarding. Separate from `getVendorOnboarding`
+ * on purpose: a function that reads *any* vendor by id must be callable only by
+ * ops, and that is easier to keep true when the two have different names.
+ */
+export async function getVendorOnboardingFor(
   professionalId: string,
 ): Promise<VendorOnboarding | null> {
   const pro = store.professionals.find((p) => p.id === professionalId);
   if (!pro) return delay(null);
 
-  const agreement = getPartnerAgreement(professionalId);
+  const agreement = findPartnerAgreement(professionalId);
   const trades = store.professionalDomains.filter((pd) => pd.professionalId === professionalId);
   const approvedTrades = trades.filter((t) => t.verificationStatus === "approved");
   const areas = store.professionalServiceAreas.filter((a) => a.professionalId === professionalId);
@@ -91,7 +110,7 @@ export async function getVendorOnboarding(
       key: "agreement",
       label: "Partner agreement signed",
       description: `Version ${partnerTerms.version} of the terms of working with us.`,
-      done: hasSignedPartnerAgreement(professionalId),
+      done: hasSignedPartnerAgreementSync(professionalId),
       blocking: true,
       hint: agreement?.status === "signed" ? null : "You will receive no leads until this is signed.",
     },
@@ -133,7 +152,6 @@ export async function getVendorOnboarding(
 }
 
 export interface SignAgreementInput {
-  professionalId: string;
   signatoryName: string;
   signatoryRole: string;
   signatureText: string;
@@ -158,12 +176,13 @@ export async function signPartnerAgreement(
     throw new Error("A signature is required");
   }
 
-  const existing = getPartnerAgreement(input.professionalId);
+  const professionalId = await currentProfessionalId();
+  const existing = findPartnerAgreement(professionalId);
   if (existing) existing.status = "superseded";
 
   const agreement: PartnerAgreement = {
     id: nextId("pa"),
-    professionalId: input.professionalId,
+    professionalId,
     termsVersion: partnerTerms.version,
     status: "signed",
     signatureText: input.signatureText.trim(),
@@ -175,7 +194,7 @@ export async function signPartnerAgreement(
     // matters here so the audit trail does not need reworking later.
     signedFromIp: "recorded at signing",
     signedUserAgent: input.userAgent ?? null,
-    documentUrl: `/mock/partner-agreements/${input.professionalId}-${partnerTerms.version}.pdf`,
+    documentUrl: `/mock/partner-agreements/${professionalId}-${partnerTerms.version}.pdf`,
     createdAt: nowIso(),
     updatedAt: nowIso(),
     deletedAt: null,
@@ -186,7 +205,7 @@ export async function signPartnerAgreement(
     id: nextId("ntf"),
     userId: "user-admin",
     type: "agreement_signed",
-    title: `${store.professionals.find((p) => p.id === input.professionalId)?.companyName ?? "A vendor"} signed the partner agreement`,
+    title: `${store.professionals.find((p) => p.id === professionalId)?.companyName ?? "A vendor"} signed the partner agreement`,
     body: `Version ${partnerTerms.version}. They can now be assigned leads.`,
     entityType: "agreement",
     entityId: agreement.id,
@@ -207,8 +226,8 @@ export interface MilestoneProofInput {
   projectId: string;
   milestoneId: string;
   note: string;
-  /** How many photos were attached; the store fabricates placeholders. */
-  photoCount: number;
+  /** Already uploaded, via `uploadFiles` — this carries ids, not bytes. */
+  proof: MediaAsset[];
 }
 
 /**
@@ -222,14 +241,9 @@ export async function submitMilestoneProof(input: MilestoneProofInput): Promise<
   const milestone = project.milestones.find((m) => m.id === input.milestoneId);
   if (!milestone) throw new Error("Unknown stage");
 
-  const proof: MediaAsset[] = Array.from({ length: Math.max(1, input.photoCount) }, (_, i) => ({
-    id: nextId("media"),
-    url: `ph:proof:${input.milestoneId}-${i + 1}`,
-    type: "photo",
-    caption: milestone.title,
-  }));
+  if (input.proof.length === 0) throw new Error("At least one photograph is required");
 
-  milestone.proof = [...milestone.proof, ...proof];
+  milestone.proof = [...milestone.proof, ...input.proof];
   milestone.proofNote = input.note;
   milestone.submittedAt = nowIso();
   milestone.verification = "submitted";
@@ -262,8 +276,8 @@ export async function reviewMilestoneProof(
   milestoneId: string,
   approve: boolean,
   note: string | null,
-  reviewerUserId: string,
 ): Promise<void> {
+  const reviewerUserId = await currentStaffUserId();
   const project = store.projects.find((p) => p.id === projectId);
   if (!project) throw new Error("Unknown project");
   const milestone = project.milestones.find((m) => m.id === milestoneId);
@@ -295,4 +309,9 @@ export async function reviewMilestoneProof(
   }
   project.updatedAt = nowIso();
   return delay(undefined);
+}
+
+/** The signed-in professional's own onboarding progress. */
+export async function getVendorOnboarding(): Promise<VendorOnboarding | null> {
+  return getVendorOnboardingFor(await currentProfessionalId());
 }

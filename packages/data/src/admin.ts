@@ -19,6 +19,7 @@ import type {
   VerificationStatus,
 } from "@repo/types";
 import { domainById, toAgreementView, toProfessionalSummary } from "./mappers";
+import { hasSignedPartnerAgreementSync } from "./onboarding";
 import { delay, nextId, nowIso, store } from "./store";
 
 /* ------------------------------------------------------------------ *
@@ -143,6 +144,8 @@ export interface VendorRow {
   pendingDomainRequests: number;
   totalRevenue: Rupees;
   outstandingCommission: Rupees;
+  /** Unsigned vendors are in no lead pool, however verified they are. */
+  hasSignedPartnerAgreement: boolean;
 }
 
 export async function listVendors(filters: {
@@ -211,6 +214,7 @@ function toVendorRow(professionalId: string): VendorRow {
           i.professionalId === professionalId && ["pending", "overdue"].includes(i.status),
       )
       .reduce((sum, i) => sum + i.amount, 0),
+    hasSignedPartnerAgreement: hasSignedPartnerAgreementSync(professionalId),
   };
 }
 

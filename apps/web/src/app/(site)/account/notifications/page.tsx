@@ -1,5 +1,4 @@
 import { listNotifications } from "@repo/data";
-import { DEMO_USER_ID } from "@/lib/session";
 import { MarkNotificationsRead } from "@/components/account/mark-read";
 import { Badge, EmptyState, cn, formatDateTime } from "@repo/ui";
 
@@ -18,7 +17,7 @@ const typeLabel: Record<string, string> = {
 };
 
 export default async function NotificationsPage() {
-  const notifications = await listNotifications(DEMO_USER_ID);
+  const notifications = await listNotifications();
   const unread = notifications.filter((n) => !n.isRead).length;
 
   if (notifications.length === 0) {

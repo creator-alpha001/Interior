@@ -5,7 +5,6 @@ import { Badge, cn, formatDate, formatDateTime, materialSourceLabel, meetingStat
 import { QuoteBuilder } from "@/components/partner/quote-builder";
 import { VendorMessageForm } from "@/components/partner/vendor-message-form";
 import { PageBody, PageHeader, Panel } from "@/components/partner/panel-ui";
-import { CURRENT_PROFESSIONAL_ID } from "@/lib/partner-session";
 
 type Params = { id: string };
 
@@ -19,15 +18,12 @@ const unitForDomain: Record<string, string> = {
 export default async function VendorLeadPage({ params }: { params: Promise<Params> }) {
   const { id } = await params;
   const [card, thread] = await Promise.all([
-    getVendorLead(id, CURRENT_PROFESSIONAL_ID),
-    listVendorThread(id, CURRENT_PROFESSIONAL_ID),
+    getVendorLead(id),
+    listVendorThread(id),
   ]);
   if (!card) notFound();
 
-  const won = card.leadDomain.selectedProfessionalId === CURRENT_PROFESSIONAL_ID;
-  const lost =
-    card.leadDomain.selectedProfessionalId !== null &&
-    card.leadDomain.selectedProfessionalId !== CURRENT_PROFESSIONAL_ID;
+  const { won, lost } = card;
 
   return (
     <>

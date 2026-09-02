@@ -4,13 +4,12 @@ import { formatRupees, listVendorProjects } from "@repo/data";
 import { Badge, formatDate, projectStatus } from "@repo/ui";
 import { StageProofForm } from "@/components/partner/stage-proof-form";
 import { PageBody, PageHeader, Panel } from "@/components/partner/panel-ui";
-import { CURRENT_PROFESSIONAL_ID } from "@/lib/partner-session";
 
 type Params = { id: string };
 
 export default async function VendorProjectPage({ params }: { params: Promise<Params> }) {
   const { id } = await params;
-  const projects = await listVendorProjects(CURRENT_PROFESSIONAL_ID);
+  const projects = await listVendorProjects();
   const view = projects.find((p) => p.project.id === id);
   if (!view) notFound();
 

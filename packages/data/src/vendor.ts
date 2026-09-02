@@ -27,6 +27,7 @@ import type {
   Rupees,
 } from "@repo/types";
 import { cityById, domainById, toMaskedClientSummary } from "./mappers";
+import { currentProfessionalId } from "./session";
 import { delay, nextId, nowIso, store } from "./store";
 
 /* ------------------------------------------------------------------ *
@@ -56,6 +57,13 @@ export interface VendorLeadCard {
    * assumes the job is theirs.
    */
   competingQuotes: number;
+  /**
+   * Decided here rather than in the UI. A screen comparing
+   * `selectedProfessionalId` against a hardcoded "who am I" constant is a bug
+   * waiting for the day that constant is wrong.
+   */
+  won: boolean;
+  lost: boolean;
 }
 
 function toVendorLeadCard(assignment: LeadDomainAssignment, professionalId: string): VendorLeadCard {
@@ -99,13 +107,17 @@ function toVendorLeadCard(assignment: LeadDomainAssignment, professionalId: stri
     competingQuotes: store.quotes.filter(
       (q) => q.leadDomainId === leadDomain.id && q.professionalId !== professionalId,
     ).length,
+    won: leadDomain.selectedProfessionalId === professionalId,
+    lost:
+      leadDomain.selectedProfessionalId !== null &&
+      leadDomain.selectedProfessionalId !== professionalId,
   };
 }
 
 export async function listVendorLeads(
-  professionalId: string,
   filter: "all" | "new" | "quoting" | "won" | "lost" = "all",
 ): Promise<VendorLeadCard[]> {
+  const professionalId = await currentProfessionalId();
   const cards = store.leadDomainAssignments
     .filter((a) => a.professionalId === professionalId)
     .map((a) => toVendorLeadCard(a, professionalId))
@@ -116,12 +128,9 @@ export async function listVendorLeads(
         case "quoting":
           return Boolean(card.myQuote) && card.leadDomain.selectedProfessionalId === null;
         case "won":
-          return card.leadDomain.selectedProfessionalId === professionalId;
+          return card.won;
         case "lost":
-          return (
-            card.leadDomain.selectedProfessionalId !== null &&
-            card.leadDomain.selectedProfessionalId !== professionalId
-          );
+          return card.lost;
         default:
           return true;
       }
@@ -131,10 +140,8 @@ export async function listVendorLeads(
   return delay(cards);
 }
 
-export async function getVendorLead(
-  leadDomainId: string,
-  professionalId: string,
-): Promise<VendorLeadCard | null> {
+export async function getVendorLead(leadDomainId: string): Promise<VendorLeadCard | null> {
+  const professionalId = await currentProfessionalId();
   const assignment = store.leadDomainAssignments.find(
     (a) => a.leadDomainId === leadDomainId && a.professionalId === professionalId,
   );
@@ -143,10 +150,10 @@ export async function getVendorLead(
 
 export async function respondToLead(
   leadDomainId: string,
-  professionalId: string,
   response: "accepted" | "rejected",
   reason?: string,
 ): Promise<void> {
+  const professionalId = await currentProfessionalId();
   const assignment = store.leadDomainAssignments.find(
     (a) => a.leadDomainId === leadDomainId && a.professionalId === professionalId,
   );
@@ -164,7 +171,6 @@ export async function respondToLead(
 
 export interface QuoteDraftInput {
   leadDomainId: string;
-  professionalId: string;
   lineItems: Array<{ description: string; quantity: number; unit: string; rate: number }>;
   taxPercent: number;
   timelineDays: number;
@@ -180,10 +186,9 @@ export interface QuoteDraftInput {
  * lets ops see how a price moved and why.
  */
 export async function submitQuote(input: QuoteDraftInput): Promise<Quote> {
+  const professionalId = await currentProfessionalId();
   const existing = store.quotes
-    .filter(
-      (q) => q.leadDomainId === input.leadDomainId && q.professionalId === input.professionalId,
-    )
+    .filter((q) => q.leadDomainId === input.leadDomainId && q.professionalId === professionalId)
     .sort((a, b) => b.version - a.version)[0];
 
   const lineItems: QuoteLineItem[] = input.lineItems.map((line, i) => ({
@@ -201,7 +206,7 @@ export async function submitQuote(input: QuoteDraftInput): Promise<Quote> {
   const quote: Quote = {
     id: nextId("q"),
     leadDomainId: input.leadDomainId,
-    professionalId: input.professionalId,
+    professionalId,
     version: existing ? existing.version + 1 : 1,
     supersedesQuoteId: existing?.id ?? null,
     lineItems,
@@ -234,7 +239,7 @@ export async function submitQuote(input: QuoteDraftInput): Promise<Quote> {
   // The client is told a quote arrived, never given the vendor's number.
   const lead = store.leads.find((l) => l.id === leadDomain?.leadId);
   const client = store.clients.find((c) => c.id === lead?.clientId);
-  const pro = store.professionals.find((p) => p.id === input.professionalId);
+  const pro = store.professionals.find((p) => p.id === professionalId);
   if (client && pro) {
     store.notifications.push({
       id: nextId("ntf"),
@@ -273,10 +278,11 @@ export interface VendorDashboard {
   unreadMessages: number;
 }
 
-export async function getVendorDashboard(professionalId: string): Promise<VendorDashboard> {
+export async function getVendorDashboard(): Promise<VendorDashboard> {
+  const professionalId = await currentProfessionalId();
   const professional = store.professionals.find((p) => p.id === professionalId)!;
   const user = store.users.find((u) => u.id === professional.userId)!;
-  const cards = await listVendorLeads(professionalId);
+  const cards = await listVendorLeads();
   const today = nowIso().slice(0, 10);
 
   const invoices = store.commissionInvoices.filter((i) => i.professionalId === professionalId);
@@ -294,7 +300,7 @@ export async function getVendorDashboard(professionalId: string): Promise<Vendor
     quotesOut: cards.filter(
       (c) => c.myQuote && c.leadDomain.selectedProfessionalId === null,
     ).length,
-    wonThisPeriod: cards.filter((c) => c.leadDomain.selectedProfessionalId === professionalId)
+    wonThisPeriod: cards.filter((c) => c.won)
       .length,
     liveProjects: store.projects.filter(
       (p) => p.professionalId === professionalId && p.status === "ongoing",
@@ -321,9 +327,8 @@ export interface VendorAgreementView {
   invoice: CommissionInvoice | null;
 }
 
-export async function listVendorAgreements(
-  professionalId: string,
-): Promise<VendorAgreementView[]> {
+export async function listVendorAgreements(): Promise<VendorAgreementView[]> {
+  const professionalId = await currentProfessionalId();
   return delay(
     store.agreements
       .filter((a) => a.professionalId === professionalId)
@@ -363,9 +368,8 @@ export interface VendorProjectView {
   review: Review | null;
 }
 
-export async function listVendorProjects(
-  professionalId: string,
-): Promise<VendorProjectView[]> {
+export async function listVendorProjects(): Promise<VendorProjectView[]> {
+  const professionalId = await currentProfessionalId();
   return delay(
     store.projects
       .filter((p) => p.professionalId === professionalId)
@@ -408,9 +412,10 @@ export async function updateProjectProgress(
   return delay(undefined);
 }
 
-export async function listVendorInvoices(
-  professionalId: string,
-): Promise<Array<{ invoice: CommissionInvoice; agreementReference: string; domains: string[] }>> {
+export async function listVendorInvoices(): Promise<
+  Array<{ invoice: CommissionInvoice; agreementReference: string; domains: string[] }>
+> {
+  const professionalId = await currentProfessionalId();
   return delay(
     store.commissionInvoices
       .filter((i) => i.professionalId === professionalId)
@@ -437,10 +442,8 @@ export async function listVendorInvoices(
  * ------------------------------------------------------------------ */
 
 /** Their thread with our team for one lead. They never see the client thread. */
-export async function listVendorThread(
-  leadDomainId: string,
-  professionalId: string,
-): Promise<Message[]> {
+export async function listVendorThread(leadDomainId: string): Promise<Message[]> {
+  const professionalId = await currentProfessionalId();
   return delay(
     store.messages
       .filter(
@@ -453,11 +456,8 @@ export async function listVendorThread(
   );
 }
 
-export async function sendVendorMessage(
-  leadDomainId: string,
-  professionalId: string,
-  body: string,
-): Promise<Message> {
+export async function sendVendorMessage(leadDomainId: string, body: string): Promise<Message> {
+  const professionalId = await currentProfessionalId();
   const message: Message = {
     id: nextId("msg"),
     leadDomainId,
@@ -477,7 +477,8 @@ export async function sendVendorMessage(
   return delay(message);
 }
 
-export async function listVendorPortfolio(professionalId: string): Promise<PortfolioItem[]> {
+export async function listVendorPortfolio(): Promise<PortfolioItem[]> {
+  const professionalId = await currentProfessionalId();
   return delay(store.portfolioItems.filter((p) => p.professionalId === professionalId));
 }
 
@@ -497,7 +498,8 @@ export interface VendorPerformance {
   reviews: Array<{ review: Review; domain: Domain; clientName: string }>;
 }
 
-export async function getVendorPerformance(professionalId: string): Promise<VendorPerformance> {
+export async function getVendorPerformance(): Promise<VendorPerformance> {
+  const professionalId = await currentProfessionalId();
   const links = store.professionalDomains.filter((pd) => pd.professionalId === professionalId);
   const professional = store.professionals.find((p) => p.id === professionalId)!;
 
@@ -547,9 +549,10 @@ export async function getVendorPerformance(professionalId: string): Promise<Vend
   });
 }
 
-export async function listVendorVisits(professionalId: string): Promise<
+export async function listVendorVisits(): Promise<
   Array<{ meeting: Meeting; domain: Domain; client: MaskedClientSummary; leadReference: string }>
 > {
+  const professionalId = await currentProfessionalId();
   return delay(
     store.meetings
       .filter((m) => m.professionalId === professionalId)

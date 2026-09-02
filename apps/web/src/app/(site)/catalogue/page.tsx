@@ -24,12 +24,14 @@ export const metadata: Metadata = {
 };
 
 export default async function CataloguePage() {
-  const [domains, counts, packages, bestsellers] = await Promise.all([
+  const [domains, counts, packages, bestsellerPage] = await Promise.all([
     listDomains(),
     countCatalogueByDomain(),
     listFeaturedPackages(4),
     listProducts({ tags: ["bestseller"], limit: 8 }),
   ]);
+
+  const bestsellers = bestsellerPage.items;
 
   const categoriesByDomain = await Promise.all(
     domains.map(async (d) => ({ domain: d, categories: await listCategories(d.slug) })),

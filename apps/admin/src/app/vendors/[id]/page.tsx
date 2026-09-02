@@ -3,7 +3,7 @@ import {
   formatRupees,
   getProfessional,
   getVendor,
-  getVendorOnboarding,
+  getVendorOnboardingFor,
   listCommissionInvoices,
   listDomains,
 } from "@repo/data";
@@ -20,7 +20,7 @@ export default async function VendorDetailPage({ params }: { params: Promise<Par
     getProfessional(id),
     listDomains(),
     listCommissionInvoices(),
-    getVendorOnboarding(id),
+    getVendorOnboardingFor(id),
   ]);
   if (!row || !profile) notFound();
 

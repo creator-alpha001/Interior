@@ -27,7 +27,7 @@ export default async function OurWorkPage({
 
   // Portfolio entries carry a professional id, so each piece of work links back
   // to the person who actually did it rather than floating free.
-  const pros = await listProfessionals({ verifiedOnly: true });
+  const pros = (await listProfessionals({ verifiedOnly: true, limit: 200 })).items;
   const proById = new Map(pros.map((p) => [p.id, p]));
 
   return (

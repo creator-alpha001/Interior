@@ -22,11 +22,13 @@ export default async function ProfessionalsPage({
   searchParams: Promise<{ domain?: string; city?: string }>;
 }) {
   const { domain: domainSlug, city: cityId } = await searchParams;
-  const [domains, cities, pros] = await Promise.all([
+  const [domains, cities, proPage] = await Promise.all([
     listDomains(),
     listCities(),
-    listProfessionals({ domainSlug, cityId, verifiedOnly: true }),
+    listProfessionals({ domainSlug, cityId, verifiedOnly: true, limit: 48 }),
   ]);
+
+  const pros = proPage.items;
 
   const activeDomain = domains.find((d) => d.slug === domainSlug);
   const link = (next: { domain?: string; city?: string }) => {

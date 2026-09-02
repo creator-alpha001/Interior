@@ -26,7 +26,6 @@ import type {
   LeadDomainStatus,
   VerificationStatus,
 } from "@repo/types";
-import { CURRENT_ADMIN_USER_ID, CURRENT_AGENT_ID } from "@/lib/session";
 
 /* ---------------- Relay ---------------- */
 
@@ -36,12 +35,12 @@ import { CURRENT_ADMIN_USER_ID, CURRENT_AGENT_ID } from "@/lib/session";
  * assigned vendor at once.
  */
 export async function replyToClientAction(leadDomainId: string, body: string, leadId: string) {
-  await replyToClient(leadDomainId, CURRENT_AGENT_ID, body);
+  await replyToClient(leadDomainId, body);
   revalidatePath(`/leads/${leadId}`);
 }
 
 export async function relayToVendorsAction(leadDomainId: string, body: string, leadId: string) {
-  await relayToVendors(leadDomainId, CURRENT_AGENT_ID, body);
+  await relayToVendors(leadDomainId, body);
   revalidatePath(`/leads/${leadId}`);
 }
 
@@ -70,7 +69,7 @@ export async function setLeadDomainStatusAction(
 /* ---------------- Calls and visits ---------------- */
 
 export async function logCallAction(input: Omit<CallLogInput, "salesAgentId">) {
-  await logCall({ ...input, salesAgentId: CURRENT_AGENT_ID });
+  await logCall(input);
   revalidatePath(`/leads/${input.leadId}`);
   revalidatePath("/leads");
 }
@@ -95,7 +94,7 @@ export async function scheduleVisitAction(
   input: Omit<ScheduleVisitInput, "coordinatorId">,
   leadId: string,
 ) {
-  await scheduleVisit({ ...input, coordinatorId: CURRENT_AGENT_ID });
+  await scheduleVisit(input);
   revalidatePath(`/leads/${leadId}`);
   revalidatePath("/visits");
   revalidatePath("/my-day");
@@ -187,7 +186,7 @@ export async function reviewStageAction(
   note: string | null,
   leadId: string,
 ) {
-  await reviewMilestoneProof(projectId, milestoneId, approve, note, CURRENT_ADMIN_USER_ID);
+  await reviewMilestoneProof(projectId, milestoneId, approve, note);
   revalidatePath(`/leads/${leadId}`);
   revalidatePath("/my-day");
   revalidatePath("/");

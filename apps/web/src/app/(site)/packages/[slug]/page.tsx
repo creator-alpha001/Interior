@@ -36,10 +36,12 @@ export default async function PackagePage({ params }: { params: Promise<Params> 
   if (!view) notFound();
 
   const { servicePackage: pkg, domain, items } = view;
-  const [pros, siblings] = await Promise.all([
+  const [proPage, siblings] = await Promise.all([
     listProfessionals({ domainSlug: domain.slug, verifiedOnly: true, limit: 3 }),
     listPackages(domain.slug),
   ]);
+
+  const pros = proPage.items;
 
   const related = siblings.filter((s) => s.servicePackage.id !== pkg.id).slice(0, 3);
 

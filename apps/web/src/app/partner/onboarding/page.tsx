@@ -4,14 +4,13 @@ import { getVendorDashboard, getVendorOnboarding } from "@repo/data";
 import { Badge, cn } from "@repo/ui";
 import { PartnerAgreementSigner } from "@/components/partner/partner-agreement-signer";
 import { PageBody, PageHeader, Panel } from "@/components/partner/panel-ui";
-import { CURRENT_PROFESSIONAL_ID } from "@/lib/partner-session";
 
 export const metadata = { title: "Getting set up" };
 
 export default async function OnboardingPage() {
   const [onboarding, dashboard] = await Promise.all([
-    getVendorOnboarding(CURRENT_PROFESSIONAL_ID),
-    getVendorDashboard(CURRENT_PROFESSIONAL_ID),
+    getVendorOnboarding(),
+    getVendorDashboard(),
   ]);
   if (!onboarding) notFound();
 

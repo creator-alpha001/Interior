@@ -2,7 +2,6 @@ import Link from "next/link";
 import { formatRupees, listVendorLeads } from "@repo/data";
 import { Badge, formatDate, materialSourceLabel, urgencyLabel } from "@repo/ui";
 import { FilterBar, FilterGroup, PageBody, PageHeader } from "@/components/partner/panel-ui";
-import { CURRENT_PROFESSIONAL_ID } from "@/lib/partner-session";
 
 export const metadata = { title: "Leads" };
 
@@ -17,8 +16,8 @@ export default async function VendorLeadsPage({
   const filter = (sp.filter as Filter) ?? "all";
 
   const [all, cards] = await Promise.all([
-    listVendorLeads(CURRENT_PROFESSIONAL_ID),
-    listVendorLeads(CURRENT_PROFESSIONAL_ID, filter),
+    listVendorLeads(),
+    listVendorLeads(filter),
   ]);
 
   const count = (f: Filter) =>
@@ -27,11 +26,8 @@ export default async function VendorLeadsPage({
       : all.filter((c) => {
           if (f === "new") return c.assignment.responseStatus === "pending" || !c.myQuote;
           if (f === "quoting") return Boolean(c.myQuote) && c.leadDomain.selectedProfessionalId === null;
-          if (f === "won") return c.leadDomain.selectedProfessionalId === CURRENT_PROFESSIONAL_ID;
-          return (
-            c.leadDomain.selectedProfessionalId !== null &&
-            c.leadDomain.selectedProfessionalId !== CURRENT_PROFESSIONAL_ID
-          );
+          if (f === "won") return c.won;
+          return c.lost;
         }).length;
 
   return (
@@ -65,10 +61,7 @@ export default async function VendorLeadsPage({
         ) : (
           <div className="space-y-3">
             {cards.map((card) => {
-              const won = card.leadDomain.selectedProfessionalId === CURRENT_PROFESSIONAL_ID;
-              const lost =
-                card.leadDomain.selectedProfessionalId !== null &&
-                card.leadDomain.selectedProfessionalId !== CURRENT_PROFESSIONAL_ID;
+              const { won, lost } = card;
 
               return (
                 <Link

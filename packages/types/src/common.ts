@@ -41,3 +41,21 @@ export interface MediaAsset {
   type: "photo" | "video" | "document";
   caption?: string;
 }
+
+/**
+ * One page of a list, plus what is needed to ask for the next.
+ *
+ * Every list that grows with the business returns this rather than a bare
+ * array. Cursors rather than page numbers because rows are inserted while
+ * somebody is paging, and offset paging silently skips or repeats them.
+ */
+export interface Paginated<T> {
+  items: T[];
+  /** Opaque. Pass back as `cursor` to get the next page; null on the last. */
+  nextCursor: string | null;
+  /** Rows matching the filters, ignoring pagination. */
+  total: number;
+}
+
+/** How many rows a list returns when the caller does not say. */
+export const DEFAULT_PAGE_SIZE = 24;

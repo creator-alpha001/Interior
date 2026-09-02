@@ -21,7 +21,7 @@ npm run build        # builds both
 
 The professional portal lives at `/partner` on the customer site, so vendors sign in at the same address customers use rather than needing a URL of their own. The admin panel stays a separate deployment — it carries commission figures, vendor margins and customer contact details, and that is worth keeping as a network boundary rather than a route check.
 
-Each surface is signed in as a fixed demo identity — Priya Sharma on the customer site (`src/lib/session.ts`), Studio Aarohi Interiors in the portal (`src/lib/partner-session.ts`), Kavita Bisht in ops. That single constant becomes a session lookup when auth is built.
+Each surface is signed in as a fixed demo identity — Priya Sharma as the customer, Studio Aarohi Interiors in the portal, Kavita Bisht in ops. They live in one place, `DEMO_ACTORS` in `packages/data/src/session.ts`, and are used only because no session resolver is registered yet. Each app registers one in `src/instrumentation.ts`; filling in that callback is what turns the demo identities off.
 
 ---
 
@@ -39,6 +39,8 @@ packages/ui      The design system, shared across both apps.
 ```
 
 **The seam that matters:** screens call `@repo/data`, never `@repo/mock`. Today those functions resolve against an in-memory store; when the backend lands, only the function bodies change. Signatures, view models and screens stay as they are.
+
+Set `NEXT_PUBLIC_API_URL` and the public catalogue, blog, directory and search already stop reading seed data and start calling the backend — those are wired. `API.md` is the contract, and says which sections still resolve locally.
 
 ---
 
@@ -60,12 +62,18 @@ These shape the whole system, so they are worth reading before changing anything
 
 **A stage is done when somebody checked, not when somebody said so.** Vendors close out project stages by uploading photographs; ops approve them; only then does the customer's progress bar move.
 
+**No function takes the caller's own id.** `listLeadsForClient()` asks who is signed in rather than accepting a `clientId`, because the day that argument comes from a browser is the day one customer can read another's leads. Ids are parameters only for records being *addressed*, never for the caller.
+
+**Lists that grow return a page, not an array.** `listProducts`, `listPosts` and `listProfessionals` return `{ items, nextCursor, total }`. Retrofitting that later would have meant touching every call site.
+
 ---
 
 ## Not built yet
 
-- Backend, database and real authentication — the data layer is the seam for these
+- Backend, database and real authentication — the seams are in place: `configureSession` for auth, `readThrough`/`api` for reads, `/uploads/tickets` for files
 - The two mobile apps (client and professional)
-- Blog pagination; a month-grid calendar for site visits
+- Paging **controls** in the UI — the data layer pages, but no screen yet renders a "next page" button; today's page sizes cover the seed data
+- Ops lists (`listOpsLeads`, `listVendors`) are unpaged, because the dashboards aggregate across every row. Those aggregates need their own endpoints before those lists can page
+- A month-grid calendar for site visits
 
 Catalogue and portfolio imagery is rendered as designed placeholder tiles from `ph:` tokens in the seed data. Swapping in real photography means changing those strings — the `Media` component already handles normal image URLs.

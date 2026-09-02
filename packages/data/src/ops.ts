@@ -19,8 +19,9 @@ import type {
   Urgency,
 } from "@repo/types";
 import { cityById, domainById, toLeadView, toProfessionalSummary } from "./mappers";
-import { hasSignedPartnerAgreement } from "./onboarding";
+import { hasSignedPartnerAgreementSync } from "./onboarding";
 import { recomputeLeadStatus } from "./leads";
+import { currentAgentId } from "./session";
 import { delay, nextId, nowIso, store } from "./store";
 
 /* ------------------------------------------------------------------ *
@@ -246,7 +247,7 @@ export async function getVendorPool(leadDomainId: string): Promise<VendorPoolEnt
       approved &&
       serves &&
       pro.verificationStatus === "verified" &&
-      hasSignedPartnerAgreement(pro.id)
+      hasSignedPartnerAgreementSync(pro.id)
     );
   });
 
@@ -387,7 +388,6 @@ export async function setLeadDomainStatus(
 
 export interface CallLogInput {
   leadId: string;
-  salesAgentId: string;
   callStatus: LeadSalesActivity["callStatus"];
   remarks: string;
   followUpDate?: string | null;
@@ -398,10 +398,11 @@ export interface CallLogInput {
  * gets captured — exact sizes, finishes, site constraints.
  */
 export async function logCall(input: CallLogInput): Promise<LeadSalesActivity> {
+  const salesAgentId = await currentAgentId();
   const activity: LeadSalesActivity = {
     id: nextId("lsa"),
     leadId: input.leadId,
-    salesAgentId: input.salesAgentId,
+    salesAgentId,
     callStatus: input.callStatus,
     remarks: input.remarks,
     recordingUrl: null,
@@ -414,7 +415,7 @@ export async function logCall(input: CallLogInput): Promise<LeadSalesActivity> {
 
   const lead = store.leads.find((l) => l.id === input.leadId);
   if (lead) {
-    if (!lead.assignedSalesAgentId) lead.assignedSalesAgentId = input.salesAgentId;
+    if (!lead.assignedSalesAgentId) lead.assignedSalesAgentId = salesAgentId;
     if (lead.overallStatus === "new") lead.overallStatus = "verified";
     lead.updatedAt = nowIso();
   }
@@ -441,7 +442,6 @@ export interface ScheduleVisitInput {
   professionalId: string;
   scheduledAt: string;
   type: MeetingType;
-  coordinatorId: string;
   notes?: string | null;
 }
 
@@ -450,6 +450,7 @@ export interface ScheduleVisitInput {
  * address is released to the vendor at this point and not before.
  */
 export async function scheduleVisit(input: ScheduleVisitInput): Promise<Meeting> {
+  const coordinatorId = await currentAgentId();
   const leadDomain = store.leadDomains.find((ld) => ld.id === input.leadDomainId)!;
   const lead = store.leads.find((l) => l.id === leadDomain.leadId)!;
   const client = store.clients.find((c) => c.id === lead.clientId)!;
@@ -463,7 +464,7 @@ export async function scheduleVisit(input: ScheduleVisitInput): Promise<Meeting>
     location: client.address ?? cityById(lead.cityId).name,
     status: "confirmed",
     notes: input.notes ?? null,
-    coordinatorId: input.coordinatorId,
+    coordinatorId,
     addressReleasedAt: nowIso(),
     rescheduleRequestedAt: null,
     rescheduleNote: null,
@@ -522,9 +523,10 @@ export interface SalesDashboard {
   byDomain: Array<{ domain: Domain; count: number }>;
 }
 
-export async function getSalesDashboard(agentId?: string): Promise<SalesDashboard> {
-  const rows = await listOpsLeads(agentId ? { agentId } : {});
-  const agent = agentId ? store.salesAgents.find((s) => s.id === agentId) : undefined;
+export async function getSalesDashboard(): Promise<SalesDashboard> {
+  const agentId = await currentAgentId();
+  const rows = await listOpsLeads({ agentId });
+  const agent = store.salesAgents.find((s) => s.id === agentId);
   const agentUser = agent ? store.users.find((u) => u.id === agent.userId) : undefined;
   const today = nowIso().slice(0, 10);
 

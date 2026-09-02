@@ -14,7 +14,8 @@ import type {
   SupportTicket,
   TicketReply,
 } from "@repo/types";
-import { delay, demoClientId, nextId, nowIso, store } from "./store";
+import { currentClientId, currentUserId } from "./session";
+import { delay, nextId, nowIso, store } from "./store";
 
 /* ---------------- Reviews ---------------- */
 
@@ -214,7 +215,8 @@ export async function requestReschedule(meetingId: string, note: string): Promis
 
 /* ---------------- Notifications ---------------- */
 
-export async function markNotificationsRead(userId: string): Promise<number> {
+export async function markNotificationsRead(): Promise<number> {
+  const userId = await currentUserId();
   const unread = store.notifications.filter((n) => n.userId === userId && !n.isRead);
   for (const n of unread) {
     n.isRead = true;
@@ -226,7 +228,6 @@ export async function markNotificationsRead(userId: string): Promise<number> {
 /* ---------------- Support ---------------- */
 
 export interface TicketInput {
-  raisedByUserId: string;
   category: SupportTicket["category"];
   subject: string;
   body: string;
@@ -240,7 +241,7 @@ export async function createSupportTicket(input: TicketInput): Promise<SupportTi
     reference: `TKT-${new Date().getFullYear()}-${String(
       store.supportTickets.length + 200,
     ).padStart(4, "0")}`,
-    raisedByUserId: input.raisedByUserId,
+    raisedByUserId: await currentUserId(),
     leadId: input.leadId ?? null,
     projectId: input.projectId ?? null,
     category: input.category,
@@ -258,7 +259,8 @@ export async function createSupportTicket(input: TicketInput): Promise<SupportTi
   return delay(ticket);
 }
 
-export async function listSupportTickets(userId: string): Promise<SupportTicket[]> {
+export async function listSupportTickets(): Promise<SupportTicket[]> {
+  const userId = await currentUserId();
   return delay(
     store.supportTickets
       .filter((t) => t.raisedByUserId === userId)
@@ -297,9 +299,8 @@ export interface ReferralSummary {
   referrals: Array<{ referral: Referral; name: string }>;
 }
 
-export async function getReferralSummary(
-  clientId = demoClientId,
-): Promise<ReferralSummary> {
+export async function getReferralSummary(): Promise<ReferralSummary> {
+  const clientId = await currentClientId();
   const client = store.clients.find((c) => c.id === clientId)!;
   const rows = store.referrals.filter((r) => r.referrerUserId === client.userId);
 

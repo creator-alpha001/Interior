@@ -2,14 +2,13 @@ import { formatRupees, listVendorAgreements, listVendorProjects } from "@repo/da
 import { Badge, agreementStatus, formatDate, projectStatus } from "@repo/ui";
 import Link from "next/link";
 import { PageBody, PageHeader, Panel } from "@/components/partner/panel-ui";
-import { CURRENT_PROFESSIONAL_ID } from "@/lib/partner-session";
 
 export const metadata = { title: "Work" };
 
 export default async function VendorProjectsPage() {
   const [projects, agreements] = await Promise.all([
-    listVendorProjects(CURRENT_PROFESSIONAL_ID),
-    listVendorAgreements(CURRENT_PROFESSIONAL_ID),
+    listVendorProjects(),
+    listVendorAgreements(),
   ]);
 
   const ongoing = projects.filter((p) => p.project.status === "ongoing");

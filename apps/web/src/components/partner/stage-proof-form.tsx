@@ -1,7 +1,8 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import type { ProjectMilestone } from "@repo/types";
+import { UploadError, maxFilesFor, uploadFile } from "@repo/data";
+import type { MediaAsset, ProjectMilestone } from "@repo/types";
 import { Media, cn, formatDateTime } from "@repo/ui";
 import { submitStageProofAction } from "@/app/partner/actions";
 
@@ -23,8 +24,32 @@ export function StageProofForm({
 }) {
   const [open, setOpen] = useState(false);
   const [note, setNote] = useState("");
-  const [photos, setPhotos] = useState<Array<{ name: string; url: string }>>([]);
+  const [photos, setPhotos] = useState<MediaAsset[]>([]);
+  const [uploading, setUploading] = useState(false);
+  const [uploadError, setUploadError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+
+  const maxPhotos = maxFilesFor("milestone_proof");
+
+  // Uploaded as they are picked, not held as raw files until submit — a stage
+  // submission on site data should fail on the first bad photo, not after the
+  // vendor has written the note and pressed the button.
+  async function addFiles(files: File[]) {
+    setUploadError(null);
+    setUploading(true);
+    try {
+      for (const file of files) {
+        const asset = await uploadFile(file, "milestone_proof");
+        setPhotos((prev) => [...prev, asset]);
+      }
+    } catch (error) {
+      setUploadError(
+        error instanceof UploadError ? error.message : "That photo could not be uploaded.",
+      );
+    } finally {
+      setUploading(false);
+    }
+  }
 
   const state = milestone.verification;
 
@@ -147,15 +172,15 @@ export function StageProofForm({
               <div className="mt-1.5 flex flex-wrap gap-2">
                 {photos.map((photo, i) => (
                   <div
-                    key={photo.url}
+                    key={photo.id}
                     className="group relative h-20 w-20 overflow-hidden rounded-md border border-line"
                   >
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={photo.url} alt={photo.name} className="h-full w-full object-cover" />
+                    <img src={photo.url} alt={photo.caption ?? "Stage photo"} className="h-full w-full object-cover" />
                     <button
                       type="button"
                       onClick={() => setPhotos((prev) => prev.filter((_, idx) => idx !== i))}
-                      aria-label={`Remove ${photo.name}`}
+                      aria-label={`Remove ${photo.caption ?? "photo"}`}
                       className="absolute right-1 top-1 grid h-5 w-5 place-items-center rounded-full bg-black/60 text-[11px] text-white"
                     >
                       ×
@@ -174,12 +199,12 @@ export function StageProofForm({
                     capture="environment"
                     className="hidden"
                     onChange={(e) => {
-                      const files = Array.from(e.target.files ?? []).slice(0, 8 - photos.length);
-                      setPhotos((prev) => [
-                        ...prev,
-                        ...files.map((f) => ({ name: f.name, url: URL.createObjectURL(f) })),
-                      ]);
+                      const files = Array.from(e.target.files ?? []).slice(
+                        0,
+                        maxPhotos - photos.length,
+                      );
                       e.target.value = "";
+                      void addFiles(files);
                     }}
                   />
                 </label>
@@ -199,15 +224,10 @@ export function StageProofForm({
               </button>
               <button
                 type="button"
-                disabled={pending || note.trim().length < 5 || photos.length === 0}
+                disabled={pending || uploading || note.trim().length < 5 || photos.length === 0}
                 onClick={() =>
                   startTransition(async () => {
-                    await submitStageProofAction(
-                      projectId,
-                      milestone.id,
-                      note.trim(),
-                      photos.length,
-                    );
+                    await submitStageProofAction(projectId, milestone.id, note.trim(), photos);
                     setOpen(false);
                     setNote("");
                     setPhotos([]);
@@ -218,7 +238,9 @@ export function StageProofForm({
                 {pending ? "Submitting…" : "Submit for review"}
               </button>
             </div>
-            {photos.length === 0 ? (
+            {uploadError ? (
+              <p className="mt-2 text-right text-[11.5px] text-danger">{uploadError}</p>
+            ) : photos.length === 0 ? (
               <p className="mt-2 text-right text-[11.5px] text-ink-4">
                 At least one photo is required.
               </p>

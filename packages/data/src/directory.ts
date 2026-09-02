@@ -1,4 +1,11 @@
-import type { PortfolioItem, ProfessionalProfile, ProfessionalSummary } from "@repo/types";
+import {
+  DEFAULT_PAGE_SIZE,
+  type Paginated,
+  type PortfolioItem,
+  type ProfessionalProfile,
+  type ProfessionalSummary,
+} from "@repo/types";
+import { USING_API, api, paginate, readThrough } from "./client";
 import { toProfessionalProfile, toProfessionalSummary } from "./mappers";
 import { delay, store } from "./store";
 
@@ -8,6 +15,7 @@ export interface ProfessionalQuery {
   search?: string;
   verifiedOnly?: boolean;
   limit?: number;
+  cursor?: string | null;
 }
 
 /**
@@ -16,7 +24,21 @@ export interface ProfessionalQuery {
  */
 export async function listProfessionals(
   query: ProfessionalQuery = {},
-): Promise<ProfessionalSummary[]> {
+): Promise<Paginated<ProfessionalSummary>> {
+  if (USING_API) {
+    return api<Paginated<ProfessionalSummary>>("/professionals", {
+      tags: ["professionals"],
+      query: {
+        domain: query.domainSlug,
+        city: query.cityId,
+        search: query.search,
+        verifiedOnly: query.verifiedOnly,
+        limit: query.limit ?? DEFAULT_PAGE_SIZE,
+        cursor: query.cursor,
+      },
+    });
+  }
+
   const domain = query.domainSlug
     ? store.domains.find((d) => d.slug === query.domainSlug)
     : undefined;
@@ -59,16 +81,25 @@ export async function listProfessionals(
         b.completedProjects - a.completedProjects,
     );
 
-  return delay(query.limit ? summaries.slice(0, query.limit) : summaries);
+  return delay(paginate(summaries, query.limit ?? DEFAULT_PAGE_SIZE, query.cursor));
 }
 
 export async function getProfessional(id: string): Promise<ProfessionalProfile | null> {
-  const exists = store.professionals.some((p) => p.id === id);
-  return delay(exists ? toProfessionalProfile(id) : null);
+  return readThrough(`/professionals/${id}`, { tags: ["professionals"] }, () => {
+    const exists = store.professionals.some((p) => p.id === id);
+    return delay(exists ? toProfessionalProfile(id) : null);
+  });
 }
 
 /** Portfolio gallery for the public "Browse work" screen, filterable by domain. */
 export async function listPortfolio(domainSlug?: string, limit?: number): Promise<PortfolioItem[]> {
+  if (USING_API) {
+    return api<PortfolioItem[]>("/portfolio", {
+      tags: ["portfolio"],
+      query: { domain: domainSlug, limit },
+    });
+  }
+
   const domain = domainSlug ? store.domains.find((d) => d.slug === domainSlug) : undefined;
   const items = store.portfolioItems
     .filter((p) => p.moderationStatus === "approved")
@@ -82,6 +113,8 @@ export async function getPlatformStats(): Promise<{
   cities: number;
   avgRating: number;
 }> {
+  if (USING_API) return api("/stats", { tags: ["stats"] });
+
   const verified = store.professionals.filter((p) => p.verificationStatus === "verified");
   const projects = verified.reduce((sum, p) => sum + p.completedProjects, 0);
   const avg =

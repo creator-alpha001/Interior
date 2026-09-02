@@ -5,7 +5,6 @@ import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   createSupportTicket,
-  demoClientId,
   generateAgreements,
   markNotificationsRead,
   replyToTicket,
@@ -17,7 +16,6 @@ import {
   submitReview,
 } from "@repo/data";
 import type { RequirementInput, ReviewInput, TicketInput } from "@repo/data";
-import { DEMO_USER_ID } from "@/lib/session";
 
 /**
  * Server actions are the seam the real API will sit behind. Today they call the
@@ -51,7 +49,7 @@ export async function sendClientMessageAction(
   body: string,
   leadId: string,
 ) {
-  await sendClientMessage(leadDomainId, demoClientId, body);
+  await sendClientMessage(leadDomainId, body);
   revalidatePath(`/account/requirements/${leadId}`);
 }
 
@@ -83,7 +81,7 @@ export async function submitReviewAction(input: ReviewInput) {
 /* ---------------- Notifications ---------------- */
 
 export async function markNotificationsReadAction() {
-  await markNotificationsRead(DEMO_USER_ID);
+  await markNotificationsRead();
   revalidatePath("/account/notifications");
   revalidatePath("/account");
 }
@@ -91,7 +89,7 @@ export async function markNotificationsReadAction() {
 /* ---------------- Support ---------------- */
 
 export async function createTicketAction(input: Omit<TicketInput, "raisedByUserId">) {
-  await createSupportTicket({ ...input, raisedByUserId: DEMO_USER_ID });
+  await createSupportTicket(input);
   revalidatePath("/account/support");
   redirect("/account/support?raised=1");
 }

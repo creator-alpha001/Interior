@@ -3,7 +3,6 @@ import { formatRupees, formatRupeesShort, getMyDay } from "@repo/data";
 import type { OpsLeadRow } from "@repo/data";
 import { Badge, formatDate, urgencyLabel } from "@repo/ui";
 import { Metric, PageBody, PageHeader, Panel } from "@/components/ops-ui";
-import { CURRENT_AGENT_ID } from "@/lib/session";
 
 export const metadata = { title: "My day" };
 
@@ -13,7 +12,7 @@ export const metadata = { title: "My day" };
  * if ignored, unanswered clients and unpaid commission, lead the page.
  */
 export default async function MyDayPage() {
-  const day = await getMyDay(CURRENT_AGENT_ID);
+  const day = await getMyDay();
   const { commission } = day;
 
   // One lead can need several things; the queue is deduplicated by urgency of
