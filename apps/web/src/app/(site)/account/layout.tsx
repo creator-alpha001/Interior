@@ -1,6 +1,6 @@
 import { listAgreementsForClient, listLeadsForClient, listNotifications } from "@repo/data";
 import { AccountNav } from "@/components/account/account-nav";
-import { Container } from "@repo/ui";
+import { ButtonLink, Container } from "@repo/ui";
 
 export default async function AccountLayout({ children }: { children: React.ReactNode }) {
   const [leads, agreements, notifications] = await Promise.all([
@@ -22,6 +22,13 @@ export default async function AccountLayout({ children }: { children: React.Reac
               </p>
               <h1 className="mt-2 text-[30px] leading-none sm:text-[34px]">My requirements</h1>
             </div>
+            {/* The primary action of this whole area, so it sits with the
+                heading rather than only on the list tab. Full width on mobile,
+                where a right-aligned button next to a wrapped heading reads as
+                an afterthought. */}
+            <ButtonLink href="/submit-requirement" className="w-full sm:w-auto">
+              Post a new requirement
+            </ButtonLink>
           </div>
           <AccountNav
             counts={{

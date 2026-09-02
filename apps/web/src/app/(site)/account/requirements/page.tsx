@@ -17,15 +17,10 @@ export default async function RequirementsPage() {
 
   return (
     <div className="space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-[15px] sm:text-[14px] text-ink-3">
-          {leads.length} requirements ·{" "}
-          {leads.reduce((sum, l) => sum + l.domains.length, 0)} service tracks
-        </p>
-        <ButtonLink href="/submit-requirement" size="sm">
-          New requirement
-        </ButtonLink>
-      </div>
+      <p className="text-[15px] sm:text-[14px] text-ink-3">
+        {leads.length} requirements ·{" "}
+        {leads.reduce((sum, l) => sum + l.domains.length, 0)} service tracks
+      </p>
 
       {leads.map((lead) => (
         <Link
