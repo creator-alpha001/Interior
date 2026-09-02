@@ -1,11 +1,14 @@
 # Deploying the previews
 
-Three apps, three Vercel projects, deployed by GitHub Actions on every push to
-`main`. Everything runs on seed data — there is no backend and no database to
-provision.
+Three apps, three Vercel projects, one repository. Everything runs on seed data
+— there is no backend or database to provision.
+
+**Setup happens three times. Deployment happens once.** Creating the projects is
+a one-off: a Vercel project maps to exactly one app and one URL, so there are
+three of them. After that, a single `git push` rebuilds all three.
 
 The previews are **password-protected and non-indexable**. This is unreleased
-work sitting on sample data; nobody should reach it by stumbling across the URL.
+work sitting on sample data; nobody should reach it by stumbling across a URL.
 
 ---
 
@@ -13,79 +16,76 @@ work sitting on sample data; nobody should reach it by stumbling across the URL.
 
 ### 1. Create three Vercel projects
 
-In Vercel, import this repository three times. The only setting that differs is
-the root directory:
+Import this repository three times. Only two fields differ each time:
 
-| Project name | Root directory | Suggested domain |
-| --- | --- | --- |
-| `aangan-web` | `apps/web` | `preview.aangan.com` |
-| `aangan-admin` | `apps/admin` | `ops-preview.aangan.com` |
-| `aangan-vendor` | `apps/vendor` | `partners-preview.aangan.com` |
+| Project name | Root Directory |
+| --- | --- |
+| `interior-web` | `apps/web` |
+| `interior-admin` | `apps/admin` |
+| `interior-vendor` | `apps/vendor` |
 
-Vercel detects Next.js automatically. Two settings matter:
+Vercel detects Next.js automatically. One setting matters:
 
-- **Include files outside the root directory** must stay **on** (it is the
-  default). Each app imports the shared packages, so a build limited to
-  `apps/web` alone would fail.
-- **Turn off Vercel's own Git integration** for all three (Settings → Git →
-  disconnect), so deployments happen through this workflow rather than twice on
-  every push.
+**"Include files outside the Root Directory"** must stay **on** — it is behind
+the *Edit* button next to Root Directory. Every app imports `@repo/ui`,
+`@repo/data`, `@repo/types` and `@repo/mock` from `packages/` at the repository
+root. Without this the build fails with "module not found" on all four. It is
+the most common way a monorepo import fails on the first attempt.
 
-The workflow runs the Vercel CLI from the repository root and lets each
-project's Root Directory setting select the app. Running it inside `apps/web`
-would nest that path twice and fail.
+Leave Vercel's Git integration **connected**. That is what makes one push deploy
+everything.
 
 ### 2. Set environment variables on each project
 
-Settings → Environment Variables, for Production:
+Add these **before the first deploy**, in the Environment Variables section of
+the import screen:
 
-| Variable | Value | Which apps |
-| --- | --- | --- |
-| `PREVIEW_USER` | a shared username, e.g. `team` | all three |
-| `PREVIEW_PASSWORD` | a shared password | all three |
-| `NEXT_PUBLIC_DEPLOY_ENV` | `preview` | all three |
-
-`PREVIEW_PASSWORD` is what turns the gate on. Leave it unset locally and the
-apps run open, which is what you want in development.
-
-`NEXT_PUBLIC_DEPLOY_ENV` must stay anything other than `production` — that is
-what keeps `robots.txt` disallowing everything and the sitemap empty. Set it to
-`production` only on a real launch.
-
-### 3. Add repository secrets
-
-GitHub → Settings → Secrets and variables → Actions:
-
-| Secret | Where to find it |
+| Variable | Value |
 | --- | --- |
-| `VERCEL_TOKEN` | Vercel → Account Settings → Tokens |
-| `VERCEL_ORG_ID` | Vercel project → Settings → General |
-| `VERCEL_PROJECT_ID_WEB` | the `aangan-web` project's Settings → General |
-| `VERCEL_PROJECT_ID_ADMIN` | the `aangan-admin` project |
-| `VERCEL_PROJECT_ID_VENDOR` | the `aangan-vendor` project |
+| `PREVIEW_USER` | a shared username, e.g. `team` |
+| `PREVIEW_PASSWORD` | a shared password — use the same one on all three |
+| `NEXT_PUBLIC_DEPLOY_ENV` | `preview` |
 
-### 4. Push
+`PREVIEW_PASSWORD` is what turns the access gate on. Without it, the first
+deployment is publicly reachable — including an ops panel showing commission
+figures and customer phone numbers.
+
+`NEXT_PUBLIC_*` variables are **baked in at build time**, so adding
+`NEXT_PUBLIC_DEPLOY_ENV` afterwards means rebuilding. Anything other than
+`production` keeps `robots.txt` disallowing everything and the sitemap empty.
+
+Later, when a backend exists, `NEXT_PUBLIC_API_URL` goes here too. Until it is
+set, the apps run entirely on seed data.
+
+---
+
+## Deploying, from then on
 
 ```bash
 git push origin main
 ```
 
-The **Deploy previews** workflow builds and deploys all three in parallel. Each
-job prints its URL in the run summary.
+All three projects watch this repository. Vercel rebuilds whichever apps a
+commit affects, and all three when something in `packages/` changes — which is
+correct, since they share it.
 
-To deploy without pushing, use *Actions → Deploy previews → Run workflow*.
+Nothing else to run. No secrets, no workflow to trigger.
 
 ---
 
-## What the workflows do
+## The workflows
 
 | Workflow | Trigger | Purpose |
 | --- | --- | --- |
 | `ci.yml` | pull requests and pushes to `main` | Builds all three apps and lints. A type error in a shared package breaks every app, so all three are built rather than only the one that changed. |
-| `deploy.yml` | pushes to `main`, or manually | Builds and deploys each app to its own Vercel project. |
+| `deploy.yml` | **manual only** | A fallback that deploys all three through the Vercel CLI. Not needed while the Git integration is connected. |
 
-Both use a `concurrency` group, so a newer push cancels an in-flight run rather
-than racing it.
+`deploy.yml` is deliberately not on `push`: with Vercel's Git integration
+connected it would deploy everything a second time. Use it from *Actions → Deploy
+previews → Run workflow* if you ever disconnect that integration, or want to
+deploy without pushing. It needs these repository secrets, which are otherwise
+unnecessary: `VERCEL_TOKEN`, `VERCEL_ORG_ID`, `VERCEL_PROJECT_ID_WEB`,
+`VERCEL_PROJECT_ID_ADMIN`, `VERCEL_PROJECT_ID_VENDOR`.
 
 ---
 
@@ -93,22 +93,22 @@ than racing it.
 
 Each app has `src/proxy.ts` — Next 16's replacement for the deprecated
 `middleware` convention — doing HTTP basic auth against `PREVIEW_USER` and
-`PREVIEW_PASSWORD`. Static assets are excluded so pages still load quickly once
-authenticated.
+`PREVIEW_PASSWORD`, read per request. Static assets are excluded so pages stay
+fast once authenticated.
 
-When `PREVIEW_PASSWORD` is not set the gate is a no-op, so local development is
+With `PREVIEW_PASSWORD` unset the gate is a no-op, so local development is
 unaffected.
 
-This is a preview gate, not authentication. It protects unreleased work behind a
-shared password; it is not a substitute for the real per-user auth that has to
-be built alongside the backend.
+This is a preview gate, not authentication. It puts unreleased work behind a
+shared password; it is not a substitute for the per-user auth that has to be
+built alongside the backend.
 
 ---
 
 ## Sharing the previews
 
-Send all three links together — the platform only makes sense seen from all
-sides:
+Send all three links together — the platform only makes sense seen from every
+side:
 
 - **Customer site** — browse the catalogue, submit a requirement, compare quotes
 - **Ops panel** — the same lead from the inside: the relay console, assignment,
@@ -116,10 +116,12 @@ sides:
 - **Vendor panel** — the third view: a masked customer, the quote builder, stage
   evidence
 
-The most convincing sequence is one lead viewed from all three: `LD-1042` in
+The most convincing walkthrough is one lead seen from all three: `LD-1042` in
 ops, the same job in the vendor panel, and the customer's own view of it.
 
-Each app is signed in as a fixed demo identity (`src/lib/session.ts`). Every
-visitor shares that identity and the same in-memory data, so **changes one
-person makes are visible to everyone else** until the server restarts. Fine for
-review; worth saying out loud before a walkthrough.
+Two things worth saying out loud before a walkthrough:
+
+- Each app is signed in as a fixed demo identity (`src/lib/session.ts`). Everyone
+  shares that identity **and the same in-memory data**, so changes one reviewer
+  makes are visible to the next until the server restarts.
+- All imagery is designed placeholder tiles, not photographs of real work.
