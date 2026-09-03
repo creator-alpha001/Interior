@@ -1,7 +1,7 @@
 name: CI
 
-# Catches what the deploy workflow would otherwise catch late: a type error in
-# a shared package breaks all three apps at once, so all three are built.
+# A type error in a shared package breaks every app at once, so all three are
+# built rather than only the one that changed.
 on:
   pull_request:
   push:
@@ -44,3 +44,58 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run lint --workspace=web
+
+  api:
+    name: API and migrations
+    runs-on: ubuntu-latest
+
+    # A real Postgres, because most of what this schema promises is enforced by
+    # Postgres — partial unique indexes, check constraints and triggers. None of
+    # that can be verified against a mock.
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: aangan
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: aangan_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U aangan -d aangan_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      DATABASE_URL: postgresql://aangan:ci@localhost:5432/aangan_ci
+      NODE_ENV: test
+      SESSION_SECRET: ci-only-secret-value-at-least-32-bytes-long
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck --workspace=api
+
+      - name: Apply migrations
+        run: npm run db:migrate --workspace=api
+
+      # A migration that only ever runs on an empty database is a migration that
+      # has not been tested. Running the whole set twice proves each step is
+      # idempotent or correctly skipped.
+      - name: Migrations are re-runnable
+        run: npm run db:migrate --workspace=api
+
+      - name: Load seed data
+        run: npm run db:seed --workspace=api
+
+      - name: Build
+        run: npm run build --workspace=api

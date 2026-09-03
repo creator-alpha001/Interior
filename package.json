@@ -10,12 +10,19 @@
     "dev": "npm run dev --workspace=web",
     "dev:web": "npm run dev --workspace=web",
     "dev:admin": "npm run dev --workspace=admin",
+    "dev:api": "npm run dev --workspace=api",
     "build": "npm run build --workspace=web && npm run build --workspace=admin",
     "build:web": "npm run build --workspace=web",
     "build:admin": "npm run build --workspace=admin",
+    "build:api": "npm run build --workspace=api",
     "start:web": "npm run start --workspace=web",
     "start:admin": "npm run start --workspace=admin",
-    "typecheck": "tsc -b --pretty"
+    "start:api": "npm run start --workspace=api",
+    "db:generate": "npm run db:generate --workspace=api",
+    "db:migrate": "npm run db:migrate --workspace=api",
+    "db:seed": "npm run db:seed --workspace=api",
+    "db:studio": "npm run db:studio --workspace=api",
+    "typecheck": "tsc -b --pretty && npm run typecheck --workspace=api"
   },
   "engines": {
     "node": ">=20"

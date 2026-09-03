@@ -1,0 +1,32 @@
+# Local Postgres, for anyone who does not already run one.
+#
+#   docker compose up -d
+#   cp apps/api/.env.example apps/api/.env      # the URL below is already the default
+#   npm run db:migrate && npm run db:seed
+#
+# If you already have Postgres installed, skip this entirely and point
+# DATABASE_URL at your own instance.
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: aangan-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: aangan
+      POSTGRES_PASSWORD: aangan_local_dev
+      POSTGRES_DB: aangan_dev
+    ports:
+      - "5433:5432"
+    volumes:
+      - aangan-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # Migrations run as a release step, so they need the server actually
+      # accepting connections, not just the container being up.
+      test: ["CMD-SHELL", "pg_isready -U aangan -d aangan_dev"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  aangan-pgdata:

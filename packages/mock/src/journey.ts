@@ -103,7 +103,7 @@ export const clients: Client[] = clientSeeds.map((c, i) => ({
   id: `client-${c.key}`,
   userId: `user-client-${c.key}`,
   address: c.address,
-  referralCode: `${c.name.split(" ")[0].toUpperCase()}${1000 + i * 7}`,
+  referralCode: `${(c.name.split(" ")[0] ?? c.name).toUpperCase()}${1000 + i * 7}`,
   referredByUserId: c.key === "sameer" ? "user-client-priya" : null,
 }));
 

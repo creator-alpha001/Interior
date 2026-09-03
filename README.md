@@ -2,7 +2,7 @@
 
 A marketplace connecting customers to verified professionals across four trades — **Interior Design, Furniture Work, Fabrication and Painting** — with the platform coordinating every conversation between the two sides.
 
-This is the **frontend build**: two applications running against a shared in-memory data layer with realistic seed data. No backend yet; the data layer is deliberately shaped so it can be swapped for real API calls without touching a single screen.
+Two frontends and an API, sharing one type contract. The frontends still run against seed data by default; setting `NEXT_PUBLIC_API_URL` moves the surfaces that are wired over to the real backend, one at a time.
 
 ---
 
@@ -12,12 +12,24 @@ This is the **frontend build**: two applications running against a shared in-mem
 | --- | --- | --- | --- |
 | `apps/web` | Customers **and professionals** | 3001 | Public site — catalogue, packages, blog, estimator, requirement form, client dashboard — plus the professional portal at `/partner` |
 | `apps/admin` | Internal staff | 3002 | Sales queue, the relay console, vendor verification, commission, domain configuration, reporting |
+| `apps/api` | Both, plus the mobile apps later | 4000 | Fastify + PostgreSQL. Owns every write, every authorisation rule, and the money |
 
 ```bash
 npm install
-npm run dev:web      # or dev:admin
-npm run build        # builds both
+npm run dev:web      # or dev:admin, dev:api
+npm run build        # builds both frontends
 ```
+
+Running the API needs a database:
+
+```bash
+docker compose up -d                      # or point at your own Postgres
+cp apps/api/.env.example apps/api/.env
+npm run db:migrate && npm run db:seed
+npm run dev:api
+```
+
+`db:seed` loads the same rows the frontends use, so the demo walkthrough — one requirement seen from all three sides — works identically against Postgres.
 
 The professional portal lives at `/partner` on the customer site, so vendors sign in at the same address customers use rather than needing a URL of their own. The admin panel stays a separate deployment — it carries commission figures, vendor margins and customer contact details, and that is worth keeping as a network boundary rather than a route check.
 
@@ -35,7 +47,10 @@ packages/mock    Seed data — 59 catalogue products, 15 packages, 8 blog posts,
                  stage from enquiry to completed project.
 packages/data    The repository layer. Every screen imports from here and
                  nowhere else.
-packages/ui      The design system, shared across both apps.
+packages/contract Zod schemas for every request, and the route manifest. The
+                 runtime half of the contract: @repo/types says what a shape is,
+                 this checks that something actually is one.
+packages/ui      The design system, shared across both frontends.
 ```
 
 **The seam that matters:** screens call `@repo/data`, never `@repo/mock`. Today those functions resolve against an in-memory store; when the backend lands, only the function bodies change. Signatures, view models and screens stay as they are.
@@ -65,6 +80,8 @@ These shape the whole system, so they are worth reading before changing anything
 **No function takes the caller's own id.** `listLeadsForClient()` asks who is signed in rather than accepting a `clientId`, because the day that argument comes from a browser is the day one customer can read another's leads. Ids are parameters only for records being *addressed*, never for the caller.
 
 **Lists that grow return a page, not an array.** `listProducts`, `listPosts` and `listProfessionals` return `{ items, nextCursor, total }`. Retrofitting that later would have meant touching every call site.
+
+**Invariants live in the database, not only in code.** One project per service, one invoice per agreement, one live quote per vendor, and a message that cannot cross the client/vendor channel — all partial unique indexes, check constraints and triggers in `apps/api/drizzle/0002_invariants.sql`. Application code can forget; a constraint cannot.
 
 ---
 
