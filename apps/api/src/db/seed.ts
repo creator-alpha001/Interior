@@ -716,6 +716,58 @@ async function main() {
       })),
     );
 
+    /* ---------------- media ---------------- */
+
+    // The mock carries media inline on its owners; here it is one table, so the
+    // arrays are flattened into rows. Seed URLs are "ph:" placeholder tokens
+    // rather than files — the Media component renders those as designed tiles,
+    // which is what keeps the catalogue looking like a catalogue with no
+    // photography in the repository.
+    type MediaSeed = {
+      id: string;
+      url: string;
+      type: "photo" | "video" | "document";
+      caption?: string;
+    };
+
+    const mediaRows: Array<typeof t.mediaAssets.$inferInsert> = [];
+
+    const collect = (
+      ownerType: string,
+      ownerId: string,
+      purpose: (typeof t.mediaAssets.$inferInsert)["purpose"],
+      assets: readonly MediaSeed[],
+    ) => {
+      assets.forEach((asset, index) => {
+        mediaRows.push({
+          id: uid(asset.id),
+          purpose,
+          type: asset.type,
+          storageKey: asset.url,
+          contentType: asset.type === "document" ? "application/pdf" : "image/jpeg",
+          sizeBytes: 0,
+          caption: asset.caption ?? null,
+          // Seeded media is already in place, so it is confirmed — an
+          // unconfirmed row means a ticket that was issued and never used, and
+          // the orphan sweep would delete these.
+          confirmedAt: new Date().toISOString(),
+          ownerType,
+          ownerId: uid(ownerId),
+          sortOrder: index,
+        });
+      });
+    };
+
+    for (const p of seed.products) collect("product", p.id, "catalogue_image", p.media);
+    for (const p of seed.servicePackages) collect("service_package", p.id, "catalogue_image", p.media);
+    for (const p of seed.portfolioItems) collect("portfolio_item", p.id, "portfolio_item", p.media);
+    for (const l of seed.leads) collect("lead", l.id, "requirement_photo", l.photos);
+    for (const p of seed.projects) {
+      for (const m of p.milestones) collect("project_milestone", m.id, "milestone_proof", m.proof);
+    }
+
+    if (mediaRows.length > 0) await tx.insert(t.mediaAssets).values(mediaRows);
+
     await tx.insert(t.referrals).values(
       seed.referrals.map((r) => ({
         id: uid(r.id),

@@ -154,6 +154,16 @@ export interface BlogPostView {
   domain: Domain | null;
 }
 
+/** Everything one search box query can turn up, ranked by intent. */
+export interface SearchResults {
+  query: string;
+  total: number;
+  products: ProductView[];
+  packages: PackageView[];
+  professionals: ProfessionalSummary[];
+  posts: BlogPostView[];
+}
+
 export interface ClientRecord {
   client: Client;
   user: User;

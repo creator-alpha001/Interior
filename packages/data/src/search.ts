@@ -1,16 +1,9 @@
-import type { BlogPostView, PackageView, ProductView, ProfessionalSummary } from "@repo/types";
+import type { SearchResults } from "@repo/types";
+
+export type { SearchResults };
 import { USING_API, api } from "./client";
 import { toPackageView, toProductView, toProfessionalSummary } from "./mappers";
 import { delay, store } from "./store";
-
-export interface SearchResults {
-  query: string;
-  total: number;
-  products: ProductView[];
-  packages: PackageView[];
-  professionals: ProfessionalSummary[];
-  posts: BlogPostView[];
-}
 
 /**
  * One search across everything a visitor might be looking for. Catalogue items
