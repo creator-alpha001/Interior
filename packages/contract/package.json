@@ -10,5 +10,6 @@
   "dependencies": {
     "@repo/types": "*",
     "zod": "^3.25.76"
-  }
+  },
+  "type": "module"
 }

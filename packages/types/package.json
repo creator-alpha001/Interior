@@ -6,5 +6,6 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts"
-  }
+  },
+  "type": "module"
 }

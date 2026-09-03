@@ -55,7 +55,7 @@ packages/ui      The design system, shared across both frontends.
 
 **The seam that matters:** screens call `@repo/data`, never `@repo/mock`. Today those functions resolve against an in-memory store; when the backend lands, only the function bodies change. Signatures, view models and screens stay as they are.
 
-Set `NEXT_PUBLIC_API_URL` and the public catalogue, blog, directory and search already stop reading seed data and start calling the backend — those are wired. `API.md` is the contract, and says which sections still resolve locally.
+Set `NEXT_PUBLIC_API_URL` and the public catalogue, blog, directory and search stop reading seed data and start calling the backend — those endpoints are built. While the rest still resolves locally, add `NEXT_PUBLIC_ALLOW_DEMO_SESSION=true` so the account and portal screens keep their demo identity; that flag is ignored in a production build. `API.md` is the contract and says what is live.
 
 ---
 

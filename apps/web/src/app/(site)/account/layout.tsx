@@ -2,6 +2,16 @@ import { listAgreementsForClient, listLeadsForClient, listNotifications } from "
 import { AccountNav } from "@/components/account/account-nav";
 import { ButtonLink, Container } from "@repo/ui";
 
+/**
+ * Never statically generated.
+ *
+ * Everything below this layout is scoped to whoever is signed in. A prerendered
+ * copy would be one person's data baked into a build artifact and served to
+ * everybody — and it also means the build tries to render these pages with no
+ * session at all, which fails as soon as a real backend is configured.
+ */
+export const dynamic = "force-dynamic";
+
 export default async function AccountLayout({ children }: { children: React.ReactNode }) {
   const [leads, agreements, notifications] = await Promise.all([
     listLeadsForClient(),

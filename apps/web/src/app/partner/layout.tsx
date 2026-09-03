@@ -9,6 +9,16 @@ export const metadata: Metadata = {
 };
 
 /**
+ * Never statically generated.
+ *
+ * Everything below this layout is scoped to whoever is signed in. A prerendered
+ * copy would be one person's data baked into a build artifact and served to
+ * everybody — and it also means the build tries to render these pages with no
+ * session at all, which fails as soon as a real backend is configured.
+ */
+export const dynamic = "force-dynamic";
+
+/**
  * The professional portal lives on the same site as the customer experience so
  * vendors have one address to remember and reach it through a normal sign-in —
  * but it presents its own chrome, not the customer header and footer.

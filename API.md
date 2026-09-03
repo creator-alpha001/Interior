@@ -17,6 +17,11 @@ authoritative definition of every response shape named here.
 
 **Base URL** — `NEXT_PUBLIC_API_URL`. When unset the apps run on seed data.
 
+**The public read section below is built and running.** `apps/api` serves it
+against PostgreSQL; set the base URL and the catalogue, blog, directory and
+search stop reading seed data. Everything further down is still the contract to
+build.
+
 **Authentication** — session cookie forwarded by the frontend. The backend
 derives the caller from it. Endpoints below never take a `clientId` or
 `professionalId` for *the caller* — only for records being addressed. This
@@ -29,9 +34,17 @@ up in its `instrumentation.ts`. Connecting real auth means replacing one
 function body there — the `configureSession` callback — and nothing else.
 
 Until that callback returns a real actor, the data layer falls back to a seeded
-demo identity per role. **That fallback switches itself off the moment
+demo identity per role. **That fallback switches itself off once
 `NEXT_PUBLIC_API_URL` is set**: with a backend present, no session means
 `NotAuthenticatedError`, never somebody else's rows.
+
+There is one bounded exception, for the migration window only. The surfaces move
+to the API one at a time, so the catalogue can be live on Postgres while the
+account pages are still on seed data — and without an escape hatch, turning the
+API on would break every signed-in screen until authentication lands. Setting
+`NEXT_PUBLIC_ALLOW_DEMO_SESSION=true` keeps the demo identities working in that
+state. It is ignored in a production build, so it cannot become the way the
+system runs.
 
 **Errors** — JSON body `{ code, message, details? }` with a meaningful status.
 `packages/data/src/client.ts` maps these to `ApiError`, which the UI uses to

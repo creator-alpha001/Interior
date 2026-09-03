@@ -97,19 +97,41 @@ export async function getActor(): Promise<Actor | null> {
 }
 
 /**
+ * Whether an unauthenticated caller may fall back to a seeded demo identity.
+ *
+ * True when there is no backend at all — that is the whole preview, and there
+ * is nobody's data to leak because there is no data but the seed.
+ *
+ * It stays true during the migration window if `NEXT_PUBLIC_ALLOW_DEMO_SESSION`
+ * is set, because the surfaces move to the API one at a time: the catalogue can
+ * be live on Postgres while the account pages are still on seed data, and
+ * without this flag turning the API on would break every signed-in screen until
+ * authentication lands.
+ *
+ * It is never true in a production build. That is the point of the second
+ * condition — the flag is an aid for a half-migrated development environment,
+ * not a way to run without auth.
+ */
+function demoSessionAllowed(): boolean {
+  if (!USING_API) return true;
+  if (process.env.NODE_ENV === "production") return false;
+  return process.env.NEXT_PUBLIC_ALLOW_DEMO_SESSION === "true";
+}
+
+/**
  * The current caller in a known role.
  *
- * In demo mode this hands back the seeded identity for that role, so each
- * surface behaves as the right person without any plumbing. Once a backend is
- * configured the fallback is gone: no session means no data, which is the
- * behaviour that has to hold in production.
+ * Where a demo identity is permitted this hands back the seeded one for that
+ * role, so each surface behaves as the right person with no plumbing. Otherwise
+ * no session means no data, which is the behaviour that has to hold once real
+ * accounts exist.
  */
 async function actorAs<R extends Role>(role: R): Promise<Extract<Actor, { role: R }>> {
   type Wanted = Extract<Actor, { role: R }>;
   const actor = await getActor();
 
   if (!actor) {
-    if (USING_API) throw new NotAuthenticatedError();
+    if (!demoSessionAllowed()) throw new NotAuthenticatedError();
     return DEMO_ACTORS[role] as unknown as Wanted;
   }
 
@@ -152,7 +174,7 @@ export async function currentAgentId(): Promise<ID> {
 export async function currentUserId(): Promise<ID> {
   const actor = await getActor();
   if (actor) return actor.userId;
-  if (USING_API) throw new NotAuthenticatedError();
+  if (!demoSessionAllowed()) throw new NotAuthenticatedError();
   return DEMO_ACTORS.client.userId;
 }
 
@@ -168,7 +190,7 @@ export async function currentStaffUserId(): Promise<ID> {
     }
     return actor.userId;
   }
-  if (USING_API) throw new NotAuthenticatedError();
+  if (!demoSessionAllowed()) throw new NotAuthenticatedError();
   return DEMO_ACTORS.admin.userId;
 }
 
