@@ -8,7 +8,8 @@
 import type { Project, Rupees } from "@repo/types";
 import { domainById } from "./mappers";
 import { listOpsLeads, type OpsLeadRow } from "./ops";
-import { currentAgentId } from "./session";
+import { api } from "./client";
+import { callingApiAsUser, currentAgentId } from "./session";
 import { delay, nowIso, store } from "./store";
 
 function rupees(amount: number): string {
@@ -49,6 +50,10 @@ export interface TimelineEvent {
  * the slow part, so it is assembled once, here.
  */
 export async function getLeadTimeline(leadId: string): Promise<TimelineEvent[]> {
+  if (await callingApiAsUser()) {
+    return api<TimelineEvent[]>(`/ops/leads/${encodeURIComponent(leadId)}/timeline`);
+  }
+
   const lead = store.leads.find((l) => l.id === leadId);
   if (!lead) return delay([]);
 
@@ -178,6 +183,14 @@ export async function recordVisitOutcome(
   outcome: string,
   changedScope: boolean,
 ): Promise<void> {
+  if (await callingApiAsUser()) {
+    await api(`/ops/visits/${encodeURIComponent(meetingId)}/outcome`, {
+      method: "POST",
+      body: { outcome, changedScope },
+    });
+    return;
+  }
+
   const meeting = store.meetings.find((m) => m.id === meetingId);
   if (!meeting) throw new Error("Unknown meeting");
   meeting.outcome = outcome;
@@ -216,6 +229,10 @@ export interface LeadProjectView {
  * costs a phone call to the vendor every time a customer asks it.
  */
 export async function getLeadProjects(leadId: string): Promise<LeadProjectView[]> {
+  if (await callingApiAsUser()) {
+    return api<LeadProjectView[]>(`/ops/leads/${encodeURIComponent(leadId)}/projects`);
+  }
+
   const leadDomainIds = store.leadDomains
     .filter((ld) => ld.leadId === leadId)
     .map((ld) => ld.id);
@@ -290,6 +307,8 @@ export interface MyDayView {
  * a day screen that lists them buries the handful that need action today.
  */
 export async function getMyDay(): Promise<MyDayView> {
+  if (await callingApiAsUser()) return api<MyDayView>("/ops/my-day");
+
   const agentId = await currentAgentId();
   const all = await listOpsLeads({ agentId });
   const agent = store.salesAgents.find((s) => s.id === agentId);

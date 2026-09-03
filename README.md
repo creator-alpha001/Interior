@@ -55,7 +55,7 @@ packages/ui      The design system, shared across both frontends.
 
 **The seam that matters:** screens call `@repo/data`, never `@repo/mock`. Today those functions resolve against an in-memory store; when the backend lands, only the function bodies change. Signatures, view models and screens stay as they are.
 
-Set `NEXT_PUBLIC_API_URL` and everything except the ops panel runs on Postgres: the public catalogue, sign-in, the customer account and the professional portal. The admin app still resolves locally — add `NEXT_PUBLIC_ALLOW_DEMO_SESSION=true` there so it keeps its demo identity; that flag is ignored in a production build. `API.md` is the contract and says what is live.
+Set `NEXT_PUBLIC_API_URL` on both apps and the whole platform runs on Postgres — catalogue, sign-in, the customer account, the professional portal and the ops panel. `NEXT_PUBLIC_ALLOW_DEMO_SESSION=true` still forces the seeded identities for a demo, and is ignored in a production build. `API.md` is the contract.
 
 ---
 
@@ -89,8 +89,8 @@ These shape the whole system, so they are worth reading before changing anything
 
 ## Not built yet
 
-- The ops surface still reads seed data; the seam is in place (`readThrough`/`api` for reads)
-- File uploads, and the background jobs that mark invoices overdue and send the SMS
+- Background jobs: nothing marks an invoice overdue yet, and notifications are written but never sent as SMS
+- Object storage: upload tickets are issued and rows written, but no bucket is configured
 - The two mobile apps (client and professional)
 - Paging **controls** in the UI — the data layer pages, but no screen yet renders a "next page" button; today's page sizes cover the seed data
 - Ops lists (`listOpsLeads`, `listVendors`) are unpaged, because the dashboards aggregate across every row. Those aggregates need their own endpoints before those lists can page

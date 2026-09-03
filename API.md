@@ -17,15 +17,10 @@ authoritative definition of every response shape named here.
 
 **Base URL** — `NEXT_PUBLIC_API_URL`. When unset the apps run on seed data.
 
-**Everything except the ops surface is built and running.** `apps/api` serves
-the public catalogue, authentication, the customer account and the professional
-portal against PostgreSQL. The staff section further down is still the contract
-to build.
-
-**One thing to know while the ops panel catches up.** The admin app still reads
-seed data keyed by its own ids, so a real staff session finds nothing there. Run
-that app with `NEXT_PUBLIC_ALLOW_DEMO_SESSION=true` until the ops surface lands.
-The customer site needs no such flag.
+**The whole application is built and running against PostgreSQL** — the public
+catalogue, authentication, the customer account, the professional portal and the
+ops panel. Set `NEXT_PUBLIC_API_URL` on both apps and nothing reads seed data
+any more.
 
 **Authentication** — session cookie forwarded by the frontend. The backend
 derives the caller from it. Endpoints below never take a `clientId` or
@@ -252,35 +247,60 @@ checks are a courtesy to the user, not a control.
 
 ---
 
-## Staff
+## Staff — built
 
-Requires a `sales_agent` or `admin` session. These see customer contact details.
+Requires a `sales_agent` or `admin` session, and most routes additionally
+require a permission. These responses carry customer contact details, which is
+why the ops panel deploys separately from the customer site.
+
+**Permissions are enforced, not just described.** `AdminRole.permissions`
+existed in the model and nothing read it. A sales agent now gets a fixed set —
+everything about leads, read-only on vendors, agreements, commission and
+reports — and is refused `commission.manage`, `vendors.verify` and
+`settings.manage`. An admin with no role row gets everything; assigning a role
+narrows them.
+
+**The lead queue is paged and the dashboards are SQL aggregates.** Both were
+flagged when the schema landed: the previous implementation loaded every lead
+into memory to count them, which is fine at six and ruinous at sixty thousand.
+Aggregates now come from `count(*) FILTER (...)` beside the data.
 
 | Method | Path | Response |
 | --- | --- | --- |
-| GET | `/ops/leads` | `OpsLeadRow[]` — filters: status, domain, city, urgency, agent, search |
-| GET | `/ops/leads/:id` | `OpsLeadRow` |
-| GET | `/ops/leads/:id/timeline` | `TimelineEvent[]` |
-| GET | `/ops/leads/:id/projects` | `LeadProjectView[]` |
-| GET | `/ops/leads/:leadDomainId/relay` | `RelayView` — both sides |
-| POST | `/ops/leads/:leadDomainId/relay/client` | reply to the customer |
-| POST | `/ops/leads/:leadDomainId/relay/vendors` | one message to every assigned vendor |
-| GET | `/ops/leads/:leadDomainId/pool` | `VendorPoolEntry[]` |
-| POST | `/ops/leads/:leadDomainId/assign` | body `{ professionalIds }` |
-| POST | `/ops/leads/:id/calls` | `LeadSalesActivity` |
-| POST | `/ops/visits` | `Meeting` |
-| POST | `/ops/visits/:id/outcome` | `Meeting` |
-| POST | `/ops/projects/:id/stages/:stageId/review` | approve or send back |
-| GET | `/ops/my-day` | `MyDayView` |
-| GET | `/ops/dashboard` | `AdminDashboard` |
-| GET | `/ops/vendors` | `VendorRow[]` |
-| PATCH | `/ops/vendors/:id` | verification status |
-| PATCH | `/ops/vendors/:id/domains/:domainId` | trade approval, commission override |
-| GET | `/ops/agreements` | `AgreementView[]` |
-| GET | `/ops/invoices` | `InvoiceRow[]` |
-| PATCH | `/ops/invoices/:id` | mark paid, waive with reason |
-| GET/POST/PATCH | `/ops/domains` | domain configuration |
-| GET | `/ops/tickets`, POST replies, PATCH status | support |
+| Method | Path | Permission |
+| --- | --- | --- |
+| GET | `/ops/leads` | `leads.view` — **paged** |
+| GET | `/ops/leads/:id` | `leads.view` |
+| GET | `/ops/leads/:id/timeline` | `leads.view` |
+| GET | `/ops/leads/:id/projects` | `leads.view` |
+| GET/POST | `/ops/leads/:id/calls` | `leads.view` / `leads.manage` |
+| GET | `/ops/services/:id/relay` | `leads.view` — both sides |
+| POST | `/ops/services/:id/relay/client` | `leads.manage` |
+| POST | `/ops/services/:id/relay/vendors` | `leads.manage` — one message to every assigned vendor |
+| GET | `/ops/services/:id/pool` | `leads.view` |
+| POST | `/ops/services/:id/assign` | `leads.manage` |
+| POST | `/ops/services/:id/visits` | `leads.manage` — releases the address |
+| POST | `/ops/visits/:id/outcome` | `leads.manage` |
+| POST | `/ops/projects/:id/stages/:stageId/review` | `leads.manage` |
+| GET | `/ops/my-day`, `/ops/dashboard` | `leads.view` |
+| GET | `/ops/reports` | `reports.view` |
+| GET | `/ops/vendors`, `/ops/vendors/:id` | `vendors.view` — **paged** |
+| PATCH | `/ops/vendors/:id` | `vendors.verify` |
+| PATCH | `/ops/vendors/:id/domains/:domainId` | `vendors.verify` / `commission.manage` |
+| GET | `/ops/agreements` | `agreements.view` — **paged** |
+| GET | `/ops/invoices` | `commission.view` — **paged** |
+| PATCH | `/ops/invoices/:id` | `commission.manage` — a reason is required to waive |
+| GET/POST/PATCH | `/ops/domains` | `settings.manage` to write |
+| GET/POST/PATCH | `/ops/tickets` | `leads.view` / `leads.manage` |
+
+**Assignment re-checks eligibility at the moment of writing.** The pool a
+coordinator is looking at may be minutes old, and a vendor can be suspended or
+lose a trade approval in between. The previous implementation trusted the pool.
+
+**Suspending a vendor revokes their sessions immediately** — they can see live
+customer jobs in the portal, so waiting for a token to expire is not good
+enough. It no longer rejects every trade approval as a side effect: that was
+irreversible, and reinstating somebody left them approved for nothing.
 
 ---
 

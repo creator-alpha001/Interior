@@ -21,7 +21,8 @@ import type {
 import { cityById, domainById, toLeadView, toProfessionalSummary } from "./mappers";
 import { hasSignedPartnerAgreementSync } from "./onboarding";
 import { recomputeLeadStatus } from "./leads";
-import { currentAgentId } from "./session";
+import { api } from "./client";
+import { callingApiAsUser, currentAgentId } from "./session";
 import { delay, nextId, nowIso, store } from "./store";
 
 /* ------------------------------------------------------------------ *
@@ -52,6 +53,24 @@ export interface OpsLeadRow {
 }
 
 export async function listOpsLeads(filters: OpsLeadFilters = {}): Promise<OpsLeadRow[]> {
+  if (await callingApiAsUser()) {
+    // The endpoint pages; these screens still render a whole queue, so a
+    // generous page keeps them working until paging controls land.
+    const result = await api<{ items: OpsLeadRow[] }>("/ops/leads", {
+      query: {
+        status: filters.status,
+        domain: filters.domainSlug,
+        city: filters.cityId,
+        urgency: filters.urgency,
+        agentId: filters.agentId,
+        search: filters.search,
+        needsAssignment: filters.needsAssignment,
+        limit: 100,
+      },
+    });
+    return result.items;
+  }
+
   const domain = filters.domainSlug
     ? store.domains.find((d) => d.slug === filters.domainSlug)
     : undefined;
@@ -139,6 +158,10 @@ function toOpsLeadRow(leadId: string): OpsLeadRow {
 }
 
 export async function getOpsLead(leadId: string): Promise<OpsLeadRow | null> {
+  if (await callingApiAsUser()) {
+    return api<OpsLeadRow>(`/ops/leads/${encodeURIComponent(leadId)}`);
+  }
+
   const exists = store.leads.some((l) => l.id === leadId);
   return delay(exists ? toOpsLeadRow(leadId) : null);
 }
@@ -169,6 +192,10 @@ export interface RelayView {
  * should go to all of them, not to whichever vendor happened to ask.
  */
 export async function getRelay(leadDomainId: string): Promise<RelayView | null> {
+  if (await callingApiAsUser()) {
+    return api<RelayView>(`/ops/services/${encodeURIComponent(leadDomainId)}/relay`);
+  }
+
   const leadDomain = store.leadDomains.find((ld) => ld.id === leadDomainId);
   if (!leadDomain) return delay(null);
 
@@ -227,6 +254,10 @@ export interface VendorPoolEntry {
  * has a shortlist to call rather than a raw list. Nothing is auto-assigned.
  */
 export async function getVendorPool(leadDomainId: string): Promise<VendorPoolEntry[]> {
+  if (await callingApiAsUser()) {
+    return api<VendorPoolEntry[]>(`/ops/services/${encodeURIComponent(leadDomainId)}/pool`);
+  }
+
   const leadDomain = store.leadDomains.find((ld) => ld.id === leadDomainId);
   if (!leadDomain) return delay([]);
   const lead = store.leads.find((l) => l.id === leadDomain.leadId)!;
@@ -289,6 +320,14 @@ export async function assignProfessionals(
   leadDomainId: string,
   professionalIds: string[],
 ): Promise<void> {
+  if (await callingApiAsUser()) {
+    await api(`/ops/services/${encodeURIComponent(leadDomainId)}/assign`, {
+      method: "POST",
+      body: { professionalIds },
+    });
+    return;
+  }
+
   const leadDomain = store.leadDomains.find((ld) => ld.id === leadDomainId);
   if (!leadDomain) throw new Error("Unknown lead domain");
 
@@ -398,6 +437,14 @@ export interface CallLogInput {
  * gets captured — exact sizes, finishes, site constraints.
  */
 export async function logCall(input: CallLogInput): Promise<LeadSalesActivity> {
+  if (await callingApiAsUser()) {
+    const { leadId, ...rest } = input;
+    return api<LeadSalesActivity>(`/ops/leads/${encodeURIComponent(leadId)}/calls`, {
+      method: "POST",
+      body: rest,
+    });
+  }
+
   const salesAgentId = await currentAgentId();
   const activity: LeadSalesActivity = {
     id: nextId("lsa"),
@@ -425,6 +472,12 @@ export async function logCall(input: CallLogInput): Promise<LeadSalesActivity> {
 export async function listCallLog(leadId: string): Promise<
   Array<{ activity: LeadSalesActivity; agentName: string }>
 > {
+  if (await callingApiAsUser()) {
+    return api<Array<{ activity: LeadSalesActivity; agentName: string }>>(
+      `/ops/leads/${encodeURIComponent(leadId)}/calls`,
+    );
+  }
+
   return delay(
     store.leadSalesActivities
       .filter((a) => a.leadId === leadId)
@@ -450,6 +503,14 @@ export interface ScheduleVisitInput {
  * address is released to the vendor at this point and not before.
  */
 export async function scheduleVisit(input: ScheduleVisitInput): Promise<Meeting> {
+  if (await callingApiAsUser()) {
+    const { leadDomainId, ...rest } = input;
+    return api<Meeting>(`/ops/services/${encodeURIComponent(leadDomainId)}/visits`, {
+      method: "POST",
+      body: rest,
+    });
+  }
+
   const coordinatorId = await currentAgentId();
   const leadDomain = store.leadDomains.find((ld) => ld.id === input.leadDomainId)!;
   const lead = store.leads.find((l) => l.id === leadDomain.leadId)!;
@@ -524,6 +585,8 @@ export interface SalesDashboard {
 }
 
 export async function getSalesDashboard(): Promise<SalesDashboard> {
+  if (await callingApiAsUser()) return api<SalesDashboard>("/ops/dashboard");
+
   const agentId = await currentAgentId();
   const rows = await listOpsLeads({ agentId });
   const agent = store.salesAgents.find((s) => s.id === agentId);

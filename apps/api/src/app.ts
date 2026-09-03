@@ -13,6 +13,7 @@ import { HttpError, translateDatabaseError } from "./lib/errors";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerCustomerRoutes } from "./routes/customer";
 import { registerHealthRoutes } from "./routes/health";
+import { registerOpsRoutes } from "./routes/ops";
 import { registerPublicRoutes } from "./routes/public";
 import { registerVendorRoutes } from "./routes/vendor";
 
@@ -115,6 +116,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(registerPublicRoutes);
   await app.register(registerCustomerRoutes);
   await app.register(registerVendorRoutes);
+  await app.register(registerOpsRoutes);
 
   return app;
 }

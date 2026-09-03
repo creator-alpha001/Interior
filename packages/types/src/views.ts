@@ -5,12 +5,25 @@
  * when the mock adapter is swapped for real HTTP endpoints the components do
  * not change. Keep these aligned with what a single API response should carry.
  */
-import type { City, ID, Rupees } from "./common";
+import type { City, ID, Rupees, Timestamp } from "./common";
 import type { Agreement, AgreementLeadDomain } from "./agreements";
-import type { CommissionInvoice, Project, Review } from "./execution";
+import type {
+  CommissionInvoice,
+  Project,
+  ProjectMilestone,
+  Review,
+  SupportTicket,
+} from "./execution";
 import type { Domain, PortfolioItem, ProfessionalDomain } from "./domains";
-import type { Lead, LeadDomain, LeadDomainAssignment, LeadDomainItem } from "./leads";
-import type { Meeting, Quote } from "./flow";
+import type {
+  Lead,
+  LeadDomain,
+  LeadDomainAssignment,
+  LeadDomainItem,
+  LeadSalesActivity,
+  Urgency,
+} from "./leads";
+import type { Meeting, Message, Quote } from "./flow";
 import type { Product, ProductCategory, ServicePackage } from "./catalog";
 import type { BlogCategory, BlogPost } from "./content";
 import type { Client, Professional, User } from "./identity";
@@ -269,4 +282,195 @@ export interface VendorVisitView {
   domain: Domain;
   client: MaskedClientSummary;
   leadReference: string;
+}
+
+/* ------------------------------------------------------------------ *
+ * The ops panel
+ *
+ * Staff see the customer unmasked — a coordinator cannot ring somebody they
+ * have no number for. That is the difference between this section and the
+ * vendor one above, and it is why the two apps deploy separately.
+ * ------------------------------------------------------------------ */
+
+export interface OpsLeadRow {
+  lead: LeadView;
+  agentName: string | null;
+  lastActivity: LeadSalesActivity | null;
+  followUpDate: string | null;
+  /** Services still waiting on us to assign professionals. */
+  unassignedDomains: number;
+  /** Client questions with no reply from us yet. */
+  awaitingReply: number;
+  ageDays: number;
+}
+
+export interface RelayThread {
+  professional: ProfessionalSummary;
+  messages: Message[];
+  /** True when their last message has had no reply from us. */
+  awaitingReply: boolean;
+}
+
+/**
+ * Both sides of one service, side by side.
+ *
+ * The client thread on the left, one thread per assigned vendor on the right —
+ * because a question asked once should go to all of them, not to whichever
+ * vendor happened to ask.
+ */
+export interface RelayView {
+  leadDomainId: ID;
+  domain: Domain;
+  clientName: string;
+  clientThread: Message[];
+  clientAwaitingReply: boolean;
+  vendorThreads: RelayThread[];
+}
+
+export interface VendorPoolEntry {
+  professional: ProfessionalSummary;
+  isAssigned: boolean;
+  /** The client asked for this one by name. */
+  isPreferred: boolean;
+  /** How many other live leads they are already quoting on. */
+  activeLoad: number;
+}
+
+export type TimelineKind =
+  | "created"
+  | "call"
+  | "assigned"
+  | "quote"
+  | "meeting"
+  | "message"
+  | "selected"
+  | "agreement"
+  | "project"
+  | "stage"
+  | "review";
+
+export interface TimelineEvent {
+  id: ID;
+  kind: TimelineKind;
+  at: Timestamp;
+  title: string;
+  detail: string | null;
+  domainName: string | null;
+  actor: string | null;
+}
+
+export interface LeadProjectView {
+  projectId: ID;
+  reference: string;
+  leadDomainId: ID;
+  domainName: string;
+  professionalName: string;
+  professionalId: ID;
+  status: string;
+  completionPercent: number;
+  approvedStages: number;
+  totalStages: number;
+  awaitingReview: number;
+  currentStage: string | null;
+  milestones: ProjectMilestone[];
+}
+
+export interface CommissionFocusRow {
+  invoiceId: ID;
+  reference: string;
+  professionalId: ID;
+  professionalName: string;
+  amount: Rupees;
+  dueDate: string;
+  status: string;
+  daysOverdue: number;
+  domains: string[];
+}
+
+export interface SalesDashboard {
+  agentName: string;
+  target: number;
+  newLeads: number;
+  needsAssignment: number;
+  awaitingReply: number;
+  followUpsDue: number;
+  visitsToday: number;
+  byUrgency: Array<{ urgency: Urgency; count: number }>;
+  byDomain: Array<{ domain: Domain; count: number }>;
+}
+
+export interface MyDayView {
+  agentName: string;
+  target: number;
+  live: OpsLeadRow[];
+  awaitingReply: OpsLeadRow[];
+  needsAssignment: OpsLeadRow[];
+  followUpsDue: OpsLeadRow[];
+  neverCalled: OpsLeadRow[];
+  stalled: OpsLeadRow[];
+  visitsToday: number;
+  visitsNeedingOutcome: number;
+  commission: {
+    pending: Rupees;
+    overdue: Rupees;
+    overdueCount: number;
+    dueSoonCount: number;
+    rows: CommissionFocusRow[];
+  };
+}
+
+export interface DomainSlice {
+  domain: Domain;
+  leads: number;
+  quoted: number;
+  won: number;
+  revenue: Rupees;
+  commission: Rupees;
+  avgTicket: Rupees;
+  conversionPercent: number;
+  vendors: number;
+}
+
+export interface AdminDashboard {
+  totals: {
+    leads: number;
+    activeLeads: number;
+    vendors: number;
+    pendingVerification: number;
+    revenue: Rupees;
+    commissionBilled: Rupees;
+    commissionPending: Rupees;
+    commissionOverdue: Rupees;
+    openTickets: number;
+  };
+  byDomain: DomainSlice[];
+  byCity: Array<{ cityName: string; leads: number; revenue: Rupees }>;
+}
+
+export interface VendorRow {
+  professional: Professional;
+  summary: ProfessionalSummary;
+  domainLinks: Array<{ link: ProfessionalDomain; domain: Domain }>;
+  serviceCities: string[];
+  liveJobs: number;
+  pendingDomainRequests: number;
+  totalRevenue: Rupees;
+  outstandingCommission: Rupees;
+  /** Unsigned vendors are in no lead pool, however verified they are. */
+  hasSignedPartnerAgreement: boolean;
+}
+
+export interface InvoiceRow {
+  invoice: CommissionInvoice;
+  professional: ProfessionalSummary;
+  agreementReference: string;
+  domains: string[];
+  isCombined: boolean;
+  daysOverdue: number;
+}
+
+export interface AdminTicketRow {
+  ticket: SupportTicket;
+  raisedByName: string;
+  raisedByRole: string;
 }

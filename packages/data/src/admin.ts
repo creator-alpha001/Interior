@@ -20,6 +20,8 @@ import type {
 } from "@repo/types";
 import { domainById, toAgreementView, toProfessionalSummary } from "./mappers";
 import { hasSignedPartnerAgreementSync } from "./onboarding";
+import { api } from "./client";
+import { callingApiAsUser } from "./session";
 import { delay, nextId, nowIso, store } from "./store";
 
 /* ------------------------------------------------------------------ *
@@ -59,6 +61,8 @@ export interface AdminDashboard {
  * which vertical earns, which converts, and where to put marketing money.
  */
 export async function getAdminDashboard(): Promise<AdminDashboard> {
+  if (await callingApiAsUser()) return api<AdminDashboard>("/ops/reports");
+
   const byDomain: DomainSlice[] = store.domains.map((domain) => {
     const leadDomains = store.leadDomains.filter((ld) => ld.domainId === domain.id);
     const projects = store.projects.filter((project) => {
@@ -219,6 +223,10 @@ function toVendorRow(professionalId: string): VendorRow {
 }
 
 export async function getVendor(professionalId: string): Promise<VendorRow | null> {
+  if (await callingApiAsUser()) {
+    return api<VendorRow>(`/ops/vendors/${encodeURIComponent(professionalId)}`);
+  }
+
   const exists = store.professionals.some((p) => p.id === professionalId);
   return delay(exists ? toVendorRow(professionalId) : null);
 }
@@ -227,6 +235,14 @@ export async function setVendorStatus(
   professionalId: string,
   status: VerificationStatus,
 ): Promise<void> {
+  if (await callingApiAsUser()) {
+    await api(`/ops/vendors/${encodeURIComponent(professionalId)}`, {
+      method: "PATCH",
+      body: { status },
+    });
+    return;
+  }
+
   const pro = store.professionals.find((p) => p.id === professionalId);
   if (!pro) throw new Error("Unknown professional");
   pro.verificationStatus = status;
@@ -254,6 +270,14 @@ export async function setVendorDomainStatus(
   domainId: string,
   status: DomainApprovalStatus,
 ): Promise<void> {
+  if (await callingApiAsUser()) {
+    await api(
+      `/ops/vendors/${encodeURIComponent(professionalId)}/domains/${encodeURIComponent(domainId)}`,
+      { method: "PATCH", body: { status } },
+    );
+    return;
+  }
+
   const link = store.professionalDomains.find(
     (pd) => pd.professionalId === professionalId && pd.domainId === domainId,
   );
@@ -283,6 +307,14 @@ export async function setCommissionOverride(
   domainId: string,
   percent: number | null,
 ): Promise<void> {
+  if (await callingApiAsUser()) {
+    await api(
+      `/ops/vendors/${encodeURIComponent(professionalId)}/domains/${encodeURIComponent(domainId)}`,
+      { method: "PATCH", body: { commissionPercentOverride: percent } },
+    );
+    return;
+  }
+
   const link = store.professionalDomains.find(
     (pd) => pd.professionalId === professionalId && pd.domainId === domainId,
   );
@@ -372,6 +404,14 @@ export async function setInvoiceStatus(
   status: InvoiceStatus,
   note?: string,
 ): Promise<void> {
+  if (await callingApiAsUser()) {
+    await api(`/ops/invoices/${encodeURIComponent(invoiceId)}`, {
+      method: "PATCH",
+      body: { status, note },
+    });
+    return;
+  }
+
   const invoice = store.commissionInvoices.find((i) => i.id === invoiceId);
   if (!invoice) throw new Error("Unknown invoice");
   invoice.status = status;
@@ -458,6 +498,10 @@ export async function getDomainUsage(domainId: string): Promise<{
   packages: number;
   projects: number;
 }> {
+  if (await callingApiAsUser()) {
+    return api(`/ops/domains/${encodeURIComponent(domainId)}/usage`);
+  }
+
   const leadDomainIds = store.leadDomains
     .filter((ld) => ld.domainId === domainId)
     .map((ld) => ld.id);
@@ -537,6 +581,14 @@ export async function setTicketStatus(
   ticketId: string,
   status: SupportTicket["status"],
 ): Promise<void> {
+  if (await callingApiAsUser()) {
+    await api(`/ops/tickets/${encodeURIComponent(ticketId)}`, {
+      method: "PATCH",
+      body: { status },
+    });
+    return;
+  }
+
   const ticket = store.supportTickets.find((t) => t.id === ticketId);
   if (!ticket) throw new Error("Unknown ticket");
   ticket.status = status;
