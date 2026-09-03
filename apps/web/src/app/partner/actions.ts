@@ -8,7 +8,6 @@ import {
   signPartnerAgreement,
   submitMilestoneProof,
   submitQuote,
-  updateProjectProgress,
 } from "@repo/data";
 import type { QuoteDraftInput } from "@repo/data";
 import type { MediaAsset } from "@repo/types";
@@ -34,16 +33,6 @@ export async function respondToLeadAction(
 export async function sendVendorMessageAction(leadDomainId: string, body: string) {
   await sendVendorMessage(leadDomainId, body);
   revalidatePath(`/leads/${leadDomainId}`);
-}
-
-export async function updateProgressAction(
-  projectId: string,
-  completionPercent: number,
-  milestoneId?: string,
-) {
-  await updateProjectProgress(projectId, completionPercent, milestoneId);
-  revalidatePath("/projects");
-  revalidatePath("/");
 }
 
 /* ---------------- Onboarding ---------------- */

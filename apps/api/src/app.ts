@@ -14,6 +14,7 @@ import { registerAuthRoutes } from "./routes/auth";
 import { registerCustomerRoutes } from "./routes/customer";
 import { registerHealthRoutes } from "./routes/health";
 import { registerPublicRoutes } from "./routes/public";
+import { registerVendorRoutes } from "./routes/vendor";
 
 export async function buildApp(): Promise<FastifyInstance> {
   const app = Fastify({
@@ -113,6 +114,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(registerAuthRoutes);
   await app.register(registerPublicRoutes);
   await app.register(registerCustomerRoutes);
+  await app.register(registerVendorRoutes);
 
   return app;
 }

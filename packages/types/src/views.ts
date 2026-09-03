@@ -168,3 +168,105 @@ export interface ClientRecord {
   client: Client;
   user: User;
 }
+
+/* ------------------------------------------------------------------ *
+ * The vendor portal
+ *
+ * These shapes exist to be *incapable* of carrying a customer's contact
+ * details. Everywhere a client appears it is a `MaskedClientSummary`, which has
+ * no field for a phone number or an email — so a leak would have to be a
+ * deliberate change to the type, not an oversight in a query.
+ * ------------------------------------------------------------------ */
+
+/** One lead offered to one vendor. */
+export interface VendorLeadCard {
+  assignment: LeadDomainAssignment;
+  leadDomain: LeadDomain;
+  domain: Domain;
+  leadReference: string;
+  client: MaskedClientSummary;
+  /** The client's own description of the job. */
+  description: string;
+  urgency: string;
+  materialSource: LeadDomain["materialSource"];
+  items: LeadDomainItem[];
+  /** The brief our team captured on the call — the real scope. */
+  brief: string | null;
+  siteNotes: string[];
+  budgetMax: Rupees | null;
+  myQuote: Quote | null;
+  visits: Meeting[];
+  unreadMessages: number;
+  /**
+   * How many others are quoting. Stated plainly so nobody assumes the job is
+   * theirs.
+   */
+  competingQuotes: number;
+  /**
+   * Decided server-side. A screen comparing `selectedProfessionalId` against a
+   * hardcoded "who am I" is a bug waiting for the day that value is wrong.
+   */
+  won: boolean;
+  lost: boolean;
+}
+
+export interface VendorDashboard {
+  professional: Professional;
+  displayName: string;
+  domains: Array<{ link: ProfessionalDomain; domain: Domain }>;
+  newLeads: number;
+  awaitingQuote: number;
+  quotesOut: number;
+  wonThisPeriod: number;
+  liveProjects: number;
+  visitsToday: number;
+  commissionDue: Rupees;
+  commissionOverdue: Rupees;
+  unreadMessages: number;
+}
+
+export interface VendorAgreementView {
+  agreement: Agreement;
+  client: MaskedClientSummary;
+  lines: Array<{ link: AgreementLeadDomain; domain: Domain; quote: Quote }>;
+  isCombined: boolean;
+  projects: Array<{ project: Project; domain: Domain }>;
+  invoice: CommissionInvoice | null;
+}
+
+export interface VendorProjectView {
+  project: Project;
+  domain: Domain;
+  client: MaskedClientSummary;
+  cityName: string;
+  review: Review | null;
+}
+
+export interface VendorPerformance {
+  byDomain: Array<{
+    domain: Domain;
+    rating: number;
+    ratingCount: number;
+    completed: number;
+    won: number;
+    lost: number;
+    winRatePercent: number;
+    commissionPercent: number;
+  }>;
+  avgResponseHours: number;
+  totalRevenue: Rupees;
+  reviews: Array<{ review: Review; domain: Domain; clientName: string }>;
+}
+
+export interface VendorInvoiceView {
+  invoice: CommissionInvoice;
+  agreementReference: string;
+  domains: string[];
+}
+
+export interface VendorVisitView {
+  meeting: Meeting;
+  domain: Domain;
+  client: MaskedClientSummary;
+  leadReference: string;
+}

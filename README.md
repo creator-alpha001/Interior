@@ -55,7 +55,7 @@ packages/ui      The design system, shared across both frontends.
 
 **The seam that matters:** screens call `@repo/data`, never `@repo/mock`. Today those functions resolve against an in-memory store; when the backend lands, only the function bodies change. Signatures, view models and screens stay as they are.
 
-Set `NEXT_PUBLIC_API_URL` and the public catalogue, blog, directory, search and **sign-in** stop reading seed data and start calling the backend — those are built. While the customer and vendor screens still resolve locally, add `NEXT_PUBLIC_ALLOW_DEMO_SESSION=true` so they keep their demo identity; that flag is ignored in a production build. `API.md` is the contract and says what is live.
+Set `NEXT_PUBLIC_API_URL` and everything except the ops panel runs on Postgres: the public catalogue, sign-in, the customer account and the professional portal. The admin app still resolves locally — add `NEXT_PUBLIC_ALLOW_DEMO_SESSION=true` there so it keeps its demo identity; that flag is ignored in a production build. `API.md` is the contract and says what is live.
 
 ---
 
@@ -89,7 +89,7 @@ These shape the whole system, so they are worth reading before changing anything
 
 ## Not built yet
 
-- The customer, vendor and ops surfaces still read seed data; the seams are in place (`readThrough`/`api` for reads, `/uploads/tickets` for files)
+- The ops surface still reads seed data; the seam is in place (`readThrough`/`api` for reads)
 - File uploads, and the background jobs that mark invoices overdue and send the SMS
 - The two mobile apps (client and professional)
 - Paging **controls** in the UI — the data layer pages, but no screen yet renders a "next page" button; today's page sizes cover the seed data

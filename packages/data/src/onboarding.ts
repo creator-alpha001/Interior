@@ -13,7 +13,8 @@ import type {
   VendorOnboarding,
 } from "@repo/types";
 import { partnerTerms } from "@repo/mock";
-import { currentProfessionalId, currentStaffUserId } from "./session";
+import { api } from "./client";
+import { callingApiAsUser, currentProfessionalId, currentStaffUserId } from "./session";
 import { delay, nextId, nowIso, store } from "./store";
 
 export async function getPartnerTerms(): Promise<PartnerTerms> {
@@ -167,6 +168,13 @@ export interface SignAgreementInput {
 export async function signPartnerAgreement(
   input: SignAgreementInput,
 ): Promise<PartnerAgreement> {
+  if (await callingApiAsUser()) {
+    return api<PartnerAgreement>("/vendor/onboarding/agreement", {
+      method: "POST",
+      body: input,
+    });
+  }
+
   const required = partnerTerms.acknowledgements.map((a) => a.key);
   const missing = required.filter((key) => !input.acknowledgedClauses.includes(key));
   if (missing.length > 0) {
@@ -236,6 +244,18 @@ export interface MilestoneProofInput {
  * "done" should mean somebody checked, not that somebody said so.
  */
 export async function submitMilestoneProof(input: MilestoneProofInput): Promise<void> {
+  if (await callingApiAsUser()) {
+    await api(
+      `/vendor/projects/${encodeURIComponent(input.projectId)}/stages/${encodeURIComponent(
+        input.milestoneId,
+      )}/proof`,
+      // Asset ids, never bytes — the files went straight to storage from the
+      // browser through an upload ticket.
+      { method: "POST", body: { note: input.note, proof: input.proof.map((p) => p.id) } },
+    );
+    return;
+  }
+
   const project = store.projects.find((p) => p.id === input.projectId);
   if (!project) throw new Error("Unknown project");
   const milestone = project.milestones.find((m) => m.id === input.milestoneId);
@@ -313,5 +333,6 @@ export async function reviewMilestoneProof(
 
 /** The signed-in professional's own onboarding progress. */
 export async function getVendorOnboarding(): Promise<VendorOnboarding | null> {
+  if (await callingApiAsUser()) return api<VendorOnboarding>("/vendor/onboarding");
   return getVendorOnboardingFor(await currentProfessionalId());
 }

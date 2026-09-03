@@ -25,46 +25,31 @@ import type {
   QuoteLineItem,
   Review,
   Rupees,
+  VendorAgreementView,
+  VendorDashboard,
+  VendorLeadCard,
+  VendorPerformance,
+  VendorProjectView,
 } from "@repo/types";
 import { cityById, domainById, toMaskedClientSummary } from "./mappers";
-import { currentProfessionalId } from "./session";
+
+// These shapes live in @repo/types so the API can return them without importing
+// this package, which owns the seed store. Re-exported because every existing
+// caller imports them from @repo/data.
+export type {
+  VendorAgreementView,
+  VendorDashboard,
+  VendorLeadCard,
+  VendorPerformance,
+  VendorProjectView,
+};
+import { api } from "./client";
+import { callingApiAsUser, currentProfessionalId } from "./session";
 import { delay, nextId, nowIso, seedRow, store } from "./store";
 
 /* ------------------------------------------------------------------ *
  * Leads offered to this vendor
  * ------------------------------------------------------------------ */
-
-export interface VendorLeadCard {
-  assignment: LeadDomainAssignment;
-  leadDomain: LeadDomain;
-  domain: Domain;
-  leadReference: string;
-  client: MaskedClientSummary;
-  /** The client's own description of the job. */
-  description: string;
-  urgency: string;
-  materialSource: LeadDomain["materialSource"];
-  items: LeadDomainItem[];
-  /** The brief our team captured on the call — the real scope. */
-  brief: string | null;
-  siteNotes: string[];
-  budgetMax: Rupees | null;
-  myQuote: Quote | null;
-  visits: Meeting[];
-  unreadMessages: number;
-  /**
-   * True where this vendor is one of several quoting. Stated plainly so nobody
-   * assumes the job is theirs.
-   */
-  competingQuotes: number;
-  /**
-   * Decided here rather than in the UI. A screen comparing
-   * `selectedProfessionalId` against a hardcoded "who am I" constant is a bug
-   * waiting for the day that constant is wrong.
-   */
-  won: boolean;
-  lost: boolean;
-}
 
 function toVendorLeadCard(assignment: LeadDomainAssignment, professionalId: string): VendorLeadCard {
   const leadDomain = store.leadDomains.find((ld) => ld.id === assignment.leadDomainId)!;
@@ -117,6 +102,10 @@ function toVendorLeadCard(assignment: LeadDomainAssignment, professionalId: stri
 export async function listVendorLeads(
   filter: "all" | "new" | "quoting" | "won" | "lost" = "all",
 ): Promise<VendorLeadCard[]> {
+  if (await callingApiAsUser()) {
+    return api<VendorLeadCard[]>("/vendor/leads", { query: { filter } });
+  }
+
   const professionalId = await currentProfessionalId();
   const cards = store.leadDomainAssignments
     .filter((a) => a.professionalId === professionalId)
@@ -141,6 +130,10 @@ export async function listVendorLeads(
 }
 
 export async function getVendorLead(leadDomainId: string): Promise<VendorLeadCard | null> {
+  if (await callingApiAsUser()) {
+    return api<VendorLeadCard>(`/vendor/leads/${encodeURIComponent(leadDomainId)}`);
+  }
+
   const professionalId = await currentProfessionalId();
   const assignment = store.leadDomainAssignments.find(
     (a) => a.leadDomainId === leadDomainId && a.professionalId === professionalId,
@@ -153,6 +146,14 @@ export async function respondToLead(
   response: "accepted" | "rejected",
   reason?: string,
 ): Promise<void> {
+  if (await callingApiAsUser()) {
+    await api(`/vendor/leads/${encodeURIComponent(leadDomainId)}/respond`, {
+      method: "POST",
+      body: { response, reason },
+    });
+    return;
+  }
+
   const professionalId = await currentProfessionalId();
   const assignment = store.leadDomainAssignments.find(
     (a) => a.leadDomainId === leadDomainId && a.professionalId === professionalId,
@@ -186,6 +187,14 @@ export interface QuoteDraftInput {
  * lets ops see how a price moved and why.
  */
 export async function submitQuote(input: QuoteDraftInput): Promise<Quote> {
+  if (await callingApiAsUser()) {
+    const { leadDomainId, ...draft } = input;
+    return api<Quote>(`/vendor/leads/${encodeURIComponent(leadDomainId)}/quotes`, {
+      method: "POST",
+      body: draft,
+    });
+  }
+
   const professionalId = await currentProfessionalId();
   const existing = store.quotes
     .filter((q) => q.leadDomainId === input.leadDomainId && q.professionalId === professionalId)
@@ -263,22 +272,9 @@ export async function submitQuote(input: QuoteDraftInput): Promise<Quote> {
  * Dashboard, agreements, projects, money
  * ------------------------------------------------------------------ */
 
-export interface VendorDashboard {
-  professional: Professional;
-  displayName: string;
-  domains: Array<{ link: ProfessionalDomain; domain: Domain }>;
-  newLeads: number;
-  awaitingQuote: number;
-  quotesOut: number;
-  wonThisPeriod: number;
-  liveProjects: number;
-  visitsToday: number;
-  commissionDue: Rupees;
-  commissionOverdue: Rupees;
-  unreadMessages: number;
-}
-
 export async function getVendorDashboard(): Promise<VendorDashboard> {
+  if (await callingApiAsUser()) return api<VendorDashboard>("/vendor/dashboard");
+
   const professionalId = await currentProfessionalId();
   const professional = seedRow(
     store.professionals.find((p) => p.id === professionalId),
@@ -322,16 +318,9 @@ export async function getVendorDashboard(): Promise<VendorDashboard> {
   });
 }
 
-export interface VendorAgreementView {
-  agreement: Agreement;
-  client: MaskedClientSummary;
-  lines: Array<{ link: AgreementLeadDomain; domain: Domain; quote: Quote }>;
-  isCombined: boolean;
-  projects: Array<{ project: Project; domain: Domain }>;
-  invoice: CommissionInvoice | null;
-}
-
 export async function listVendorAgreements(): Promise<VendorAgreementView[]> {
+  if (await callingApiAsUser()) return api<VendorAgreementView[]>("/vendor/agreements");
+
   const professionalId = await currentProfessionalId();
   return delay(
     store.agreements
@@ -364,15 +353,9 @@ export async function listVendorAgreements(): Promise<VendorAgreementView[]> {
   );
 }
 
-export interface VendorProjectView {
-  project: Project;
-  domain: Domain;
-  client: MaskedClientSummary;
-  cityName: string;
-  review: Review | null;
-}
-
 export async function listVendorProjects(): Promise<VendorProjectView[]> {
+  if (await callingApiAsUser()) return api<VendorProjectView[]>("/vendor/projects");
+
   const professionalId = await currentProfessionalId();
   return delay(
     store.projects
@@ -392,33 +375,15 @@ export async function listVendorProjects(): Promise<VendorProjectView[]> {
   );
 }
 
-export async function updateProjectProgress(
-  projectId: string,
-  completionPercent: number,
-  milestoneId?: string,
-): Promise<void> {
-  const project = store.projects.find((p) => p.id === projectId);
-  if (!project) throw new Error("Unknown project");
-
-  project.completionPercent = Math.max(0, Math.min(100, completionPercent));
-  if (milestoneId) {
-    const milestone = project.milestones.find((m) => m.id === milestoneId);
-    if (milestone && !milestone.completedAt) milestone.completedAt = nowIso();
-  }
-  if (project.completionPercent === 100 && project.status === "ongoing") {
-    project.status = "completed";
-    project.actualEndDate = nowIso().slice(0, 10);
-
-    const leadDomain = store.leadDomains.find((ld) => ld.id === project.leadDomainId);
-    if (leadDomain) leadDomain.status = "completed";
-  }
-  project.updatedAt = nowIso();
-  return delay(undefined);
-}
-
 export async function listVendorInvoices(): Promise<
   Array<{ invoice: CommissionInvoice; agreementReference: string; domains: string[] }>
 > {
+  if (await callingApiAsUser()) {
+    return api<Array<{ invoice: CommissionInvoice; agreementReference: string; domains: string[] }>>(
+      "/vendor/invoices",
+    );
+  }
+
   const professionalId = await currentProfessionalId();
   return delay(
     store.commissionInvoices
@@ -447,6 +412,10 @@ export async function listVendorInvoices(): Promise<
 
 /** Their thread with our team for one lead. They never see the client thread. */
 export async function listVendorThread(leadDomainId: string): Promise<Message[]> {
+  if (await callingApiAsUser()) {
+    return api<Message[]>(`/vendor/leads/${encodeURIComponent(leadDomainId)}/messages`);
+  }
+
   const professionalId = await currentProfessionalId();
   return delay(
     store.messages
@@ -461,6 +430,13 @@ export async function listVendorThread(leadDomainId: string): Promise<Message[]>
 }
 
 export async function sendVendorMessage(leadDomainId: string, body: string): Promise<Message> {
+  if (await callingApiAsUser()) {
+    return api<Message>(`/vendor/leads/${encodeURIComponent(leadDomainId)}/messages`, {
+      method: "POST",
+      body: { body },
+    });
+  }
+
   const professionalId = await currentProfessionalId();
   const message: Message = {
     id: nextId("msg"),
@@ -482,27 +458,15 @@ export async function sendVendorMessage(leadDomainId: string, body: string): Pro
 }
 
 export async function listVendorPortfolio(): Promise<PortfolioItem[]> {
+  if (await callingApiAsUser()) return api<PortfolioItem[]>("/vendor/portfolio");
+
   const professionalId = await currentProfessionalId();
   return delay(store.portfolioItems.filter((p) => p.professionalId === professionalId));
 }
 
-export interface VendorPerformance {
-  byDomain: Array<{
-    domain: Domain;
-    rating: number;
-    ratingCount: number;
-    completed: number;
-    won: number;
-    lost: number;
-    winRatePercent: number;
-    commissionPercent: number;
-  }>;
-  avgResponseHours: number;
-  totalRevenue: Rupees;
-  reviews: Array<{ review: Review; domain: Domain; clientName: string }>;
-}
-
 export async function getVendorPerformance(): Promise<VendorPerformance> {
+  if (await callingApiAsUser()) return api<VendorPerformance>("/vendor/performance");
+
   const professionalId = await currentProfessionalId();
   const links = store.professionalDomains.filter((pd) => pd.professionalId === professionalId);
   const professional = seedRow(
@@ -560,6 +524,12 @@ export async function getVendorPerformance(): Promise<VendorPerformance> {
 export async function listVendorVisits(): Promise<
   Array<{ meeting: Meeting; domain: Domain; client: MaskedClientSummary; leadReference: string }>
 > {
+  if (await callingApiAsUser()) {
+    return api<
+      Array<{ meeting: Meeting; domain: Domain; client: MaskedClientSummary; leadReference: string }>
+    >("/vendor/visits");
+  }
+
   const professionalId = await currentProfessionalId();
   return delay(
     store.meetings

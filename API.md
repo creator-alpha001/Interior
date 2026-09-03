@@ -17,17 +17,15 @@ authoritative definition of every response shape named here.
 
 **Base URL** — `NEXT_PUBLIC_API_URL`. When unset the apps run on seed data.
 
-**The public read section and authentication are built and running.**
-`apps/api` serves them against PostgreSQL. Everything further down is still the
-contract to build.
+**Everything except the ops surface is built and running.** `apps/api` serves
+the public catalogue, authentication, the customer account and the professional
+portal against PostgreSQL. The staff section further down is still the contract
+to build.
 
-**One thing to know before turning the API on locally.** The surfaces migrate one
-at a time, and signing in for real is only useful once the surface you are
-looking at has moved. A session carries database ids; the customer and vendor
-screens still read seed data keyed by its own ids, so a real session finds
-nothing there. Until those land, run with `NEXT_PUBLIC_ALLOW_DEMO_SESSION=true`
-— public pages come from Postgres, signed-in pages stay on seed data, and the
-sign-in flow can still be exercised end to end against the API.
+**One thing to know while the ops panel catches up.** The admin app still reads
+seed data keyed by its own ids, so a real staff session finds nothing there. Run
+that app with `NEXT_PUBLIC_ALLOW_DEMO_SESSION=true` until the ops surface lands.
+The customer site needs no such flag.
 
 **Authentication** — session cookie forwarded by the frontend. The backend
 derives the caller from it. Endpoints below never take a `clientId` or
@@ -35,15 +33,15 @@ derives the caller from it. Endpoints below never take a `clientId` or
 matters: `GET /me/requirements` must return the signed-in customer's leads, not
 whichever id the client asked for.
 
-The frontend already holds up its half of that: no data function accepts the
-caller's own id. They ask `packages/data/src/session.ts`, which each app wires
-up in its `instrumentation.ts`. Connecting real auth means replacing one
-function body there — the `configureSession` callback — and nothing else.
+The frontend holds up its half of that: no data function accepts the caller's
+own id. They ask `packages/data/src/session.ts`, which resolves the session from
+the request cookie.
 
-Until that callback returns a real actor, the data layer falls back to a seeded
-demo identity per role. **That fallback switches itself off once
-`NEXT_PUBLIC_API_URL` is set**: with a backend present, no session means
-`NotAuthenticatedError`, never somebody else's rows.
+Personal endpoints — everything under `/me` and `/vendor` — switch on whether
+there is *actually* a session, not merely on whether a backend is configured.
+That distinction matters: with the demo flag on, a screen would otherwise
+believe it was signed in while the API answered 401. Public data has no such
+condition and switches on the base URL alone.
 
 There is one bounded exception, for the migration window only, described above:
 `NEXT_PUBLIC_ALLOW_DEMO_SESSION=true` keeps the demo identities working while
@@ -159,38 +157,52 @@ requirement when it is submitted, which is also when the account is created.
 
 ---
 
-## Vendor
+## Vendor — built
 
-Scoped to the signed-in professional.
+Scoped to the signed-in professional. As with `/me`, no path takes a
+professional id.
 
 | Method | Path | Response |
 | --- | --- | --- |
 | GET | `/vendor/leads` | `VendorLeadCard[]` — filter: `new`/`quoting`/`won`/`lost` |
-| GET | `/vendor/leads/:leadDomainId` | `VendorLeadCard` |
-| POST | `/vendor/leads/:leadDomainId/respond` | accept or decline |
-| POST | `/vendor/leads/:leadDomainId/quotes` | `Quote` — body is `QuoteDraftInput` |
-| GET | `/vendor/leads/:leadDomainId/messages` | `Message[]` — their thread with us only |
-| POST | `/vendor/leads/:leadDomainId/messages` | `Message` |
+| GET | `/vendor/leads/:id` | `VendorLeadCard` |
+| POST | `/vendor/leads/:id/respond` | accept or decline |
+| POST | `/vendor/leads/:id/quotes` | `Quote` |
+| GET | `/vendor/leads/:id/messages` | `Message[]` — their thread with us only |
+| POST | `/vendor/leads/:id/messages` | `Message` |
 | GET | `/vendor/dashboard` | `VendorDashboard` |
 | GET | `/vendor/agreements` | `VendorAgreementView[]` |
 | GET | `/vendor/projects` | `VendorProjectView[]` |
-| GET | `/vendor/projects/:id` | `VendorProjectView` |
-| POST | `/vendor/projects/:id/stages/:stageId/proof` | `{ note, proof: MediaAsset[] }` — ids from `/uploads/tickets`, not bytes |
-| GET | `/vendor/invoices` | commission invoices |
+| POST | `/vendor/projects/:id/stages/:stageId/proof` | `{ note, proof: string[] }` — asset ids from `/uploads/tickets`, not bytes |
+| GET | `/vendor/invoices` | `VendorInvoiceView[]` |
+| GET | `/vendor/visits` | `VendorVisitView[]` |
+| GET | `/vendor/portfolio` | `PortfolioItem[]` |
+| GET | `/vendor/performance` | `VendorPerformance` |
 | GET | `/vendor/onboarding` | `VendorOnboarding` |
 | POST | `/vendor/onboarding/agreement` | `PartnerAgreement` |
-| GET | `/vendor/performance` | `VendorPerformance` |
 
-### Two rules the backend owns
+### Three rules the backend owns
 
-**Contact masking.** No vendor-facing response may contain a customer's phone
-number or email — ever, under any query. The address is released only once a
-visit for that lead-domain is confirmed. See `MaskedClientSummary`: that shape
-is the whole permitted surface.
+**Contact masking.** No vendor-facing response contains a customer's phone
+number or email. The rule is structural rather than procedural:
+`MaskedClientSummary` has no field for either, and no query in the vendor module
+selects `users.mobile`. A leak would have to be a deliberate change to the type.
+
+The address is released only where the database says a visit for *that service*
+is confirmed — computed in SQL beside the query, not in a mapper that could
+drift. The same customer can therefore be sealed on one service and released on
+another, which is correct: a vendor booked for the painting has no business
+seeing the address because somebody else's furniture visit was confirmed.
 
 **Signing gates assignment.** A professional with no signed current-version
-partner agreement must not appear in any vendor pool, however verified their
-account or approved their trades.
+partner agreement appears in no vendor pool, however verified their account or
+approved their trades. `canReceiveLeads` and the pool filter both read the
+`eligible_vendors` view, so they cannot disagree.
+
+**Submitting evidence is not finishing.** `POST .../proof` marks a stage
+*submitted*. Only an approval from ops moves the completion the customer sees.
+The vendor-facing endpoint that used to write `completionPercent` directly has
+been removed along with its dead UI — it let somebody declare themselves done.
 
 ---
 
