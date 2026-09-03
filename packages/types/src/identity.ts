@@ -104,3 +104,33 @@ export interface Referral extends BaseRecord {
   rewardStatus: "pending" | "earned" | "paid" | "expired";
   rewardAmount: Rupees;
 }
+
+/* ---- Who is calling ---- */
+
+export type ActorRole = UserRole;
+
+/**
+ * The signed-in caller, narrowed to the ids their role actually has.
+ *
+ * A union rather than one shape with optional ids: a function needing a client
+ * id should not compile against an actor that might be a vendor.
+ */
+export type Actor =
+  | { role: "client"; userId: ID; clientId: ID }
+  | { role: "professional"; userId: ID; professionalId: ID }
+  | { role: "sales_agent"; userId: ID; salesAgentId: ID }
+  | { role: "admin"; userId: ID };
+
+/**
+ * The actor plus the bits of them a screen needs to render.
+ *
+ * Kept separate from `Actor` so authorisation code cannot accidentally branch
+ * on a display name: `Actor` answers "may they", this answers "who is it".
+ */
+export interface SessionUser {
+  actor: Actor;
+  name: string;
+  /** The signed-in person's own number — never another party's. */
+  mobile: string;
+  avatarUrl: string | null;
+}

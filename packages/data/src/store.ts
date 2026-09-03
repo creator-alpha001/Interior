@@ -75,3 +75,26 @@ export function nextId(prefix: string): string {
 export function nowIso(): string {
   return new Date().toISOString();
 }
+
+/**
+ * Asserts that a row the seed store was asked for actually exists.
+ *
+ * There is one situation where it will not, and it is confusing enough to be
+ * worth a real message: a backend is configured and somebody has signed in, so
+ * the session carries database ids — but the module serving this screen still
+ * reads the seed store, which is keyed by its own ids. Nothing matches.
+ *
+ * Without this the failure is `Cannot read properties of undefined`, several
+ * frames from the cause. With it, the message says which surface is not wired
+ * yet.
+ */
+export function seedRow<T>(row: T | undefined, kind: string, id: string): T {
+  if (row !== undefined) return row;
+
+  throw new Error(
+    `No seeded ${kind} with id "${id}". ` +
+      "This usually means a real session is in use while this surface still " +
+      "reads seed data — see the migration order in API.md. Set " +
+      "NEXT_PUBLIC_ALLOW_DEMO_SESSION=true, or wire this module to the API.",
+  );
+}

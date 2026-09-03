@@ -10,7 +10,8 @@
  * UUIDs. `uid()` maps between them deterministically, so re-running this script
  * produces identical ids and foreign keys still resolve.
  */
-import { eq, sql as raw } from "drizzle-orm";
+import { eq, inArray, sql as raw } from "drizzle-orm";
+import argon2 from "argon2";
 import { v5 as uuidv5 } from "uuid";
 import * as seed from "@repo/mock";
 import { closeDatabase, db } from "./client";
@@ -25,6 +26,9 @@ const uidOrNull = (mockId: string | null | undefined): string | null =>
 
 /** Ratings are stored as integers times ten: 4.5 becomes 45. */
 const x10 = (rating: number): number => Math.round(rating * 10);
+
+let staffEmails: string[] = [];
+let staffPassword = "";
 
 async function main() {
   const started = Date.now();
@@ -780,6 +784,28 @@ async function main() {
       })),
     );
 
+    /* ---------------- staff sign-in ---------------- */
+
+    // Ops and admin accounts need a password to sign in with, and the seed is
+    // the only place that knows one. Refused outside development: a known
+    // password on an account that can read every customer's phone number is
+    // not something to leave lying in a deployed database.
+    if (process.env.NODE_ENV === "production") {
+      console.log("  (skipping staff passwords — not development)");
+    } else {
+      const devPassword = process.env.SEED_STAFF_PASSWORD ?? "aangan-dev-password";
+      const passwordHash = await argon2.hash(devPassword, { type: argon2.argon2id });
+
+      const staff = seed.users.filter((u) => u.role === "admin" || u.role === "sales_agent");
+      if (staff.length > 0) {
+        await tx.insert(t.staffCredentials).values(
+          staff.map((u) => ({ userId: uid(u.id), passwordHash })),
+        );
+      }
+      staffEmails = staff.map((u) => u.email).filter((e): e is string => Boolean(e));
+      staffPassword = devPassword;
+    }
+
     // Reference sequences must start above the highest seeded number, or the
     // first real lead collides with a demo one.
     await tx.execute(raw`SELECT setval('lead_reference_seq', ${1062 + seed.leads.length})`);
@@ -803,6 +829,12 @@ async function main() {
   console.log(`  ${seed.products.length} products, ${seed.servicePackages.length} packages`);
   console.log(`  ${seed.leads.length} leads, ${seed.leadDomains.length} services`);
   console.log(`  ${seed.projects.length} projects, ${seed.blogPosts.length} posts`);
+  if (staffEmails.length > 0) {
+    console.log(`
+  Staff sign-in (development only): ${staffEmails.join(", ")}`);
+    console.log(`  Password: ${staffPassword}`);
+    console.log(`  Customers and vendors sign in by mobile — OTP_DEV_ECHO returns the code.`);
+  }
 }
 
 main()

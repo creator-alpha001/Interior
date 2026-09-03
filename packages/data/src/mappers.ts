@@ -14,7 +14,7 @@ import type {
   QuoteView,
   ReviewView,
 } from "@repo/types";
-import { store } from "./store";
+import { seedRow, store } from "./store";
 
 /* ---- lookups ---- */
 
@@ -33,7 +33,11 @@ export function toProfessionalSummary(
   professionalId: string,
   contextDomainId?: string,
 ): ProfessionalSummary {
-  const pro = store.professionals.find((p) => p.id === professionalId)!;
+  const pro = seedRow(
+    store.professionals.find((p) => p.id === professionalId),
+    "professional",
+    professionalId,
+  );
   const user = store.users.find((u) => u.id === pro.userId)!;
   const links = store.professionalDomains.filter((pd) => pd.professionalId === pro.id);
   const contextLink = contextDomainId
@@ -65,7 +69,11 @@ export function toProfessionalSummary(
 }
 
 export function toProfessionalProfile(professionalId: string): ProfessionalProfile {
-  const pro = store.professionals.find((p) => p.id === professionalId)!;
+  const pro = seedRow(
+    store.professionals.find((p) => p.id === professionalId),
+    "professional",
+    professionalId,
+  );
   const user = store.users.find((u) => u.id === pro.userId)!;
   const summary = toProfessionalSummary(professionalId);
 
@@ -102,7 +110,7 @@ export function toProfessionalProfile(professionalId: string): ProfessionalProfi
 /* ---- clients ---- */
 
 export function toClientSummary(clientId: string): ClientSummary {
-  const client = store.clients.find((c) => c.id === clientId)!;
+  const client = seedRow(store.clients.find((c) => c.id === clientId), "client", clientId);
   const user = store.users.find((u) => u.id === client.userId)!;
   return {
     id: client.id,
@@ -127,7 +135,7 @@ export function toMaskedClientSummary(
   clientId: string,
   leadDomainId?: string,
 ): MaskedClientSummary {
-  const client = store.clients.find((c) => c.id === clientId)!;
+  const client = seedRow(store.clients.find((c) => c.id === clientId), "client", clientId);
   const user = store.users.find((u) => u.id === client.userId)!;
 
   const parts = (client.address ?? "").split(",").map((p) => p.trim());

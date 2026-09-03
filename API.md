@@ -17,10 +17,17 @@ authoritative definition of every response shape named here.
 
 **Base URL** — `NEXT_PUBLIC_API_URL`. When unset the apps run on seed data.
 
-**The public read section below is built and running.** `apps/api` serves it
-against PostgreSQL; set the base URL and the catalogue, blog, directory and
-search stop reading seed data. Everything further down is still the contract to
-build.
+**The public read section and authentication are built and running.**
+`apps/api` serves them against PostgreSQL. Everything further down is still the
+contract to build.
+
+**One thing to know before turning the API on locally.** The surfaces migrate one
+at a time, and signing in for real is only useful once the surface you are
+looking at has moved. A session carries database ids; the customer and vendor
+screens still read seed data keyed by its own ids, so a real session finds
+nothing there. Until those land, run with `NEXT_PUBLIC_ALLOW_DEMO_SESSION=true`
+— public pages come from Postgres, signed-in pages stay on seed data, and the
+sign-in flow can still be exercised end to end against the API.
 
 **Authentication** — session cookie forwarded by the frontend. The backend
 derives the caller from it. Endpoints below never take a `clientId` or
@@ -38,13 +45,19 @@ demo identity per role. **That fallback switches itself off once
 `NEXT_PUBLIC_API_URL` is set**: with a backend present, no session means
 `NotAuthenticatedError`, never somebody else's rows.
 
-There is one bounded exception, for the migration window only. The surfaces move
-to the API one at a time, so the catalogue can be live on Postgres while the
-account pages are still on seed data — and without an escape hatch, turning the
-API on would break every signed-in screen until authentication lands. Setting
-`NEXT_PUBLIC_ALLOW_DEMO_SESSION=true` keeps the demo identities working in that
-state. It is ignored in a production build, so it cannot become the way the
-system runs.
+There is one bounded exception, for the migration window only, described above:
+`NEXT_PUBLIC_ALLOW_DEMO_SESSION=true` keeps the demo identities working while
+only part of the app is wired. It is ignored in a production build, so it cannot
+become the way the system runs.
+
+**Where the session is resolved.** `@repo/data` reads the request cookie itself
+and calls `GET /me`; Next deduplicates that fetch per render, so a page asking
+forty times makes one request. This was originally registered from each app's
+`instrumentation.ts` and that does not work — Next builds instrumentation as a
+separate module graph, so the registration lands on a different copy of the
+module than the screens import, and every request renders as signed out with no
+error to explain it. `configureSession` remains, for tests and for the mobile
+apps later.
 
 **Errors** — JSON body `{ code, message, details? }` with a meaningful status.
 `packages/data/src/client.ts` maps these to `ApiError`, which the UI uses to
@@ -158,6 +171,33 @@ is the whole permitted surface.
 **Signing gates assignment.** A professional with no signed current-version
 partner agreement must not appear in any vendor pool, however verified their
 account or approved their trades.
+
+---
+
+## Authentication
+
+| Method | Path | Response |
+| --- | --- | --- |
+| POST | `/auth/otp/request` | `{ challengeId, expiresInSeconds }` — body `{ mobile }` |
+| POST | `/auth/otp/verify` | `Actor`, and sets the session cookie — body `{ challengeId, code, name?, cityId? }` |
+| POST | `/auth/staff/login` | `Actor`, and sets the session cookie — body `{ email, password, totp? }` |
+| POST | `/auth/logout` | `{ ok }` — revokes the session |
+| GET | `/me` | `SessionUser` — `{ actor, name, mobile, avatarUrl }`, or 401 |
+
+Codes are six digits, valid five minutes, three attempts, and stored as an
+argon2 hash — a six-digit code is only a million possibilities, so a leaked
+backup with codes in it would be a working login for every number that signed in
+that hour. Requesting a new code consumes any earlier one.
+
+Rate limits live in Postgres, not memory: an in-process counter gives an
+attacker one allowance per instance and resets on every deploy. Five requests
+per mobile per hour, twenty per IP; staff lock out for fifteen minutes after
+five failures, and the lockout holds even against the correct password.
+
+An unrecognised mobile creates a customer account — signing up and signing in
+are the same action. Staff are refused on this path entirely and told to use a
+password; a vendor account is created by ops, so somebody who is not yet a
+vendor simply signs in as a customer.
 
 ---
 

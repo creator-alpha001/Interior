@@ -7,6 +7,7 @@
  */
 export * from "./client";
 export * from "./session";
+export * from "./auth";
 export * from "./uploads";
 export * from "./catalogue";
 export * from "./client-actions";

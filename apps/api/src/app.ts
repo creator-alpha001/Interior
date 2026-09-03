@@ -10,6 +10,7 @@ import helmet from "@fastify/helmet";
 import { ZodError } from "zod";
 import { config } from "./lib/config";
 import { HttpError, translateDatabaseError } from "./lib/errors";
+import { registerAuthRoutes } from "./routes/auth";
 import { registerHealthRoutes } from "./routes/health";
 import { registerPublicRoutes } from "./routes/public";
 
@@ -108,6 +109,7 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   await app.register(registerHealthRoutes);
+  await app.register(registerAuthRoutes);
   await app.register(registerPublicRoutes);
 
   return app;

@@ -24,8 +24,21 @@ export const otpVerifySchema = z.object({
 
 export const staffLoginSchema = z.object({
   email: z.string().trim().toLowerCase().email(),
-  password: z.string().min(8).max(200),
+  /**
+   * Only bounded, not shaped.
+   *
+   * A minimum length here would be a rule about *setting* a password applied to
+   * checking one — it tells an attacker the passwords are at least that long,
+   * and worse, it rejects short guesses before they reach the failed-attempt
+   * counter, so brute force below the threshold is never counted or locked out.
+   */
+  password: z.string().min(1).max(200),
   totp: z.string().regex(/^\d{6}$/).optional(),
+});
+
+/** Setting a password is where the strength rule belongs. */
+export const setPasswordSchema = z.object({
+  password: z.string().min(12).max(200),
 });
 
 export const authRoutes = {

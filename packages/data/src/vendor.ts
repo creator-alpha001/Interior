@@ -28,7 +28,7 @@ import type {
 } from "@repo/types";
 import { cityById, domainById, toMaskedClientSummary } from "./mappers";
 import { currentProfessionalId } from "./session";
-import { delay, nextId, nowIso, store } from "./store";
+import { delay, nextId, nowIso, seedRow, store } from "./store";
 
 /* ------------------------------------------------------------------ *
  * Leads offered to this vendor
@@ -280,7 +280,11 @@ export interface VendorDashboard {
 
 export async function getVendorDashboard(): Promise<VendorDashboard> {
   const professionalId = await currentProfessionalId();
-  const professional = store.professionals.find((p) => p.id === professionalId)!;
+  const professional = seedRow(
+    store.professionals.find((p) => p.id === professionalId),
+    "professional",
+    professionalId,
+  );
   const user = store.users.find((u) => u.id === professional.userId)!;
   const cards = await listVendorLeads();
   const today = nowIso().slice(0, 10);
@@ -501,7 +505,11 @@ export interface VendorPerformance {
 export async function getVendorPerformance(): Promise<VendorPerformance> {
   const professionalId = await currentProfessionalId();
   const links = store.professionalDomains.filter((pd) => pd.professionalId === professionalId);
-  const professional = store.professionals.find((p) => p.id === professionalId)!;
+  const professional = seedRow(
+    store.professionals.find((p) => p.id === professionalId),
+    "professional",
+    professionalId,
+  );
 
   const byDomain = links.map((link) => {
     const domain = domainById(link.domainId);

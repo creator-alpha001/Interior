@@ -1,51 +1,104 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { useEffect, useRef, useState, useTransition } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button, cn } from "@repo/ui";
+import { requestOtpAction, verifyOtpAction, type OtpState } from "@/app/(site)/login/actions";
 
 /**
- * Mobile OTP is the primary route, since most customers arrive on a phone and
- * will not remember a password for a service they use twice a year.
+ * Mobile OTP is the only route in.
  *
- * This is the front end only — no OTP is actually sent. The code field accepts
- * any six digits so the flow can be walked end to end before auth is wired up.
+ * Most customers arrive on a phone and will not remember a password for a
+ * service they use twice a year, and most vendors are tradespeople who would
+ * rather not manage one at all. Staff sign in elsewhere, with a password and an
+ * authenticator app — an ops account can see every customer's number and every
+ * vendor's margin, so it should not be reachable by whoever ends up with a
+ * recycled SIM.
  */
 export function LoginForm() {
-  const router = useRouter();
+  const nextPath = useSearchParams().get("next") ?? undefined;
   const [stage, setStage] = useState<"mobile" | "otp">("mobile");
   const [mobile, setMobile] = useState("");
+  const [name, setName] = useState("");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [seconds, setSeconds] = useState(0);
-  const [pending, setPending] = useState(false);
+  const [challenge, setChallenge] = useState<OtpState>({});
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
 
   useEffect(() => {
     if (seconds <= 0) return;
-    const t = setTimeout(() => setSeconds((s) => s - 1), 1000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setSeconds((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
   }, [seconds]);
 
+  const mobileValid = /^[0-9]{10}$/.test(mobile);
+  const code = otp.join("");
+
   function sendCode() {
-    if (!/^[0-9]{10}$/.test(mobile)) return;
-    setStage("otp");
-    setSeconds(30);
-    setTimeout(() => inputs.current[0]?.focus(), 50);
+    if (!mobileValid || pending) return;
+    setError(null);
+
+    startTransition(async () => {
+      const result = await requestOtpAction(mobile);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      setChallenge(result);
+      setStage("otp");
+      setSeconds(30);
+      setTimeout(() => inputs.current[0]?.focus(), 50);
+    });
   }
 
-  function setDigit(index: number, value: string) {
-    const digit = value.replace(/\D/g, "").slice(-1);
+  /**
+   * Fills from `index` onwards with however many digits arrived.
+   *
+   * One box normally receives one digit, but not always: SMS autofill drops the
+   * entire code into the first field, and typing faster than React re-renders
+   * lands several in the same one. Handling only the last character — the
+   * obvious implementation — silently discards five of the six digits in both
+   * cases, and the user sees an empty form for no reason they can work out.
+   */
+  function fillFrom(index: number, value: string) {
+    const digits = value.replace(/\D/g, "").split("");
+    if (digits.length === 0) {
+      const cleared = [...otp];
+      cleared[index] = "";
+      setOtp(cleared);
+      return;
+    }
+
     const next = [...otp];
-    next[index] = digit;
+    digits.slice(0, 6 - index).forEach((digit, offset) => {
+      next[index + offset] = digit;
+    });
     setOtp(next);
-    if (digit && index < 5) inputs.current[index + 1]?.focus();
+
+    const landed = Math.min(index + digits.length, 5);
+    inputs.current[landed]?.focus();
   }
 
   function verify() {
-    if (otp.join("").length !== 6) return;
-    setPending(true);
-    // Front end only — the demo account is what the account area renders.
-    setTimeout(() => router.push("/account"), 500);
+    if (code.length !== 6 || pending || !challenge.challengeId) return;
+    setError(null);
+
+    startTransition(async () => {
+      // On success this redirects and never returns.
+      const result = await verifyOtpAction({
+        challengeId: challenge.challengeId!,
+        code,
+        name: name.trim() || undefined,
+        next: nextPath,
+      });
+      if (result?.error) {
+        setError(result.error);
+        setOtp(["", "", "", "", "", ""]);
+        inputs.current[0]?.focus();
+      }
+    });
   }
 
   return (
@@ -76,43 +129,31 @@ export function LoginForm() {
             </div>
           </div>
 
-          <Button
-            onClick={sendCode}
-            disabled={!/^[0-9]{10}$/.test(mobile)}
-            size="lg"
-            className="mt-5 w-full"
-          >
-            Send code
-          </Button>
-
-          <div className="my-6 flex items-center gap-3">
-            <span className="h-px flex-1 bg-line" />
-            <span className="text-[13px] sm:text-[12px] text-ink-4">or</span>
-            <span className="h-px flex-1 bg-line" />
+          <div className="mt-4">
+            <label htmlFor="name" className="text-[14px] sm:text-[13px] font-medium text-ink">
+              Your name{" "}
+              <span className="font-normal text-ink-4">— only if this is your first time</span>
+            </label>
+            <input
+              id="name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && sendCode()}
+              placeholder="Priya Sharma"
+              autoComplete="name"
+              className="mt-2 h-12 w-full rounded-lg border border-line bg-paper px-3.5 text-[15px] text-ink outline-none transition-colors placeholder:text-ink-4 focus:border-brand"
+            />
           </div>
 
-          <button
-            type="button"
-            onClick={() => router.push("/account")}
-            className="flex h-12 w-full items-center justify-center gap-3 rounded-full border border-line-strong bg-surface text-[15px] sm:text-[14px] font-medium text-ink transition-colors hover:bg-surface-2"
-          >
-            <svg viewBox="0 0 18 18" className="h-4 w-4" aria-hidden="true">
-              <path
-                fill="#4285F4"
-                d="M17.6 9.2c0-.6-.1-1.2-.2-1.8H9v3.4h4.8a4.1 4.1 0 01-1.8 2.7v2.2h2.9c1.7-1.6 2.7-3.9 2.7-6.5z"
-              />
-              <path
-                fill="#34A853"
-                d="M9 18c2.4 0 4.5-.8 6-2.2l-2.9-2.2c-.8.5-1.8.9-3.1.9-2.4 0-4.4-1.6-5.1-3.8H.9v2.3A9 9 0 009 18z"
-              />
-              <path fill="#FBBC05" d="M3.9 10.7a5.4 5.4 0 010-3.4V5H.9a9 9 0 000 8l3-2.3z" />
-              <path
-                fill="#EA4335"
-                d="M9 3.6c1.3 0 2.5.5 3.4 1.3L15 2.3A9 9 0 00.9 5l3 2.3C4.6 5.2 6.6 3.6 9 3.6z"
-              />
-            </svg>
-            Continue with Google
-          </button>
+          {error ? (
+            <p role="alert" className="mt-4 rounded-lg bg-danger-soft px-3 py-2.5 text-[13.5px] text-danger">
+              {error}
+            </p>
+          ) : null}
+
+          <Button onClick={sendCode} disabled={!mobileValid || pending} size="lg" className="mt-5 w-full">
+            {pending ? "Sending…" : "Send code"}
+          </Button>
 
           <p className="mt-6 text-center text-[12.5px] sm:text-[11.5px] leading-relaxed text-ink-4">
             By continuing you agree to our terms and privacy policy. We never share your number with
@@ -123,7 +164,10 @@ export function LoginForm() {
         <>
           <button
             type="button"
-            onClick={() => setStage("mobile")}
+            onClick={() => {
+              setStage("mobile");
+              setError(null);
+            }}
             className="text-[14px] sm:text-[13px] text-ink-3 hover:text-ink"
           >
             ← Change number
@@ -142,16 +186,20 @@ export function LoginForm() {
                   inputs.current[i] = el;
                 }}
                 value={digit}
-                onChange={(e) => setDigit(i, e.target.value)}
+                onChange={(e) => fillFrom(i, e.target.value)}
+                onPaste={(e) => {
+                  e.preventDefault();
+                  fillFrom(0, e.clipboardData.getData("text"));
+                }}
                 onKeyDown={(e) => {
                   if (e.key === "Backspace" && !otp[i] && i > 0) inputs.current[i - 1]?.focus();
                   if (e.key === "Enter") verify();
                 }}
                 inputMode="numeric"
-                maxLength={1}
+                autoComplete={i === 0 ? "one-time-code" : "off"}
                 aria-label={`Digit ${i + 1}`}
                 className={cn(
-                  "h-13 w-full rounded-lg border bg-paper text-center font-display text-[22px] text-ink outline-none transition-colors",
+                  "w-full rounded-lg border bg-paper text-center font-display text-[22px] text-ink outline-none transition-colors",
                   digit ? "border-brand" : "border-line",
                   "focus:border-brand",
                 )}
@@ -160,12 +208,13 @@ export function LoginForm() {
             ))}
           </div>
 
-          <Button
-            onClick={verify}
-            disabled={otp.join("").length !== 6 || pending}
-            size="lg"
-            className="mt-5 w-full"
-          >
+          {error ? (
+            <p role="alert" className="mt-4 rounded-lg bg-danger-soft px-3 py-2.5 text-[13.5px] text-danger">
+              {error}
+            </p>
+          ) : null}
+
+          <Button onClick={verify} disabled={code.length !== 6 || pending} size="lg" className="mt-5 w-full">
             {pending ? "Verifying…" : "Verify and continue"}
           </Button>
 
@@ -173,19 +222,18 @@ export function LoginForm() {
             {seconds > 0 ? (
               <>Resend code in {seconds}s</>
             ) : (
-              <button
-                type="button"
-                onClick={() => setSeconds(30)}
-                className="font-medium text-brand"
-              >
+              <button type="button" onClick={sendCode} className="font-medium text-brand">
                 Resend code
               </button>
             )}
           </p>
 
-          <p className="mt-6 rounded-lg bg-surface-2 p-3 text-center text-[13px] sm:text-[12px] leading-relaxed text-ink-3">
-            Prototype — no code is actually sent. Enter any six digits to continue.
-          </p>
+          {challenge.devCode ? (
+            <p className="mt-6 rounded-lg bg-surface-2 p-3 text-center text-[13px] sm:text-[12px] leading-relaxed text-ink-3">
+              Development only — no SMS was sent. Your code is{" "}
+              <span className="font-mono font-semibold text-ink">{challenge.devCode}</span>
+            </p>
+          ) : null}
         </>
       )}
     </div>

@@ -1,4 +1,6 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
+import { authenticationRequired, getActor } from "@repo/data";
 import { VendorShell } from "@/components/partner/vendor-shell";
 
 export const metadata: Metadata = {
@@ -26,8 +28,20 @@ export const dynamic = "force-dynamic";
  * `partner-portal` switches the page to the denser type scale these screens
  * were designed at.
  */
-export default function PartnerLayout({ children }: { children: React.ReactNode }) {
-  return <div className="partner-portal">{
-    <VendorShell>{children}</VendorShell>
-  }</div>;
+export default async function PartnerLayout({ children }: { children: React.ReactNode }) {
+  // The portal is behind the same sign-in as everything else. A customer who
+  // finds the URL gets sent back to their own account rather than an error —
+  // and a signed-out visitor gets the sign-in page, which is the whole reason
+  // vendors need no address of their own.
+  const actor = await getActor();
+  if (!actor && authenticationRequired()) redirect("/login");
+  if (actor && actor.role !== "professional") {
+    redirect(actor.role === "client" ? "/account" : "/");
+  }
+
+  return (
+    <div className="partner-portal">
+      <VendorShell>{children}</VendorShell>
+    </div>
+  );
 }

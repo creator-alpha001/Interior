@@ -84,6 +84,45 @@ function buildUrl(path: string, query?: ApiOptions["query"]): string {
   return url.toString();
 }
 
+/** The session cookie both apps and the API agree on. */
+export const SESSION_COOKIE = "aangan_session";
+
+/**
+ * The caller's session cookie, read from the current request.
+ *
+ * `next/headers` is imported dynamically for two reasons: this package is also
+ * pulled into client bundles, where that module does not exist; and the import
+ * must not run at module load, because there is no request then.
+ *
+ * This used to be registered from `instrumentation.ts` instead. That does not
+ * work — Next builds instrumentation in a separate module graph, so the
+ * registration landed on a different copy of this module than the one the
+ * screens import, and every request looked signed out.
+ */
+export type CookieReader = () => Promise<string | undefined> | string | undefined;
+
+let cookieReader: CookieReader | null = null;
+
+/** Overrides how the cookie is found. For tests, and for non-Next callers. */
+export function configureCookieForwarding(reader: CookieReader): void {
+  cookieReader = reader;
+}
+
+export async function currentSessionCookie(): Promise<string | undefined> {
+  if (cookieReader) return cookieReader();
+  if (typeof window !== "undefined") return undefined;
+
+  try {
+    const { cookies } = await import("next/headers");
+    const token = (await cookies()).get(SESSION_COOKIE)?.value;
+    return token ? `${SESSION_COOKIE}=${token}` : undefined;
+  } catch {
+    // Outside a request — a build-time render, or a non-Next caller. Neither
+    // has a session, and neither is an error.
+    return undefined;
+  }
+}
+
 /**
  * One place where every request is shaped, so authentication, error mapping and
  * caching are decided once rather than at 115 call sites.
@@ -99,6 +138,11 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
 
   const { method = "GET", body, query, headers, tags, revalidate, signal } = options;
 
+  // The browser never talks to the API directly — every call is made by the
+  // Next server on the user's behalf — so the cookie has to be carried across
+  // explicitly rather than travelling with the request.
+  const cookie = headers?.cookie ?? (await currentSessionCookie());
+
   let response: Response;
   try {
     response = await fetch(buildUrl(path, query), {
@@ -106,16 +150,20 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
       headers: {
         Accept: "application/json",
         ...(body ? { "Content-Type": "application/json" } : {}),
+        ...(cookie ? { cookie } : {}),
         ...headers,
       },
       body: body ? JSON.stringify(body) : undefined,
       signal,
-      // Mutations must never be cached; reads opt in explicitly.
+      // Mutations must never be cached; reads opt in explicitly. A read
+      // carrying a session is never cached either — a shared cache holding one
+      // person's data and serving it to the next visitor is the worst failure
+      // this layer could have.
       next:
-        method === "GET"
+        method === "GET" && !cookie
           ? { tags, revalidate: revalidate === false ? undefined : revalidate }
           : undefined,
-      cache: method === "GET" ? undefined : "no-store",
+      cache: method === "GET" && !cookie ? undefined : "no-store",
     });
   } catch (cause) {
     // Network failure, DNS, timeout — status 0 marks it retryable.

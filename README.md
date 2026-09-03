@@ -55,7 +55,7 @@ packages/ui      The design system, shared across both frontends.
 
 **The seam that matters:** screens call `@repo/data`, never `@repo/mock`. Today those functions resolve against an in-memory store; when the backend lands, only the function bodies change. Signatures, view models and screens stay as they are.
 
-Set `NEXT_PUBLIC_API_URL` and the public catalogue, blog, directory and search stop reading seed data and start calling the backend — those endpoints are built. While the rest still resolves locally, add `NEXT_PUBLIC_ALLOW_DEMO_SESSION=true` so the account and portal screens keep their demo identity; that flag is ignored in a production build. `API.md` is the contract and says what is live.
+Set `NEXT_PUBLIC_API_URL` and the public catalogue, blog, directory, search and **sign-in** stop reading seed data and start calling the backend — those are built. While the customer and vendor screens still resolve locally, add `NEXT_PUBLIC_ALLOW_DEMO_SESSION=true` so they keep their demo identity; that flag is ignored in a production build. `API.md` is the contract and says what is live.
 
 ---
 
@@ -77,6 +77,8 @@ These shape the whole system, so they are worth reading before changing anything
 
 **A stage is done when somebody checked, not when somebody said so.** Vendors close out project stages by uploading photographs; ops approve them; only then does the customer's progress bar move.
 
+**Customers and vendors sign in with a mobile number and an SMS code; staff with a password and an authenticator app.** An ops account can see every customer's number and every vendor's margin, so it should not be reachable by whoever ends up with a recycled SIM. Sessions are rows in Postgres, not JWTs, because suspending a vendor has to log them out of the portal they are looking at.
+
 **No function takes the caller's own id.** `listLeadsForClient()` asks who is signed in rather than accepting a `clientId`, because the day that argument comes from a browser is the day one customer can read another's leads. Ids are parameters only for records being *addressed*, never for the caller.
 
 **Lists that grow return a page, not an array.** `listProducts`, `listPosts` and `listProfessionals` return `{ items, nextCursor, total }`. Retrofitting that later would have meant touching every call site.
@@ -87,7 +89,8 @@ These shape the whole system, so they are worth reading before changing anything
 
 ## Not built yet
 
-- Backend, database and real authentication — the seams are in place: `configureSession` for auth, `readThrough`/`api` for reads, `/uploads/tickets` for files
+- The customer, vendor and ops surfaces still read seed data; the seams are in place (`readThrough`/`api` for reads, `/uploads/tickets` for files)
+- File uploads, and the background jobs that mark invoices overdue and send the SMS
 - The two mobile apps (client and professional)
 - Paging **controls** in the UI — the data layer pages, but no screen yet renders a "next page" button; today's page sizes cover the seed data
 - Ops lists (`listOpsLeads`, `listVendors`) are unpaged, because the dashboards aggregate across every row. Those aggregates need their own endpoints before those lists can page

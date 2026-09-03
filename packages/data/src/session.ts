@@ -11,16 +11,13 @@
  * Nothing else in the codebase knows that — swap the resolver and every screen,
  * action and repository function stays exactly as it is.
  */
-import type { ID } from "@repo/types";
-import { USING_API } from "./client";
+import type { Actor, ActorRole, ID, SessionUser } from "@repo/types";
+import { ApiError, USING_API, api, currentSessionCookie } from "./client";
 
-export type Role = "client" | "professional" | "sales_agent" | "admin";
-
-export type Actor =
-  | { role: "client"; userId: ID; clientId: ID }
-  | { role: "professional"; userId: ID; professionalId: ID }
-  | { role: "sales_agent"; userId: ID; salesAgentId: ID }
-  | { role: "admin"; userId: ID };
+// Re-exported so existing callers keep importing these from @repo/data, while
+// the API imports them from @repo/types without pulling in the seed store.
+export type { Actor, SessionUser };
+export type Role = ActorRole;
 
 /**
  * The demo identities each surface runs as until authentication exists. Named
@@ -92,8 +89,65 @@ export function configureSession(fn: SessionResolver): void {
 }
 
 /** The current caller, or null when nobody is signed in. */
+/**
+ * Asks the backend who the current request belongs to.
+ *
+ * Lives here rather than being registered from `instrumentation.ts`, which was
+ * the original design and does not work: Next builds instrumentation as its own
+ * module graph, so the registration wrote to a different copy of this module
+ * than the screens import from, and every request came back signed out.
+ *
+ * No memoisation is needed. Next automatically deduplicates identical `GET`
+ * fetches within a single render pass, so a page whose forty components each
+ * ask who is signed in makes one request.
+ */
+async function resolveFromRequest(): Promise<SessionUser | null> {
+  if (!USING_API) return null;
+
+  const cookie = await currentSessionCookie();
+  if (!cookie) return null;
+
+  try {
+    return await api<SessionUser>("/me", { headers: { cookie } });
+  } catch (error) {
+    // An expired or unknown session is the normal state of a signed-out
+    // visitor, not a failure. Anything else is worth seeing in the logs, but
+    // still resolves to "nobody" — a signed-out render is always valid.
+    if (!(error instanceof ApiError) || !error.isUnauthorised) {
+      console.error("Could not resolve the session:", error);
+    }
+    return null;
+  }
+}
+
 export async function getActor(): Promise<Actor | null> {
-  return resolver ? await resolver() : null;
+  if (resolver) return resolver();
+  return (await resolveFromRequest())?.actor ?? null;
+}
+
+/**
+ * Who is signed in, with the name and avatar a screen needs to show them.
+ *
+ * Returns null where nobody is, and the seeded demo person where a demo session
+ * is permitted — so a header can say who it is without every caller repeating
+ * that decision.
+ */
+export async function getSessionUser(): Promise<SessionUser | null> {
+  if (!USING_API) return demoSessionUser();
+
+  const session = await resolveFromRequest();
+  if (session) return session;
+
+  return demoSessionAllowed() ? demoSessionUser() : null;
+}
+
+function demoSessionUser(): SessionUser {
+  return {
+    actor: DEMO_ACTORS.client,
+    name: "Priya Sharma",
+    mobile: "",
+    avatarUrl: null,
+  };
 }
 
 /**
@@ -116,6 +170,18 @@ function demoSessionAllowed(): boolean {
   if (!USING_API) return true;
   if (process.env.NODE_ENV === "production") return false;
   return process.env.NEXT_PUBLIC_ALLOW_DEMO_SESSION === "true";
+}
+
+/**
+ * Whether this deployment needs a real session before it will show anything
+ * personal.
+ *
+ * Screens use it to decide between sending a signed-out visitor to the sign-in
+ * page and rendering the demo identity. Without it a layout cannot tell "nobody
+ * is signed in" from "nobody needs to be".
+ */
+export function authenticationRequired(): boolean {
+  return !demoSessionAllowed();
 }
 
 /**
