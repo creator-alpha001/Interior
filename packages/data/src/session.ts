@@ -126,6 +126,21 @@ export async function getActor(): Promise<Actor | null> {
 }
 
 /**
+ * Whether a personal endpoint can actually be called right now.
+ *
+ * Every `/me/*` endpoint needs a session, so "is a backend configured" is the
+ * wrong question for them — during the migration window a demo session is
+ * permitted, and in that state the API would answer 401 while the screens
+ * happily believed they were signed in. Personal reads and writes ask this
+ * instead, and fall back to seed data when the answer is no.
+ *
+ * Public data has no such condition and keeps using `USING_API`.
+ */
+export async function callingApiAsUser(): Promise<boolean> {
+  return USING_API && (await getActor()) !== null;
+}
+
+/**
  * Who is signed in, with the name and avatar a screen needs to show them.
  *
  * Returns null where nobody is, and the seeded demo person where a demo session

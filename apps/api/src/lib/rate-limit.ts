@@ -30,6 +30,13 @@ export const LIMITS = {
   otpVerifyPerIp: { max: 30, windowSeconds: 3600 },
   staffLoginPerEmail: { max: 10, windowSeconds: 900 },
   staffLoginPerIp: { max: 30, windowSeconds: 900 },
+  /**
+   * Upload tickets for somebody who has not signed in.
+   *
+   * Generous enough for a requirement form with six photographs and a couple of
+   * retries; tight enough that the endpoint is not free object storage.
+   */
+  anonymousUploadPerIp: { max: 30, windowSeconds: 3600 },
 } as const satisfies Record<string, Limit>;
 
 /**

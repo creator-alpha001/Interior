@@ -14,7 +14,8 @@ import type {
   SupportTicket,
   TicketReply,
 } from "@repo/types";
-import { currentClientId, currentUserId } from "./session";
+import { api } from "./client";
+import { callingApiAsUser, currentClientId, currentUserId } from "./session";
 import { delay, nextId, nowIso, store } from "./store";
 
 /* ---------------- Reviews ---------------- */
@@ -34,6 +35,10 @@ export interface ReviewInput {
  * recalculates that professional's rating for that domain specifically.
  */
 export async function submitReview(input: ReviewInput): Promise<Review> {
+  if (await callingApiAsUser()) {
+    return api<Review>("/me/reviews", { method: "POST", body: input });
+  }
+
   const project = store.projects.find((p) => p.id === input.projectId);
   if (!project) throw new Error("Unknown project");
   if (store.reviews.some((r) => r.projectId === input.projectId)) {
@@ -95,6 +100,13 @@ function recalculateRatings(professionalId: string, domainId: string) {
  * agreement — one per service it covers, because they finish independently.
  */
 export async function signAgreement(agreementId: string): Promise<Agreement> {
+  if (await callingApiAsUser()) {
+    return api<Agreement>(`/me/agreements/${encodeURIComponent(agreementId)}/sign`, {
+      method: "POST",
+      body: {},
+    });
+  }
+
   const agreement = store.agreements.find((a) => a.id === agreementId);
   if (!agreement) throw new Error("Unknown agreement");
 
@@ -204,6 +216,13 @@ export async function signAgreement(agreementId: string): Promise<Agreement> {
  * re-confirms with the professional before a new slot is set.
  */
 export async function requestReschedule(meetingId: string, note: string): Promise<Meeting> {
+  if (await callingApiAsUser()) {
+    return api<Meeting>(`/me/visits/${encodeURIComponent(meetingId)}/reschedule`, {
+      method: "POST",
+      body: { note },
+    });
+  }
+
   const meeting = store.meetings.find((m) => m.id === meetingId);
   if (!meeting) throw new Error("Unknown meeting");
   meeting.rescheduleRequestedAt = nowIso();
@@ -216,6 +235,14 @@ export async function requestReschedule(meetingId: string, note: string): Promis
 /* ---------------- Notifications ---------------- */
 
 export async function markNotificationsRead(): Promise<number> {
+  if (await callingApiAsUser()) {
+    const { count } = await api<{ count: number }>("/me/notifications/read", {
+      method: "POST",
+      body: {},
+    });
+    return count;
+  }
+
   const userId = await currentUserId();
   const unread = store.notifications.filter((n) => n.userId === userId && !n.isRead);
   for (const n of unread) {
@@ -236,6 +263,10 @@ export interface TicketInput {
 }
 
 export async function createSupportTicket(input: TicketInput): Promise<SupportTicket> {
+  if (await callingApiAsUser()) {
+    return api<SupportTicket>("/me/tickets", { method: "POST", body: input });
+  }
+
   const ticket: SupportTicket = {
     id: nextId("tkt"),
     reference: `TKT-${new Date().getFullYear()}-${String(
@@ -260,6 +291,8 @@ export async function createSupportTicket(input: TicketInput): Promise<SupportTi
 }
 
 export async function listSupportTickets(): Promise<SupportTicket[]> {
+  if (await callingApiAsUser()) return api<SupportTicket[]>("/me/tickets");
+
   const userId = await currentUserId();
   return delay(
     store.supportTickets
@@ -268,17 +301,28 @@ export async function listSupportTickets(): Promise<SupportTicket[]> {
   );
 }
 
-export async function replyToTicket(
-  ticketId: string,
-  authorName: string,
-  body: string,
-): Promise<TicketReply> {
+/**
+ * Replying to your own ticket.
+ *
+ * The author's name is no longer a parameter — it comes from the session. It
+ * used to be passed in, which meant anybody could sign a reply with anybody
+ * else's name.
+ */
+export async function replyToTicket(ticketId: string, body: string): Promise<TicketReply> {
+  if (await callingApiAsUser()) {
+    return api<TicketReply>(`/me/tickets/${encodeURIComponent(ticketId)}/replies`, {
+      method: "POST",
+      body: { body },
+    });
+  }
+
   const ticket = store.supportTickets.find((t) => t.id === ticketId);
   if (!ticket) throw new Error("Unknown ticket");
+
   const reply: TicketReply = {
     id: nextId("trep"),
     authorRole: "client",
-    authorName,
+    authorName: store.users.find((u) => u.id === ticket.raisedByUserId)?.name ?? "Customer",
     body,
     createdAt: nowIso(),
   };
@@ -300,6 +344,8 @@ export interface ReferralSummary {
 }
 
 export async function getReferralSummary(): Promise<ReferralSummary> {
+  if (await callingApiAsUser()) return api<ReferralSummary>("/me/referrals");
+
   const clientId = await currentClientId();
   const client = store.clients.find((c) => c.id === clientId)!;
   const rows = store.referrals.filter((r) => r.referrerUserId === client.userId);

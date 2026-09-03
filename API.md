@@ -109,33 +109,53 @@ cursor via `collectAll()` rather than asking for an enormous page.
 
 ---
 
-## Customer
+## Customer — built
 
-All scoped to the signed-in customer.
+All scoped to the signed-in customer, and **none of them takes a customer id**.
+It comes from the session cookie, so there is no parameter to change in order to
+reach somebody else's records. A record id that belongs to another customer
+answers 404 rather than 403 — a 403 would confirm it exists.
 
 | Method | Path | Response |
 | --- | --- | --- |
 | GET | `/me/requirements` | `LeadView[]` |
 | GET | `/me/requirements/:id` | `LeadView` |
-| POST | `/me/requirements` | `LeadView` — body is `RequirementInput` |
+| POST | `/me/requirements` | `LeadView` |
+| POST | `/me/requirements/:id/agreements` | `AgreementView[]` — groups chosen vendors into contracts |
+| GET | `/me/services/:id/messages` | `Message[]` — the client thread only |
+| POST | `/me/services/:id/messages` | `Message` |
+| POST | `/me/services/:id/select-quote` | `LeadView` |
 | GET | `/me/agreements` | `AgreementView[]` |
 | POST | `/me/agreements/:id/sign` | `Agreement` |
 | GET | `/me/projects` | `ProjectView[]` |
-| POST | `/me/projects/:id/review` | `Review` |
+| POST | `/me/reviews` | `Review` |
+| POST | `/me/visits/:id/reschedule` | `Meeting` |
 | GET | `/me/notifications` | `Notification[]` |
 | POST | `/me/notifications/read` | `{ count }` |
-| GET | `/me/referrals` | `ReferralSummary` |
 | GET | `/me/tickets` | `SupportTicket[]` |
 | POST | `/me/tickets` | `SupportTicket` |
 | POST | `/me/tickets/:id/replies` | `TicketReply` |
-| GET | `/me/requirements/:leadDomainId/messages` | `Message[]` — client thread only |
-| POST | `/me/requirements/:leadDomainId/messages` | `Message` |
-| POST | `/me/quotes/:id/select` | `LeadView` |
-| POST | `/me/visits/:id/reschedule` | `Meeting` |
+| GET | `/me/referrals` | `ReferralSummary` |
 
-**The message endpoints must never return `platform_vendor` messages.** The
-customer's thread is with the platform. Enforce that server-side; do not rely on
-the frontend filtering.
+**The message endpoints never return `platform_vendor` messages.** That is
+enforced twice: the query filters on channel, and the table has a check
+constraint making a client-channel row with a vendor id impossible to write. Two
+layers, because the vendor thread is where prices and margins are discussed.
+
+**`POST /me/agreements/:id/sign` is the largest transaction in the system.** It
+activates the contract, moves every covered service into execution, creates one
+project per service with its four stages, and raises a single commission
+invoice — five tables, all or nothing. The agreement row is locked for the
+duration, so two taps on a slow connection cannot produce two sets of projects.
+Commission is frozen at that moment from the vendor's rate for that trade; a
+later override must not reprice work already agreed.
+
+**Uploads happen before sign-in, on purpose.** The public requirement form lets
+a visitor attach photographs before it asks them to verify a number — asking for
+an account first is how a form loses the people who opened it. So
+`POST /uploads/tickets` accepts an anonymous caller, but only for
+`requirement_photo`, and rate-limits it by address. The assets are bound to the
+requirement when it is submitted, which is also when the account is created.
 
 ---
 

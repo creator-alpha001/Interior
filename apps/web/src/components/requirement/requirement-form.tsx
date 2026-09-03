@@ -93,6 +93,14 @@ export function RequirementForm({
   const [uploading, setUploading] = useState(false);
   const [uploadError, setUploadError] = useState<string | null>(null);
 
+  // Verifying the number is the last thing asked, not the first. Everything
+  // typed so far stays here until the code is confirmed.
+  const [verification, setVerification] = useState<{ challengeId: string; devCode?: string } | null>(
+    null,
+  );
+  const [code, setCode] = useState("");
+  const [submitError, setSubmitError] = useState<string | null>(null);
+
   // Photos go up as they are chosen rather than being held as raw files until
   // submit, so a too-large photo is rejected while the customer is still on
   // that step instead of after they have filled in everything else.
@@ -122,11 +130,15 @@ export function RequirementForm({
     { label: "Contact" },
   ];
 
+  const contactReady = name.trim().length >= 2 && /^[0-9]{10}$/.test(mobile);
+
   const canContinue = [
     domainIds.length > 0,
     description.trim().length >= 5 && Boolean(cityId),
     selectedDomains.every((d) => materialSource[d.id]),
-    name.trim().length >= 2 && /^[0-9]{10}$/.test(mobile),
+    // Once a code has been sent, the number is fixed and the code is what is
+    // missing.
+    verification ? code.length === 6 : contactReady,
   ][step];
 
   function toggleDomain(id: string) {
@@ -136,34 +148,49 @@ export function RequirementForm({
   }
 
   function submit() {
+    setSubmitError(null);
+
     startTransition(async () => {
-      await createRequirementAction({
-        name,
-        mobile,
-        cityId,
-        domainIds,
-        description,
-        urgency,
-        materialSource,
-        siteAccessibilityTags: tags,
-        budgetMin: budgetSet ? Math.round(budgetStops[budgetIndex] * 0.7) : null,
-        budgetMax: budgetSet ? budgetStops[budgetIndex] : null,
-        preferredProfessionalId: requestedProfessional?.id ?? null,
-        catalogueItems: prefill?.item
-          ? [
-              {
-                domainId: prefill.item.domainId,
-                productId: prefill.item.productId,
-                packageId: prefill.item.packageId,
-                itemName: prefill.item.itemName,
-                quantity: prefill.item.quantity,
-                selectedOptions: prefill.item.selectedOptions,
-                indicativePrice: prefill.item.indicativePrice,
-                notes: null,
-              },
-            ]
+      const result = await createRequirementAction(
+        {
+          name,
+          mobile,
+          cityId,
+          domainIds,
+          description,
+          urgency,
+          materialSource,
+          siteAccessibilityTags: tags,
+          budgetMin: budgetSet ? Math.round(budgetStops[budgetIndex] * 0.7) : null,
+          budgetMax: budgetSet ? budgetStops[budgetIndex] : null,
+          preferredProfessionalId: requestedProfessional?.id ?? null,
+          photoIds: photos.map((p) => p.id),
+          catalogueItems: prefill?.item
+            ? [
+                {
+                  domainId: prefill.item.domainId,
+                  productId: prefill.item.productId,
+                  packageId: prefill.item.packageId,
+                  itemName: prefill.item.itemName,
+                  quantity: prefill.item.quantity,
+                  selectedOptions: prefill.item.selectedOptions,
+                  indicativePrice: prefill.item.indicativePrice,
+                  notes: null,
+                },
+              ]
+            : undefined,
+        },
+        verification && code.length === 6
+          ? { challengeId: verification.challengeId, code }
           : undefined,
-      });
+      );
+
+      // On success this redirects and never returns.
+      if (result?.needsVerification && result.challengeId) {
+        setVerification({ challengeId: result.challengeId, devCode: result.devCode });
+        return;
+      }
+      if (result?.error) setSubmitError(result.error);
     });
   }
 
@@ -600,11 +627,46 @@ export function RequirementForm({
                     onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
                     placeholder="98XXXXXXXX"
                     inputMode="numeric"
-                    className="h-11 w-full bg-transparent px-2.5 text-[15.5px] sm:text-[14.5px] text-ink outline-none placeholder:text-ink-4"
+                    disabled={Boolean(verification)}
+                    className="h-11 w-full bg-transparent px-2.5 text-[15.5px] sm:text-[14.5px] text-ink outline-none placeholder:text-ink-4 disabled:text-ink-3"
                   />
                 </div>
               </div>
             </div>
+
+            {verification ? (
+              <div className="rounded-lg border border-brand-line bg-brand-soft p-4">
+                <label htmlFor="otp" className="text-[14px] sm:text-[13px] font-medium text-ink">
+                  Enter the code we sent to +91 {mobile}
+                </label>
+                <p className="mt-1 text-[13.5px] sm:text-[12.5px] text-ink-3">
+                  This confirms the number so you can track quotes and talk to us about the job.
+                </p>
+                <input
+                  id="otp"
+                  value={code}
+                  onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
+                  onKeyDown={(e) => e.key === "Enter" && canContinue && submit()}
+                  placeholder="6-digit code"
+                  inputMode="numeric"
+                  autoComplete="one-time-code"
+                  autoFocus
+                  className="mt-3 h-11 w-full max-w-[220px] rounded-lg border border-line bg-surface px-3.5 font-mono text-[16px] tracking-[0.3em] text-ink outline-none focus:border-brand"
+                />
+                {verification.devCode ? (
+                  <p className="mt-3 text-[13px] sm:text-[12px] text-ink-3">
+                    Development only — no SMS was sent. Your code is{" "}
+                    <span className="font-mono font-semibold text-ink">{verification.devCode}</span>
+                  </p>
+                ) : null}
+              </div>
+            ) : null}
+
+            {submitError ? (
+              <p role="alert" className="rounded-lg bg-danger-soft px-3 py-2.5 text-[13.5px] text-danger">
+                {submitError}
+              </p>
+            ) : null}
 
             <div className="rounded-lg border border-line bg-paper p-5">
               <h3 className="text-[14px] sm:text-[13px] font-semibold uppercase tracking-[0.1em] text-ink-4">
@@ -676,7 +738,13 @@ export function RequirementForm({
             </Button>
           ) : (
             <Button onClick={submit} disabled={!canContinue || pending} size="lg">
-              {pending ? "Submitting…" : "Submit requirement"}
+              {pending
+                ? verification
+                  ? "Verifying…"
+                  : "Submitting…"
+                : verification
+                  ? "Verify and submit"
+                  : "Submit requirement"}
             </Button>
           )}
         </div>

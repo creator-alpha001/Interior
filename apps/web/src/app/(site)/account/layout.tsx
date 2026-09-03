@@ -46,8 +46,11 @@ export default async function AccountLayout({ children }: { children: React.Reac
           <div className="flex flex-wrap items-end justify-between gap-4">
             <div>
               <p className="text-[12px] sm:text-[11px] font-semibold uppercase tracking-[0.14em] text-clay">
+                {/* "demo account" belongs on a seeded identity, not on somebody
+                    who actually signed in — the flag being on does not mean
+                    this particular visitor is a demo. */}
                 {sessionUser
-                  ? `Signed in as ${sessionUser.name}${authenticationRequired() ? "" : " · demo account"}`
+                  ? `Signed in as ${sessionUser.name}${actor ? "" : " · demo account"}`
                   : "Demo account"}
               </p>
               <h1 className="mt-2 text-[30px] leading-none sm:text-[34px]">My requirements</h1>
@@ -60,7 +63,7 @@ export default async function AccountLayout({ children }: { children: React.Reac
               <ButtonLink href="/submit-requirement" className="flex-1 sm:flex-none">
                 Post a new requirement
               </ButtonLink>
-              {authenticationRequired() ? (
+              {actor ? (
                 <form action={signOutAction}>
                   <button
                     type="submit"

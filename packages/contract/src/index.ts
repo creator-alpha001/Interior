@@ -13,14 +13,17 @@ export * from "./http";
 export * from "./common";
 export * from "./auth";
 export * from "./catalogue";
+export * from "./customer";
 
 import { authRoutes } from "./auth";
 import { catalogueRoutes } from "./catalogue";
+import { customerRoutes } from "./customer";
 
 /** Every route, in one object, for the server to iterate over. */
 export const routes = {
   ...authRoutes,
   ...catalogueRoutes,
+  ...customerRoutes,
 } as const;
 
 export type RouteName = keyof typeof routes;

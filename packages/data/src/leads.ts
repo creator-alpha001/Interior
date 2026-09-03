@@ -11,8 +11,9 @@ import type {
   SiteAccessibilityTag,
   Urgency,
 } from "@repo/types";
+import { ApiError, api } from "./client";
 import { toAgreementView, toLeadView, toProjectView } from "./mappers";
-import { currentAgentId, currentClientId, currentUserId } from "./session";
+import { callingApiAsUser, currentAgentId, currentClientId, currentUserId } from "./session";
 import { delay, nextId, nowIso, store } from "./store";
 
 /* ------------------------------------------------------------------ *
@@ -20,6 +21,8 @@ import { delay, nextId, nowIso, store } from "./store";
  * ------------------------------------------------------------------ */
 
 export async function listLeadsForClient(): Promise<LeadView[]> {
+  if (await callingApiAsUser()) return api<LeadView[]>("/me/requirements");
+
   const clientId = await currentClientId();
   return delay(
     store.leads
@@ -29,12 +32,30 @@ export async function listLeadsForClient(): Promise<LeadView[]> {
   );
 }
 
+/**
+ * One requirement.
+ *
+ * Returns null where it does not exist *or* is not this customer's — the API
+ * answers 404 to both, on purpose. A 403 would confirm the record exists, which
+ * is more than somebody guessing ids should learn.
+ */
 export async function getLead(leadId: string): Promise<LeadView | null> {
+  if (await callingApiAsUser()) {
+    try {
+      return await api<LeadView>(`/me/requirements/${encodeURIComponent(leadId)}`);
+    } catch (error) {
+      if (error instanceof ApiError && error.isNotFound) return null;
+      throw error;
+    }
+  }
+
   const exists = store.leads.some((l) => l.id === leadId);
   return delay(exists ? toLeadView(leadId) : null);
 }
 
 export async function listAgreementsForClient(): Promise<AgreementView[]> {
+  if (await callingApiAsUser()) return api<AgreementView[]>("/me/agreements");
+
   const clientId = await currentClientId();
   return delay(
     store.agreements
@@ -45,11 +66,20 @@ export async function listAgreementsForClient(): Promise<AgreementView[]> {
 }
 
 export async function getAgreement(agreementId: string): Promise<AgreementView | null> {
+  if (await callingApiAsUser()) {
+    // No endpoint of its own: an agreement list is small and always loaded
+    // alongside, so a second round trip buys nothing.
+    const all = await listAgreementsForClient();
+    return all.find((a) => a.agreement.id === agreementId) ?? null;
+  }
+
   const exists = store.agreements.some((a) => a.id === agreementId);
   return delay(exists ? toAgreementView(agreementId) : null);
 }
 
 export async function listProjectsForClient(): Promise<ProjectView[]> {
+  if (await callingApiAsUser()) return api<ProjectView[]>("/me/projects");
+
   const clientId = await currentClientId();
   return delay(
     store.projects
@@ -65,6 +95,10 @@ export async function listProjectsForClient(): Promise<ProjectView[]> {
  * no query here that hands a client a vendor's words unmediated.
  */
 export async function listClientMessages(leadDomainId: string): Promise<Message[]> {
+  if (await callingApiAsUser()) {
+    return api<Message[]>(`/me/services/${encodeURIComponent(leadDomainId)}/messages`);
+  }
+
   return delay(
     store.messages
       .filter((m) => m.leadDomainId === leadDomainId && m.channel === "client_platform")
@@ -91,6 +125,13 @@ export async function listVendorMessages(
 
 /** A client writing in. Always lands in the platform thread. */
 export async function sendClientMessage(leadDomainId: string, body: string): Promise<Message> {
+  if (await callingApiAsUser()) {
+    return api<Message>(`/me/services/${encodeURIComponent(leadDomainId)}/messages`, {
+      method: "POST",
+      body: { body },
+    });
+  }
+
   const clientId = await currentClientId();
   return delay(
     push({
@@ -174,6 +215,8 @@ function push(
 }
 
 export async function listNotifications(): Promise<Notification[]> {
+  if (await callingApiAsUser()) return api<Notification[]>("/me/notifications");
+
   const userId = await currentUserId();
   return delay(
     store.notifications
@@ -205,6 +248,8 @@ export interface RequirementInput {
    * where they can, and say so where they cannot.
    */
   preferredProfessionalId?: string | null;
+  /** Assets already uploaded through `uploadFile`; ids, never bytes. */
+  photoIds?: string[];
   /** Optional catalogue selection that started this requirement. */
   catalogueItems?: Array<{
     domainId: string;
@@ -223,7 +268,38 @@ export interface RequirementInput {
  * table and a full multi-trade renovation both come through here — the only
  * difference is how many lead_domain rows get written.
  */
-export async function submitRequirement(input: RequirementInput): Promise<LeadView> {
+export async function submitRequirement(
+  input: RequirementInput,
+  /**
+   * A session cookie to use instead of the request's own.
+   *
+   * The public form verifies a mobile number as its last step, so the account
+   * comes into existence moments before the requirement is written. Passing the
+   * cookie through means both happen in one action, rather than redirecting to
+   * sign in and losing everything the visitor just typed.
+   */
+  options: { cookie?: string } = {},
+): Promise<LeadView> {
+  if (await callingApiAsUser()) {
+    return api<LeadView>("/me/requirements", {
+      method: "POST",
+      body: {
+        cityId: input.cityId,
+        domainIds: input.domainIds,
+        description: input.description,
+        urgency: input.urgency,
+        materialSource: input.materialSource,
+        siteAccessibilityTags: input.siteAccessibilityTags,
+        budgetMin: input.budgetMin,
+        budgetMax: input.budgetMax,
+        preferredProfessionalId: input.preferredProfessionalId,
+        photoIds: input.photoIds,
+        catalogueItems: input.catalogueItems,
+      },
+      ...(options.cookie ? { headers: { cookie: options.cookie } } : {}),
+    });
+  }
+
   const clientId = await currentClientId();
   const leadId = nextId("lead");
   const sequence = 1062 + store.leads.filter((l) => l.id.startsWith("lead-1")).length;
@@ -308,6 +384,13 @@ export async function submitRequirement(input: RequirementInput): Promise<LeadVi
 
 /** Records the client's choice of vendor for one service of their requirement. */
 export async function selectQuote(leadDomainId: string, quoteId: string): Promise<LeadView> {
+  if (await callingApiAsUser()) {
+    return api<LeadView>(`/me/services/${encodeURIComponent(leadDomainId)}/select-quote`, {
+      method: "POST",
+      body: { quoteId },
+    });
+  }
+
   const leadDomain = store.leadDomains.find((ld) => ld.id === leadDomainId);
   const quote = store.quotes.find((q) => q.id === quoteId);
   if (!leadDomain || !quote) throw new Error("Unknown lead domain or quote");
@@ -335,6 +418,13 @@ export async function selectQuote(leadDomainId: string, quoteId: string): Promis
  * Called once every domain of the lead has a selected vendor.
  */
 export async function generateAgreements(leadId: string): Promise<AgreementView[]> {
+  if (await callingApiAsUser()) {
+    return api<AgreementView[]>(`/me/requirements/${encodeURIComponent(leadId)}/agreements`, {
+      method: "POST",
+      body: {},
+    });
+  }
+
   const lead = store.leads.find((l) => l.id === leadId);
   if (!lead) throw new Error("Unknown lead");
 
