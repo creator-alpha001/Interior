@@ -2,7 +2,9 @@
 
 A marketplace connecting customers to verified professionals across four trades — **Interior Design, Furniture Work, Fabrication and Painting** — with the platform coordinating every conversation between the two sides.
 
-Two frontends and an API, sharing one type contract. The frontends still run against seed data by default; setting `NEXT_PUBLIC_API_URL` moves the surfaces that are wired over to the real backend, one at a time.
+Two frontends and an API, sharing one type contract. The frontends run on seed data until `NEXT_PUBLIC_API_URL` is set; with it set, every surface runs on PostgreSQL.
+
+**New to this?** `CONTEXT.md` has the project's state, the decisions behind it, and what is left.
 
 ---
 
