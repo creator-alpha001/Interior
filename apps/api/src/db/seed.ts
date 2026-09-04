@@ -817,14 +817,14 @@ async function main() {
     await tx.execute(raw`SELECT setval('ticket_reference_seq', ${200 + seed.supportTickets.length})`);
   });
 
+  await reconcileDerivedValues();
+
   console.log(`Seeded in ${Date.now() - started}ms`);
   // Worth knowing when comparing this against the frontend's seed data: the
   // triggers in 0002_invariants.sql run during the load, so any value that is
   // *derived* is recomputed from the rows underneath it rather than taken from
-  // the seed. Project completion now follows approved milestones, and a
-  // vendor's rating follows the reviews that actually exist — the mock carries
-  // two reviews but hand-written rating counts in the dozens, so one vendor's
-  // review count drops. That is the derivation working, not the seed breaking.
+  // the seed. Project completion follows approved milestones, and a vendor's
+  // rating follows the reviews that actually exist.
   console.log(`  ${seed.cities.length} cities, ${seed.domains.length} domains`);
   console.log(`  ${seed.users.length} users (${seed.professionals.length} professionals)`);
   console.log(`  ${seed.products.length} products, ${seed.servicePackages.length} packages`);
@@ -836,6 +836,68 @@ async function main() {
     console.log(`  Password: ${staffPassword}`);
     console.log(`  Customers and vendors sign in by mobile — OTP_DEV_ECHO returns the code.`);
   }
+}
+
+/**
+ * Makes the cached values agree with the rows they summarise.
+ *
+ * The mock data carries hand-written rating counts — one vendor claims 201
+ * reviews — while the platform has two review rows in total. Nothing recomputed
+ * those on load, because the trigger only fires when a review is written, so
+ * they sat there looking authoritative and would have collapsed to the real
+ * number the first time a genuine customer reviewed anybody.
+ *
+ * The schema allows one review per project, so those 201 rows cannot be
+ * conjured up: the only consistent answer is to derive the caches from what is
+ * actually there. Most vendors therefore show no reviews in the demo, which is
+ * true.
+ *
+ * If vendors should display a reputation earned before the platform existed,
+ * that needs its own column that the trigger does not touch — a product
+ * decision, not something to fake in a cache the database owns.
+ */
+async function reconcileDerivedValues(): Promise<void> {
+  await db.execute(raw`
+    UPDATE professional_domains pd SET
+      avg_rating_x10 = COALESCE((
+        SELECT round(avg(r.rating) * 10) FROM reviews r
+        WHERE r.professional_id = pd.professional_id
+          AND r.domain_id = pd.domain_id AND r.deleted_at IS NULL
+      ), 0),
+      rating_count = (
+        SELECT count(*) FROM reviews r
+        WHERE r.professional_id = pd.professional_id
+          AND r.domain_id = pd.domain_id AND r.deleted_at IS NULL
+      ),
+      completed_projects = (
+        SELECT count(*) FROM projects p
+        JOIN lead_domains ld ON ld.id = p.lead_domain_id
+        WHERE p.professional_id = pd.professional_id
+          AND ld.domain_id = pd.domain_id
+          AND p.status = 'completed' AND p.deleted_at IS NULL
+      )
+  `);
+
+  await db.execute(raw`
+    UPDATE professionals p SET
+      avg_rating_x10 = COALESCE((
+        SELECT round(avg(r.rating) * 10) FROM reviews r
+        WHERE r.professional_id = p.id AND r.deleted_at IS NULL
+      ), 0),
+      rating_count = (
+        SELECT count(*) FROM reviews r
+        WHERE r.professional_id = p.id AND r.deleted_at IS NULL
+      ),
+      completed_projects = (
+        SELECT count(*) FROM projects pr
+        WHERE pr.professional_id = p.id AND pr.status = 'completed' AND pr.deleted_at IS NULL
+      )
+  `);
+
+  const [row] = (await db.execute(raw`
+    SELECT count(*)::int AS n FROM professionals WHERE rating_count > 0
+  `)) as unknown as Array<{ n: number }>;
+  console.log(`  ratings reconciled: ${row?.n ?? 0} vendors have reviews behind their score`);
 }
 
 main()

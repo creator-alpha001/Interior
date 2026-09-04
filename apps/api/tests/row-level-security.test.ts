@@ -158,6 +158,73 @@ describe("inside a vendor's scope", () => {
   });
 });
 
+describe("the users table", () => {
+  /**
+   * Where the phone numbers and email addresses actually live. The masking
+   * layer decides what a vendor is shown *from* a row; this decides which rows
+   * exist, which is the part that survives somebody writing a new query without
+   * having read the masking file.
+   */
+  test("a customer cannot read another customer's user row", async () => {
+    const stranger = await one<{ id: string; name: string }>(
+      `SELECT u.id, u.name FROM users u
+       JOIN clients c ON c.user_id = u.id
+       WHERE c.id <> '${customer.clientId}'
+         AND NOT EXISTS (
+           SELECT 1 FROM referrals r
+           WHERE (r.referred_user_id = u.id AND r.referrer_user_id = '${customer.userId}')
+              OR (r.referrer_user_id = u.id AND r.referred_user_id = '${customer.userId}')
+         )
+       LIMIT 1`,
+    );
+
+    await withActor({ userId: customer.userId, clientId: customer.clientId }, async () => {
+      const rows = (await db.execute(sql`
+        SELECT id FROM users WHERE id = ${stranger.id}
+      `)) as unknown as unknown[];
+      expect(rows, `another customer's user row was readable`).toHaveLength(0);
+    });
+  });
+
+  test("a vendor reads the customers they work for, and no others", async () => {
+    await withActor(
+      { userId: vendor.userId, professionalId: vendor.professionalId },
+      async () => {
+        const rows = (await db.execute(sql`
+          SELECT u.id FROM users u JOIN clients c ON c.user_id = u.id
+        `)) as unknown as unknown[];
+
+        const [{ n: served }] = (await unscopedDb.execute(sql`
+          SELECT count(DISTINCT l.client_id)::int AS n
+          FROM leads l
+          JOIN lead_domains ld ON ld.lead_id = l.id
+          JOIN lead_domain_assignments a ON a.lead_domain_id = ld.id
+          WHERE a.professional_id = ${vendor.professionalId}
+        `)) as unknown as Array<{ n: number }>;
+
+        const [{ n: everyone }] = (await unscopedDb.execute(sql`
+          SELECT count(*)::int AS n FROM clients
+        `)) as unknown as Array<{ n: number }>;
+
+        expect(rows.length).toBe(served);
+        expect(served, "this vendor serves every customer, so this proves nothing").toBeLessThan(
+          everyone,
+        );
+      },
+    );
+  });
+
+  test("everyone can still read vendors — the directory is public", async () => {
+    await withActor({ userId: customer.userId, clientId: customer.clientId }, async () => {
+      const rows = (await db.execute(sql`
+        SELECT u.id FROM users u JOIN professionals p ON p.user_id = u.id
+      `)) as unknown as unknown[];
+      expect(rows.length, "the vendor directory disappeared for a signed-in customer")
+        .toBeGreaterThan(1);
+    });
+  });
+});
+
 describe("the connection is not left carrying an identity", () => {
   /**
    * The settings are session-scoped, so a connection returned to the pool still

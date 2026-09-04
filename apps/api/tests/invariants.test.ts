@@ -11,7 +11,7 @@
  */
 import { sql } from "drizzle-orm";
 import { beforeAll, describe, expect, test } from "vitest";
-import { maybe, needs, one, refusedBy, rollingBack } from "./helpers/harness";
+import { maybe, maybeAll, needs, one, refusedBy, rollingBack } from "./helpers/harness";
 
 let leadId: string;
 let leadDomainId: string;
@@ -338,6 +338,44 @@ describe("references", () => {
       const [second] = await insert();
       expect(first!.reference).not.toBe(second!.reference);
     });
+  });
+});
+
+describe("the seed is consistent with itself", () => {
+  /**
+   * The mock data carried hand-written rating counts — one vendor claimed 201
+   * reviews against two review rows in the whole platform. Nothing recomputed
+   * them on load, so they sat there looking authoritative and would have
+   * collapsed to the real number the first time a genuine customer reviewed
+   * anybody. A cached value the database also derives has to start out agreeing
+   * with the derivation, or it is just a number waiting to change on its own.
+   */
+  test("every cached rating matches the reviews behind it", async () => {
+    const drift = (await maybeAll<{ company_name: string; cached: number; actual: number }>(
+      `SELECT p.company_name, p.rating_count AS cached,
+              (SELECT count(*) FROM reviews r
+               WHERE r.professional_id = p.id AND r.deleted_at IS NULL) AS actual
+       FROM professionals p
+       WHERE p.rating_count <> (
+         SELECT count(*) FROM reviews r
+         WHERE r.professional_id = p.id AND r.deleted_at IS NULL
+       )`,
+    ));
+
+    expect(
+      drift.map((d) => `${d.company_name}: shows ${d.cached}, has ${d.actual}`).join("; "),
+    ).toBe("");
+  });
+
+  test("every completed-project count matches the projects behind it", async () => {
+    const drift = await maybeAll<{ company_name: string }>(
+      `SELECT p.company_name FROM professionals p
+       WHERE p.completed_projects <> (
+         SELECT count(*) FROM projects pr
+         WHERE pr.professional_id = p.id AND pr.status = 'completed' AND pr.deleted_at IS NULL
+       )`,
+    );
+    expect(drift.map((d) => d.company_name).join(", ")).toBe("");
   });
 });
 

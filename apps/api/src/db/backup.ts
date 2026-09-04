@@ -18,15 +18,29 @@
  *
  * `pg_dump` must be on PATH and its major version must be at least the server's.
  */
-import "./as-owner";
 import { execFile } from "node:child_process";
 import { mkdirSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";
+import { pathToFileURL } from "node:url";
 import { promisify } from "node:util";
 import postgres from "postgres";
 import { config } from "../lib/config";
 
 const run = promisify(execFile);
+
+/**
+ * The owner's connection.
+ *
+ * Read from config rather than from the process environment, because this file
+ * is also imported by the weekly drill job — and by then `lib/config` has long
+ * since been evaluated, so the environment switch the command-line entry points
+ * rely on would have no effect. The job would have run as the application role
+ * and failed on CREATE DATABASE, which is the sort of thing that only shows up
+ * the first Sunday after a deploy.
+ */
+function ownerUrl(): string {
+  return config.OWNER_DATABASE_URL ?? config.DATABASE_URL;
+}
 
 /** Where dumps go unless told otherwise. */
 const DEFAULT_DIR = resolve(process.cwd(), "backups");
@@ -57,7 +71,7 @@ export async function backup(target = `${DEFAULT_DIR}/aangan-${stamp()}.dump`): 
 
   const started = Date.now();
   await run("pg_dump", [
-    config.DATABASE_URL,
+    ownerUrl(),
     "--format=custom",
     "--no-owner",
     "--no-privileges",
@@ -66,7 +80,7 @@ export async function backup(target = `${DEFAULT_DIR}/aangan-${stamp()}.dump`): 
 
   const bytes = statSync(target).size;
   console.log(
-    `Backed up ${databaseName(config.DATABASE_URL)} to ${target} ` +
+    `Backed up ${databaseName(ownerUrl())} to ${target} ` +
       `(${(bytes / 1_048_576).toFixed(1)} MB in ${Date.now() - started}ms)`,
   );
 
@@ -137,16 +151,28 @@ async function rowCounts(url: string): Promise<Map<string, number>> {
   }
 }
 
+/** What the drill found. */
+export interface DrillResult {
+  tables: number;
+  rows: number;
+  /** Empty when the restore matched. Each entry names a table and how it differed. */
+  problems: string[];
+}
+
 /**
  * The drill: back up, restore into a scratch database, compare, clean up.
  *
- * Exits non-zero on any mismatch, so it can be a scheduled job whose failure is
- * the alert.
+ * Returns its findings rather than setting an exit code. It used to do the
+ * latter, which was fine while it was only a command — but the weekly job
+ * imports this module, and importing it ran the command-line block below and
+ * set a failing exit code before the drill had done anything at all. A function
+ * that reports through a process-global is a function that cannot be called
+ * from anywhere else.
  */
-export async function drill(): Promise<void> {
+export async function drill(): Promise<DrillResult> {
   const scratch = `aangan_restore_drill_${Date.now()}`;
-  const adminUrl = withDatabase(config.DATABASE_URL, "postgres");
-  const scratchUrl = withDatabase(config.DATABASE_URL, scratch);
+  const adminUrl = withDatabase(ownerUrl(), "postgres");
+  const scratchUrl = withDatabase(ownerUrl(), scratch);
 
   const dump = await backup(`${DEFAULT_DIR}/drill-${stamp()}.dump`);
   const admin = postgres(adminUrl, { max: 1, onnotice: () => {} });
@@ -156,7 +182,7 @@ export async function drill(): Promise<void> {
     await restore(dump, scratchUrl, true);
 
     const [source, restored] = await Promise.all([
-      rowCounts(config.DATABASE_URL),
+      rowCounts(ownerUrl()),
       rowCounts(scratchUrl),
     ]);
 
@@ -167,16 +193,17 @@ export async function drill(): Promise<void> {
       else if (actual !== expected) problems.push(`${table}: ${expected} rows became ${actual}`);
     }
 
+    const rows = [...source.values()].reduce((a, b) => a + b, 0);
     console.log(`\nCompared ${source.size} tables.`);
+
     if (problems.length > 0) {
       console.error("The restore does not match the source:");
       for (const problem of problems) console.error(`  ${problem}`);
-      process.exitCode = 1;
-      return;
+    } else {
+      console.log(`Restore verified: every table matched, ${rows} rows in total.`);
     }
 
-    const rows = [...source.values()].reduce((a, b) => a + b, 0);
-    console.log(`Restore verified: every table matched, ${rows} rows in total.`);
+    return { tables: source.size, rows, problems };
   } finally {
     await admin
       .unsafe(`DROP DATABASE IF EXISTS "${scratch}" WITH (FORCE)`)
@@ -188,9 +215,9 @@ export async function drill(): Promise<void> {
 
 /* ---------------- command line ---------------- */
 
-const [command, ...args] = process.argv.slice(2);
-
 async function main() {
+  const [command, ...args] = process.argv.slice(2);
+
   switch (command) {
     case "backup":
       await backup(args[0]);
@@ -203,16 +230,28 @@ async function main() {
       await restore(file, target, args.includes("--i-mean-it"));
       return;
     }
-    case "drill":
-      await drill();
+    case "drill": {
+      const result = await drill();
+      if (result.problems.length > 0) process.exitCode = 1;
       return;
+    }
     default:
       console.log("Usage: backup [file] | restore <file> <url> [--i-mean-it] | drill");
       process.exitCode = 1;
   }
 }
 
-main().catch((error: Error) => {
-  console.error(error.message);
-  process.exit(1);
-});
+/**
+ * Only when run directly.
+ *
+ * Without this guard, importing anything from this file executed the command
+ * line — which, with no arguments to read, printed the usage text and set a
+ * failing exit code. The weekly drill job then reported a broken backup on its
+ * own import.
+ */
+if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {
+  main().catch((error: Error) => {
+    console.error(error.message);
+    process.exit(1);
+  });
+}

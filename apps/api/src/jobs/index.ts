@@ -78,6 +78,14 @@ const SCHEDULE: Scheduled[] = [
     run: tasks.sweepRateLimits,
     description: "Removes rate-limit counters whose window closed",
   },
+  {
+    name: "backup.restore-drill",
+    // Sunday, 04:15 — after the sweeps, and at the quietest hour of the week
+    // for something that dumps and restores the whole database.
+    cron: "15 4 * * 0",
+    run: tasks.restoreDrill,
+    description: "Restores the latest dump into a scratch database and compares every table",
+  },
 ];
 
 let boss: PgBoss | null = null;

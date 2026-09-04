@@ -153,6 +153,11 @@ export async function one<T extends Record<string, unknown>>(query: string): Pro
   return row;
 }
 
+/** Every row a query finds, for assertions that are about the whole set. */
+export async function maybeAll<T extends Record<string, unknown>>(query: string): Promise<T[]> {
+  return (await db.execute(sql.raw(query))) as unknown as T[];
+}
+
 /** The same, for a query that may legitimately find nothing. */
 export async function maybe<T extends Record<string, unknown>>(query: string): Promise<T | null> {
   const rows = (await db.execute(sql.raw(query))) as unknown as T[];

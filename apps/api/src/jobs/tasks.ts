@@ -263,3 +263,43 @@ export async function sweepRateLimits(): Promise<JobResult> {
 
   return { handled: rows.length };
 }
+
+/**
+ * Proves the backups restore.
+ *
+ * Weekly rather than nightly: it dumps the whole database and restores it into
+ * a scratch copy, which is real work, and a week is short enough that a broken
+ * backup is found long before anybody needs it.
+ *
+ * The point is that this *fails* when the restore does not match. A backup job
+ * that only checks a file was written verifies that a file was written; the
+ * question worth answering is whether the thing in it comes back.
+ *
+ * Skipped where `pg_dump` is not on the path — a container without the client
+ * tools should say so rather than report a passing drill it never ran.
+ */
+export async function restoreDrill(): Promise<JobResult> {
+  const { drill } = await import("../db/backup");
+
+  let result;
+  try {
+    result = await drill();
+  } catch (error) {
+    const message = (error as Error).message ?? String(error);
+    if (/ENOENT|not recognized|not found/i.test(message)) {
+      return { handled: 0, detail: "skipped: pg_dump is not on the path" };
+    }
+    throw error;
+  }
+
+  if (result.problems.length > 0) {
+    throw new Error(
+      `the restore did not match the source, so the backups are not usable: ${result.problems.join("; ")}`,
+    );
+  }
+
+  return {
+    handled: 1,
+    detail: `restore verified: ${result.tables} tables, ${result.rows} rows`,
+  };
+}
