@@ -93,7 +93,7 @@ action, not a release.
 
 ## Where it stands
 
-Seven of eight phases. **Every surface runs on PostgreSQL.**
+All eight phases. **Every surface runs on PostgreSQL.**
 
 | | Phase | State |
 |---|---|---|
@@ -104,7 +104,7 @@ Seven of eight phases. **Every surface runs on PostgreSQL.**
 | M4 | Vendor portal | done |
 | M5 | Ops panel | done |
 | M6 | Background jobs, notifications, audit trail | done |
-| **M7** | **Hardening** | **next** |
+| M7 | Hardening — tests, limits, RLS, load, backups | done |
 
 Set `NEXT_PUBLIC_API_URL` on both frontends and nothing reads seed data.
 `NEXT_PUBLIC_ALLOW_DEMO_SESSION=true` still forces the seeded identities for a
@@ -184,6 +184,59 @@ routes added last. Message and reply bodies are deliberately not copied in —
 they are already stored as messages, and duplicating a customer's words doubles
 where they live for no gain. Writing a row never fails a request.
 
+**M7 — Hardening.** The phase that turned the guarantees from claims into
+checks, and found four real bugs doing it.
+
+**An automated suite, 61 integration tests against a real database**, rebuilt
+from the migrations on every run so a migration that works forward from a
+developer's database but not from an empty one fails here rather than on a
+deploy. The constraint tests attempt the violation and assert Postgres refuses
+it *citing the constraint by name* — half of them failed first time because the
+test SQL had a wrong column, and a looser assertion would have called that a
+pass. The masking sweep signs in as a vendor who actually holds leads, walks
+every `/vendor` GET and greps the bodies for every contact detail in the
+database; it was verified by injecting a leak, which failed three endpoints and
+named the customer. A test that cannot find its fixture reports as skipped
+rather than passing silently.
+
+**Rate limits on every mutation**, as a hook rather than a decorator per route,
+keyed by session where there is one and by address otherwise. The session token
+is hashed before it becomes a key: the rate-limit table gets read during
+incidents and should not be a list of live sessions.
+
+**Request ids** generated in the proxy, carried by `@repo/data` to the API,
+echoed on every response and attached to every log line — a page render and the
+API calls behind it are separate processes, and this is what makes them one
+story. An inbound id is accepted only if it looks like an id.
+
+**Sentry**, off unless a DSN is set, with bodies, cookies, query strings and
+user records stripped on the way out.
+
+**Backups with a drill**: dump, restore into a scratch database, compare every
+table's row count, drop the scratch. An untested restore is a belief.
+
+**A load test at fifty thousand leads**, which is the only reason any of the
+query work below happened — the seed has a dozen, so none of these queries had
+ever met a table with an opinion. Four of six screens were over a 300ms budget
+and My Day took 1.1 seconds.
+
+**Row-level security, and the three database roles that make it mean
+something.** A customer or vendor request runs on a reserved connection carrying
+their identity; the policies read it, and a query written without its `WHERE`
+returns nothing instead of somebody else's requirement. Three things had to be
+discovered rather than designed — each caught by a test:
+
+- a **superuser bypasses row-level security entirely**, so the first version was
+  complete, forced and inert;
+- the policies **recursed**, because a lead is visible through its services and a
+  service through its lead;
+- and they **cost the ops screens 150ms for nothing**, since staff read across
+  everybody anyway and were only paying for the check.
+
+Hence `aangan_app` (no superuser, subject to the policies), `aangan_ops`
+(BYPASSRLS and no other extra privilege) and the owner (migrations, seed,
+backups). See **Signing in** below for how they are configured.
+
 ---
 
 ## Bugs found and fixed along the way
@@ -210,6 +263,10 @@ tried.
 | An admin logging a call got a 500 | Their user id was written to a column referencing `sales_agents`. The column answers "which agent owns this lead", not "who made this call". The agent is now optional and every row carries the user who made the call |
 | Fastify's own 4xx errors were reported as 500 | A malformed body or an oversized payload sent the caller looking for a server fault that was not there |
 | `npm run typecheck` never worked | It referenced a root `tsconfig.json` that has never existed, and neither Next app had the script it called. Both fixed |
+| An admin's calls vanished from the queue, the call log and the timeline | Making the sales agent optional left three queries inner-joining through it. Nothing errored — rows simply stopped appearing, and a lead read "never called" the morning after somebody called it |
+| The ops dashboards asked each question once per lead | Counting unassigned services ran an index scan per lead; counting customers awaiting a reply ran a **sequential scan of the messages table** per lead, fifty thousand times |
+| Searching the lead queue read the whole table | A leading-wildcard `LIKE` with no trigram index. 355ms at fifty thousand leads, and linear in the business |
+| Row-level security was inert | The API connected as a superuser, which bypasses it completely — policies, `FORCE` and all |
 
 ---
 
@@ -227,13 +284,28 @@ account-level, not code:
   nothing is lost when the account arrives
 - **Push notifications** are not wired — there is no mobile app to receive them
 
-### M7 — Hardening
+### Still open from M7
 
-- Rate limits on every mutation, not just the auth paths
-- Sentry, structured logs with request ids
-- Automated backups **with a tested restore**
-- A load test on the ops lead queue
-- Postgres RLS as defence in depth
+- **Deployment steps for the two roles.** Migration 0005 creates `aangan_app`
+  and `aangan_ops` without a login, deliberately — a password in version control
+  is not a password. Once, after migrating:
+
+  ```
+  ALTER ROLE aangan_app WITH LOGIN PASSWORD '...';
+  ALTER ROLE aangan_ops WITH LOGIN PASSWORD '...';
+  ```
+
+  then set `DATABASE_URL`, `OPS_DATABASE_URL` and `OWNER_DATABASE_URL`. **If the
+  service keeps connecting as a superuser, row-level security does nothing** —
+  silently, with every test still passing, because the tests run as the
+  restricted role.
+- **The backup drill is a script, not a schedule.** `npm run db:restore-drill`
+  works and has been run; nothing runs it nightly yet.
+- **Sentry needs an account and a DSN.** Reporting is off without one.
+- **Row-level security covers eight tables**, the ones where a leak is worst:
+  leads, services, messages, quotes, projects, agreements, commission invoices
+  and notifications. Media assets, reviews and support tickets are still
+  protected by the repository alone.
 
 ### Outside the milestone plan
 
@@ -314,6 +386,35 @@ up as a new customer — that is the intended flow, not a fallback.
 Mohd Arif is the useful one for testing the gate: verified, and still in no
 pool anywhere until the partner agreement is signed.
 
+### The database roles
+
+Not a credential so much as a configuration, but it belongs next to them —
+getting it wrong disables a security control without any sign that it has.
+
+| Role | Used by | Why |
+|---|---|---|
+| `aangan_app` | the running API | Not a superuser, so the row-level security policies apply to it |
+| `aangan_ops` | staff requests (`/ops/*`) | `BYPASSRLS` and nothing else extra — staff read across everybody by design and were only paying for a check that passed every row |
+| the owner | migrations, seed, backups, the restore drill | Creates tables and reads globally; the other two deliberately cannot |
+
+```
+DATABASE_URL=postgresql://aangan_app:.../aangan
+OPS_DATABASE_URL=postgresql://aangan_ops:.../aangan
+OWNER_DATABASE_URL=postgresql://owner:.../aangan
+```
+
+Migration 0005 creates both roles without a login. Grant it once, after
+migrating:
+
+```sql
+ALTER ROLE aangan_app WITH LOGIN PASSWORD '...';
+ALTER ROLE aangan_ops WITH LOGIN PASSWORD '...';
+```
+
+**A superuser bypasses row-level security completely.** If the service connects
+as one, the policies are inert and nothing says so — every test still passes,
+because the tests run as `aangan_app`.
+
 ### The frontends
 
 `NEXT_PUBLIC_ALLOW_DEMO_SESSION=true` bypasses all of this and forces a seeded
@@ -358,9 +459,16 @@ working.
 
 ---
 
-## Verification done so far
+## Verification
 
-Everything below was run against a real PostgreSQL instance, not asserted.
+**`npm test` runs 61 integration tests against a real PostgreSQL database**,
+built from the migrations on every run. Most of what follows is now automated
+rather than remembered; where something was only ever checked by hand, it says
+so.
+
+```bash
+npm test
+```
 
 **Invariants** — attempted the violation and confirmed the database refused it:
 double invoice, second project per service, client message carrying a vendor id,
@@ -394,7 +502,33 @@ request is not a change.
 **Sign-in** — all three paths exercised end to end: staff password, customer
 OTP, vendor OTP.
 
-**Not yet covered:** none of this is an automated test suite. It was verified by
-hand, once. **Writing these as integration tests is the highest-value work not
-currently in any milestone** — the constraints are the product's guarantees, and
-nothing currently stops a future change quietly removing one.
+**Row-level security** — inside a customer's scope, a deliberately unscoped
+`SELECT * FROM leads` returns only their own; a vendor cannot read a
+competitor's quote or another vendor's invoice; a customer sees no commission
+figure at all. The connection is checked for a leftover identity after every
+scope closes, because one carrying the last person's id would be a leak dressed
+as an optimisation. And the personal screens are exercised over HTTP with the
+policies on — the risk with row-level security is not that it fails open, it is
+that it fails closed and silently.
+
+**Load** — 50,000 leads, timed on the staff pool, warm cache:
+
+| Screen | Before | After |
+|---|---|---|
+| ops queue, first page | 306ms | 90ms |
+| ops queue, searched | 355ms | 279ms |
+| my day | 1140ms | 136ms |
+| sales dashboard (agent) | 946ms | 106ms |
+| sales dashboard (admin, all) | 1242ms | 118ms |
+
+Cold, straight after seeding, the aggregate screens are roughly three times
+those figures — worth knowing as the cost of a restart, not as the number to
+design against.
+
+**Restore** — dumped, restored into a scratch database, compared every table:
+51 tables, 738 rows, all matching.
+
+**Still verified by hand, once:** the `signAgreement` rollback (a failure
+injected on the invoice insert left no project, no stage, no invoice and the
+agreement unsigned) and the six rendered portal pages in the masking check. The
+endpoint half of that masking check is automated; the rendered-page half is not.
