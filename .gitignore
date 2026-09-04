@@ -13,3 +13,8 @@ Thumbs.db
 .vercel
 coverage/
 backups/
+
+# The credentials tracker. This repository is public: the file holds sign-ins
+# today and will hold the MSG91 key, the R2 secret and the production database
+# passwords tomorrow. It must never become a tracked file.
+CREDENTIALS.md
