@@ -31,8 +31,23 @@ const schema = z.object({
     .transform((v) => v === "true"),
 
   MSG91_AUTH_KEY: z.string().optional(),
+  /** The DLT template for one-time codes. */
   MSG91_TEMPLATE_ID: z.string().optional(),
+  /** The DLT template for everything else — a separate registration. */
+  MSG91_NOTIFY_TEMPLATE_ID: z.string().optional(),
   MSG91_SENDER_ID: z.string().optional(),
+
+  /**
+   * Whether this process also runs the scheduled jobs.
+   *
+   * On by default: pg-boss coordinates through Postgres, so several API
+   * instances can each run a worker without duplicating work. Turn it off to
+   * run the worker as its own process.
+   */
+  RUN_JOBS: z
+    .enum(["true", "false"])
+    .default("true")
+    .transform((v) => v === "true"),
 
   R2_ACCOUNT_ID: z.string().optional(),
   R2_ACCESS_KEY_ID: z.string().optional(),

@@ -9,12 +9,16 @@
 import { buildApp } from "./app";
 import { config } from "./lib/config";
 import { closeDatabase } from "./db/client";
+import { startJobs, stopJobs } from "./jobs";
 
 async function main() {
   const app = await buildApp();
 
   await app.listen({ port: config.PORT, host: "0.0.0.0" });
   app.log.info(`API listening on :${config.PORT} (${config.NODE_ENV})`);
+
+  // After listening, so a slow queue start does not delay readiness.
+  await startJobs(app.log);
 
   let shuttingDown = false;
   const shutdown = async (signal: string) => {
@@ -24,6 +28,7 @@ async function main() {
     app.log.info(`${signal} received, finishing in-flight requests`);
     try {
       await app.close();
+      await stopJobs();
       await closeDatabase();
       process.exit(0);
     } catch (error) {

@@ -95,6 +95,17 @@ export async function buildApp(): Promise<FastifyInstance> {
       });
     }
 
+    // Fastify's own errors — a malformed body, a payload over the limit, an
+    // unsupported content type — carry an honest 4xx. Reporting those as 500
+    // sends the caller looking for a server fault that is not there.
+    if (typeof error.statusCode === "number" && error.statusCode >= 400 && error.statusCode < 500) {
+      request.log.warn({ err: error }, "bad request");
+      return reply.status(error.statusCode).send({
+        code: error.code ?? "bad_request",
+        message: error.message,
+      });
+    }
+
     // Anything reaching here is a bug. Log it fully; tell the caller nothing —
     // a stack trace in a response is a map of the server.
     request.log.error({ err: error }, "unhandled error");

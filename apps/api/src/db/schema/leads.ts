@@ -22,7 +22,7 @@ import {
 import type { SiteAccessibilityTag } from "@repo/types";
 import { fk, primaryId, timestamps, ts } from "./_shared";
 import { cities } from "./geo";
-import { clients, professionals, salesAgents } from "./identity";
+import { clients, professionals, salesAgents, users } from "./identity";
 import { domains } from "./domains";
 import { products, servicePackages } from "./catalog";
 import {
@@ -184,9 +184,13 @@ export const leadSalesActivities = pgTable(
     leadId: fk("lead_id")
       .notNull()
       .references(() => leads.id, { onDelete: "cascade" }),
-    salesAgentId: fk("sales_agent_id")
-      .notNull()
-      .references(() => salesAgents.id),
+    /**
+     * Which agent owns this lead. Null where the call was made by somebody who
+     * is not a sales agent — an admin covering, most often.
+     */
+    salesAgentId: fk("sales_agent_id").references(() => salesAgents.id),
+    /** Who actually made the call. Always set for anything logged from now on. */
+    loggedByUserId: fk("logged_by_user_id").references(() => users.id),
     callStatus: callStatus("call_status").notNull(),
     remarks: text("remarks").notNull().default(""),
     recordingUrl: text("recording_url"),

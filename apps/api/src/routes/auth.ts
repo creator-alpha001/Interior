@@ -20,7 +20,7 @@ import {
   revokeSession,
   sessionCookieOptions,
 } from "../modules/auth/sessions";
-import { sendOtp } from "../modules/auth/sms";
+import { sendOtp } from "../lib/sms";
 
 export async function registerAuthRoutes(app: FastifyInstance) {
   /* ---------------- mobile OTP ---------------- */

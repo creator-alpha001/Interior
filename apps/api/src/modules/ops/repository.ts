@@ -645,16 +645,24 @@ export async function getLeadProjects(leadId: string): Promise<LeadProjectView[]
  * Dashboards — aggregates in SQL, not by loading every row
  * ------------------------------------------------------------------ */
 
-export async function getSalesDashboard(agentId: string): Promise<SalesDashboard> {
+export async function getSalesDashboard(agentId: string | null): Promise<SalesDashboard> {
   const today = new Date().toISOString().slice(0, 10);
 
+  // A null agent means "everything" — an admin covering the team has no queue
+  // of their own, and an empty screen would be the wrong answer.
+  const mine = agentId
+    ? eq(t.leads.assignedSalesAgentId, agentId)
+    : sql`${t.leads.deletedAt} IS NULL`;
+
   const [agent, counts, urgency, byDomain] = await Promise.all([
-    db
-      .select({ target: t.salesAgents.dailyTarget, name: t.users.name })
-      .from(t.salesAgents)
-      .innerJoin(t.users, eq(t.users.id, t.salesAgents.userId))
-      .where(eq(t.salesAgents.id, agentId))
-      .limit(1),
+    agentId
+      ? db
+          .select({ target: t.salesAgents.dailyTarget, name: t.users.name })
+          .from(t.salesAgents)
+          .innerJoin(t.users, eq(t.users.id, t.salesAgents.userId))
+          .where(eq(t.salesAgents.id, agentId))
+          .limit(1)
+      : [],
     db.execute<{
       new_leads: number;
       needs_assignment: number;
@@ -685,19 +693,20 @@ export async function getSalesDashboard(agentId: string): Promise<SalesDashboard
         ))::int AS follow_ups_due,
         0::int AS visits_today
       FROM ${t.leads} l
-      WHERE l.assigned_sales_agent_id = ${agentId} AND l.deleted_at IS NULL
+      WHERE l.deleted_at IS NULL
+        AND (${agentId}::uuid IS NULL OR l.assigned_sales_agent_id = ${agentId}::uuid)
     `),
     db
       .select({ urgency: t.leads.urgency, value: count() })
       .from(t.leads)
-      .where(and(eq(t.leads.assignedSalesAgentId, agentId), isNull(t.leads.deletedAt)))
+      .where(and(mine, isNull(t.leads.deletedAt)))
       .groupBy(t.leads.urgency),
     db
       .select({ domain: t.domains, value: count() })
       .from(t.leadDomains)
       .innerJoin(t.domains, eq(t.domains.id, t.leadDomains.domainId))
       .innerJoin(t.leads, eq(t.leads.id, t.leadDomains.leadId))
-      .where(and(eq(t.leads.assignedSalesAgentId, agentId), isNull(t.leads.deletedAt)))
+      .where(and(mine, isNull(t.leads.deletedAt)))
       .groupBy(t.domains.id),
   ]);
 
@@ -706,12 +715,7 @@ export async function getSalesDashboard(agentId: string): Promise<SalesDashboard
     .from(t.meetings)
     .innerJoin(t.leadDomains, eq(t.leadDomains.id, t.meetings.leadDomainId))
     .innerJoin(t.leads, eq(t.leads.id, t.leadDomains.leadId))
-    .where(
-      and(
-        eq(t.leads.assignedSalesAgentId, agentId),
-        sql`${t.meetings.scheduledAt}::date = ${today}::date`,
-      ),
-    );
+    .where(and(mine, sql`${t.meetings.scheduledAt}::date = ${today}::date`));
 
   const c = (counts as unknown as Array<Record<string, number>>)[0] ?? {};
 
@@ -736,14 +740,14 @@ export async function getSalesDashboard(agentId: string): Promise<SalesDashboard
  * buckets are capped rather than unbounded — an agent with four hundred stalled
  * leads needs the first twenty and a number, not four hundred rows.
  */
-export async function getMyDay(agentId: string): Promise<MyDayView> {
+export async function getMyDay(agentId: string | null): Promise<MyDayView> {
   const today = new Date().toISOString().slice(0, 10);
   const BUCKET = 25;
 
   const dashboard = await getSalesDashboard(agentId);
 
   const live = await listLeads({
-    agentId,
+    ...(agentId ? { agentId } : {}),
     limit: 200,
     status: "all",
   });

@@ -178,7 +178,10 @@ export interface CallLogInput {
  * Logging the first call also claims the lead for that agent and promotes it
  * out of "new", which is why it is a transaction rather than an insert.
  */
-export async function logCall(agentId: string, input: CallLogInput) {
+export async function logCall(
+  actor: { salesAgentId: string | null; userId: string },
+  input: CallLogInput,
+) {
   return transaction(async (tx) => {
     const [lead] = await tx
       .select()
@@ -193,19 +196,20 @@ export async function logCall(agentId: string, input: CallLogInput) {
       .insert(t.leadSalesActivities)
       .values({
         leadId: input.leadId,
-        salesAgentId: agentId,
+        salesAgentId: actor.salesAgentId,
+        loggedByUserId: actor.userId,
         callStatus: input.callStatus,
         remarks: input.remarks,
         followUpDate: input.followUpDate ?? null,
       })
       .returning();
 
-    // First to call it owns it. The lead status is derived by trigger from the
-    // agent column changing.
-    if (!lead.assignedSalesAgentId) {
+    // First to call it owns it — but only an agent can own a lead, so an admin
+    // covering a call does not silently become its owner.
+    if (!lead.assignedSalesAgentId && actor.salesAgentId) {
       await tx
         .update(t.leads)
-        .set({ assignedSalesAgentId: agentId, updatedAt: new Date().toISOString() })
+        .set({ assignedSalesAgentId: actor.salesAgentId, updatedAt: new Date().toISOString() })
         .where(eq(t.leads.id, input.leadId));
     }
 
@@ -229,7 +233,8 @@ export interface ScheduleVisitInput {
  * to that vendor, and the only moment it ever is.
  */
 export async function scheduleVisit(
-  coordinatorId: string,
+  /** Null where an admin booked it — `meetings.coordinator_id` is nullable. */
+  coordinatorId: string | null,
   input: ScheduleVisitInput,
 ): Promise<Meeting> {
   return transaction(async (tx) => {
@@ -332,7 +337,8 @@ export async function recordVisitOutcome(
  * ------------------------------------------------------------------ */
 
 export async function replyToClient(
-  agentId: string,
+  /** The staff user writing. `messages.sender_id` is not a foreign key. */
+  senderId: string,
   leadDomainId: string,
   body: string,
   sourceMessageId?: string,
@@ -343,7 +349,7 @@ export async function replyToClient(
       leadDomainId,
       channel: "client_platform",
       senderRole: "platform",
-      senderId: agentId,
+      senderId,
       professionalId: null,
       body,
       relayedFromMessageId: sourceMessageId ?? null,
@@ -360,7 +366,7 @@ export async function replyToClient(
  * asks once, all three answer, and the comparison stays honest.
  */
 export async function relayToVendors(
-  agentId: string,
+  senderId: string,
   leadDomainId: string,
   body: string,
   sourceMessageId?: string,
@@ -384,7 +390,7 @@ export async function relayToVendors(
         leadDomainId,
         channel: "platform_vendor" as const,
         senderRole: "platform" as const,
-        senderId: agentId,
+        senderId,
         professionalId: v.professionalId,
         body,
         relayedFromMessageId: sourceMessageId ?? null,

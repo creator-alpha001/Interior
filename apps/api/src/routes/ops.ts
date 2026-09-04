@@ -7,6 +7,7 @@
  */
 import type { FastifyInstance } from "fastify";
 import { routes } from "@repo/contract";
+import { recordStaffMutation } from "../lib/audit";
 import { requirePermission } from "../lib/permissions";
 import * as ops from "../modules/ops/repository";
 import * as write from "../modules/ops/mutations";
@@ -22,6 +23,18 @@ export async function registerOpsRoutes(app: FastifyInstance) {
     if (request.url.startsWith("/ops/")) {
       reply.header("Cache-Control", "no-store, private");
     }
+  });
+
+  /**
+   * Every staff change is recorded, by a hook rather than by a call in each
+   * handler — a trail that depends on somebody remembering has holes in it,
+   * and the holes are in the routes added last.
+   *
+   * `onResponse` so the status code is known: only changes that actually
+   * happened are recorded.
+   */
+  app.addHook("onResponse", async (request, reply) => {
+    await recordStaffMutation(request, reply);
   });
 
   /* ---------------- the queue ---------------- */
@@ -59,9 +72,8 @@ export async function registerOpsRoutes(app: FastifyInstance) {
     await requirePermission(request, "leads.manage");
     const { id } = routes.opsLogCall.params!.parse(request.params);
     const input = routes.opsLogCall.body!.parse(request.body);
-    const agentId = await agentFor(request);
     reply.status(201);
-    return write.logCall(agentId, { ...input, leadId: id });
+    return write.logCall(await staffActor(request), { ...input, leadId: id });
   });
 
   /* ---------------- one service ---------------- */
@@ -77,7 +89,7 @@ export async function registerOpsRoutes(app: FastifyInstance) {
     const { id } = routes.opsReplyToClient.params!.parse(request.params);
     const { body, sourceMessageId } = routes.opsReplyToClient.body!.parse(request.body);
     reply.status(201);
-    return write.replyToClient(await agentFor(request), id, body, sourceMessageId);
+    return write.replyToClient((await staffActor(request)).userId, id, body, sourceMessageId);
   });
 
   app.post<{ Params: { id: string } }>(routes.opsRelayToVendors.path, async (request, reply) => {
@@ -85,7 +97,7 @@ export async function registerOpsRoutes(app: FastifyInstance) {
     const { id } = routes.opsRelayToVendors.params!.parse(request.params);
     const { body, sourceMessageId } = routes.opsRelayToVendors.body!.parse(request.body);
     reply.status(201);
-    return write.relayToVendors(await agentFor(request), id, body, sourceMessageId);
+    return write.relayToVendors((await staffActor(request)).userId, id, body, sourceMessageId);
   });
 
   app.get<{ Params: { id: string } }>(routes.opsVendorPool.path, async (request) => {
@@ -107,7 +119,7 @@ export async function registerOpsRoutes(app: FastifyInstance) {
     const { id } = routes.opsScheduleVisit.params!.parse(request.params);
     const input = routes.opsScheduleVisit.body!.parse(request.body);
     reply.status(201);
-    return write.scheduleVisit(await agentFor(request), { ...input, leadDomainId: id });
+    return write.scheduleVisit((await staffActor(request)).salesAgentId, { ...input, leadDomainId: id });
   });
 
   app.post<{ Params: { id: string } }>(routes.opsVisitOutcome.path, async (request) => {
@@ -133,14 +145,19 @@ export async function registerOpsRoutes(app: FastifyInstance) {
 
   /* ---------------- day and dashboards ---------------- */
 
+  /**
+   * My Day and the sales dashboard are one agent's own screens. An admin has no
+   * queue of their own, so they see everything — which is what somebody
+   * covering the team actually wants.
+   */
   app.get(routes.opsMyDay.path, async (request) => {
     await requirePermission(request, "leads.view");
-    return ops.getMyDay(await agentFor(request));
+    return ops.getMyDay((await staffActor(request)).salesAgentId);
   });
 
   app.get(routes.opsSalesDashboard.path, async (request) => {
     await requirePermission(request, "leads.view");
-    return ops.getSalesDashboard(await agentFor(request));
+    return ops.getSalesDashboard((await staffActor(request)).salesAgentId);
   });
 
   app.get(routes.opsAdminDashboard.path, async (request) => {
@@ -280,17 +297,24 @@ export async function registerOpsRoutes(app: FastifyInstance) {
  * ------------------------------------------------------------------ */
 
 /**
- * The sales agent id to attribute work to.
+ * Who is doing this, as both ids.
  *
- * An admin has no `sales_agents` row, so their own user id stands in — the
- * point is that every call and every relayed message is attributable to a
- * person, not that the person is on the sales team.
+ * An admin has no `sales_agents` row, so `salesAgentId` is null for them. An
+ * earlier version substituted their user id, which produced a foreign key
+ * violation the moment an admin logged a call — the column references
+ * `sales_agents`, and pretending otherwise only moved the problem to Postgres.
  */
-async function agentFor(request: Parameters<typeof requirePermission>[0]): Promise<string> {
+async function staffActor(
+  request: Parameters<typeof requirePermission>[0],
+): Promise<{ salesAgentId: string | null; userId: string }> {
   const { currentActor } = await import("../lib/guard");
   const actor = await currentActor(request);
-  if (actor?.role === "sales_agent") return actor.salesAgentId;
-  if (actor?.role === "admin") return actor.userId;
+
+  if (actor?.role === "sales_agent") {
+    return { salesAgentId: actor.salesAgentId, userId: actor.userId };
+  }
+  if (actor?.role === "admin") return { salesAgentId: null, userId: actor.userId };
+
   throw new Error("Unreachable: permission check passed without a staff actor");
 }
 
