@@ -5,8 +5,7 @@
       "name": "web",
       "runtimeExecutable": "npm",
       "runtimeArgs": ["run", "dev", "--workspace=web"],
-      "port": 3000,
-      "autoPort": true
+      "port": 3001
     }
   ]
 }
