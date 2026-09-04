@@ -15,9 +15,9 @@ const columns = [
     title: "For customers",
     links: [
       { name: "Get free quotes", href: "/submit-requirement" },
+      { name: "Sign in", href: "/login" },
       { name: "How it works", href: "/how-it-works" },
       { name: "Browse professionals", href: "/professionals" },
-      { name: "My requirements", href: "/account" },
       { name: "Blog", href: "/blog" },
     ],
   },
@@ -25,7 +25,7 @@ const columns = [
     title: "For professionals",
     links: [
       { name: "Join as a professional", href: "/join-as-professional" },
-      { name: "Professional sign in", href: "/partner" },
+      { name: "Professional sign in", href: "/login" },
       { name: "How assignment works", href: "/how-it-works#professionals" },
       { name: "Commission & invoicing", href: "/how-it-works#commission" },
     ],

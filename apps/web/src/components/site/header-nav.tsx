@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import type { City } from "@repo/types";
+import { AccountMenu } from "@/components/site/account-menu";
 import { CitySwitcher } from "@/components/site/city-switcher";
 import { SearchBox } from "@/components/site/search-box";
 import { ButtonLink, cn } from "@repo/ui";
@@ -23,7 +24,17 @@ const links = [
   { name: "Blog", href: "/blog" },
 ];
 
-export function HeaderNav({ cities, selectedCity }: { cities: City[]; selectedCity: City }) {
+export function HeaderNav({
+  cities,
+  selectedCity,
+  signedInAsClient,
+  demoMode,
+}: {
+  cities: City[];
+  selectedCity: City;
+  signedInAsClient: boolean;
+  demoMode: boolean;
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [servicesOpen, setServicesOpen] = useState(false);
@@ -114,12 +125,9 @@ export function HeaderNav({ cities, selectedCity }: { cities: City[]; selectedCi
           <span className="hidden sm:block">
             <CitySwitcher cities={cities} selected={selectedCity} />
           </span>
-          <Link
-            href="/account"
-            className="hidden h-9 items-center rounded-full px-3.5 text-[15px] sm:text-[14px] text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink sm:flex"
-          >
-            My requirements
-          </Link>
+          <span className="hidden sm:block">
+            <AccountMenu signedInAsClient={signedInAsClient} demoMode={demoMode} />
+          </span>
           <ButtonLink
             href="/submit-requirement"
             size="sm"
@@ -171,12 +179,45 @@ export function HeaderNav({ cities, selectedCity }: { cities: City[]; selectedCi
             </div>
             <div className="my-3 h-px bg-line" />
             <div className="grid gap-1">
-              {[...links, { name: "My requirements", href: "/account" }].map((l) => (
+              {links.map((l) => (
                 <Link key={l.href} href={l.href} className="rounded-lg px-2 py-2 text-[15px] hover:bg-surface-2">
                   {l.name}
                 </Link>
               ))}
             </div>
+
+            {/* Its own section rather than another entry in the list above:
+                signing in is not the same kind of thing as browsing packages,
+                and on a phone the list is long enough that it would be lost. */}
+            <div className="my-3 h-px bg-line" />
+            <p className="mb-2 text-[12px] sm:text-[11px] font-semibold uppercase tracking-[0.14em] text-ink-4">
+              Account
+            </p>
+            <div className="grid gap-1">
+              {(signedInAsClient
+                ? [{ name: "My requirements", href: "/account" }]
+                : [{ name: "Sign in", href: "/login" }]
+              ).map((l) => (
+                <Link key={l.href} href={l.href} className="rounded-lg px-2 py-2 text-[15px] hover:bg-surface-2">
+                  {l.name}
+                </Link>
+              ))}
+              <Link
+                href="/join-as-professional"
+                className="rounded-lg px-2 py-2 text-[15px] hover:bg-surface-2"
+              >
+                Join as a professional
+              </Link>
+              {demoMode ? (
+                <Link
+                  href="/partner"
+                  className="rounded-lg px-2 py-2 text-[15px] text-ink-3 hover:bg-surface-2"
+                >
+                  Professional portal <span className="text-ink-4">— preview</span>
+                </Link>
+              ) : null}
+            </div>
+
             <div className="mt-4 sm:hidden">
               <p className="mb-2 text-[12px] font-semibold uppercase tracking-[0.14em] text-ink-4">
                 Your city
