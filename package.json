@@ -22,6 +22,7 @@
     "db:migrate": "npm run db:migrate --workspace=api",
     "db:seed": "npm run db:seed --workspace=api",
     "db:studio": "npm run db:studio --workspace=api",
+    "test": "npm run test --workspace=api",
     "typecheck": "npm run typecheck --workspace=web && npm run typecheck --workspace=admin && npm run typecheck --workspace=api",
     "job": "npm run job --workspace=api --"
   },
