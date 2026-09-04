@@ -20,6 +20,7 @@
     "start:api": "npm run start --workspace=api",
     "db:generate": "npm run db:generate --workspace=api",
     "db:migrate": "npm run db:migrate --workspace=api",
+    "db:restore-drill": "npm run db:restore-drill --workspace=api",
     "db:seed": "npm run db:seed --workspace=api",
     "db:studio": "npm run db:studio --workspace=api",
     "test": "npm run test --workspace=api",

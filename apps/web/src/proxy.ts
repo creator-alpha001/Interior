@@ -12,11 +12,31 @@ import type { NextRequest } from "next/server";
 const SIGNED_IN_PATHS = ["/account", "/partner"];
 const SESSION_COOKIE = "aangan_session";
 
+/**
+ * Gives the request an id, if the edge did not already.
+ *
+ * A page render and the API calls behind it are separate processes. Without a
+ * shared id there is nothing linking an API error to the page somebody was
+ * looking at when it happened, which is precisely the moment you want the link.
+ * `@repo/data` reads this header and passes it to the API, and the API echoes
+ * it back on every response.
+ */
+function withRequestId(request: NextRequest): Headers {
+  const headers = new Headers(request.headers);
+  const existing = headers.get("x-request-id");
+  if (!existing || !/^[A-Za-z0-9_-]{8,64}$/.test(existing)) {
+    headers.set("x-request-id", crypto.randomUUID());
+  }
+  return headers;
+}
+
 export function proxy(request: NextRequest) {
   const previewChallenge = checkPreviewPassword(request);
   if (previewChallenge) return previewChallenge;
 
-  return checkSignedIn(request) ?? NextResponse.next();
+  return (
+    checkSignedIn(request) ?? NextResponse.next({ request: { headers: withRequestId(request) } })
+  );
 }
 
 /**

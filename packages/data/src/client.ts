@@ -124,6 +124,27 @@ export async function currentSessionCookie(): Promise<string | undefined> {
 }
 
 /**
+ * The id of the request being rendered, if there is one.
+ *
+ * A page render and the API calls behind it are separate processes, so an error
+ * in the API and the page the customer was looking at have nothing linking them
+ * unless the id is carried across by hand. Next generates one per request; this
+ * passes it on so both sides log the same value.
+ */
+async function currentRequestId(): Promise<string | undefined> {
+  if (typeof window !== "undefined") return undefined;
+
+  try {
+    const { headers } = await import("next/headers");
+    const inbound = await headers();
+    return inbound.get("x-request-id") ?? undefined;
+  } catch {
+    // Outside a request — a build-time render, or a non-Next caller.
+    return undefined;
+  }
+}
+
+/**
  * One place where every request is shaped, so authentication, error mapping and
  * caching are decided once rather than at 115 call sites.
  */
@@ -142,6 +163,7 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
   // Next server on the user's behalf — so the cookie has to be carried across
   // explicitly rather than travelling with the request.
   const cookie = headers?.cookie ?? (await currentSessionCookie());
+  const requestId = headers?.["x-request-id"] ?? (await currentRequestId());
 
   let response: Response;
   try {
@@ -151,6 +173,7 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
         Accept: "application/json",
         ...(body ? { "Content-Type": "application/json" } : {}),
         ...(cookie ? { cookie } : {}),
+        ...(requestId ? { "x-request-id": requestId } : {}),
         ...headers,
       },
       body: body ? JSON.stringify(body) : undefined,

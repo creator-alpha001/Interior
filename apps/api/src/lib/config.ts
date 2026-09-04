@@ -49,6 +49,14 @@ const schema = z.object({
     .default("true")
     .transform((v) => v === "true"),
 
+  /** Error reporting. Unset means reporting is off, which is the default. */
+  SENTRY_DSN: z.string().url().optional(),
+  /**
+   * Which build this is, for grouping errors by deploy. Railway supplies the
+   * commit sha; anything stable and unique will do.
+   */
+  RELEASE: z.string().default("dev"),
+
   R2_ACCOUNT_ID: z.string().optional(),
   R2_ACCESS_KEY_ID: z.string().optional(),
   R2_SECRET_ACCESS_KEY: z.string().optional(),

@@ -12,3 +12,4 @@ next-env.d.ts
 Thumbs.db
 .vercel
 coverage/
+backups/

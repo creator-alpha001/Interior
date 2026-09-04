@@ -10,6 +10,7 @@ import { buildApp } from "./app";
 import { config } from "./lib/config";
 import { closeDatabase } from "./db/client";
 import { startJobs, stopJobs } from "./jobs";
+import { stopObservability } from "./lib/observability";
 
 async function main() {
   const app = await buildApp();
@@ -30,6 +31,8 @@ async function main() {
       await app.close();
       await stopJobs();
       await closeDatabase();
+      // Last, so anything reported during shutdown still gets out.
+      await stopObservability();
       process.exit(0);
     } catch (error) {
       app.log.error({ err: error }, "shutdown failed");
