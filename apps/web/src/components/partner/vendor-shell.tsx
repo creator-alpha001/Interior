@@ -11,11 +11,11 @@ import { cn } from "@repo/ui";
  * — see new work, quote it, track what they won, and check what they are owed.
  */
 const tabs = [
-  { href: "/", label: "Home", exact: true, icon: "M10 2L2 8v10h5v-6h6v6h5V8l-8-6z" },
-  { href: "/leads", label: "Leads", icon: "M3 4h14v2H3V4zm0 5h14v2H3V9zm0 5h9v2H3v-2z" },
-  { href: "/projects", label: "Work", icon: "M4 5h12v10H4V5zm2 2v6h8V7H6z" },
-  { href: "/payments", label: "Payments", icon: "M2 5h16v10H2V5zm2 2v6h12V7H4zm2 2h4v2H6V9z" },
-  { href: "/profile", label: "Profile", icon: "M10 10a3 3 0 100-6 3 3 0 000 6zm0 2c-3 0-6 1.5-6 4v1h12v-1c0-2.5-3-4-6-4z" },
+  { href: "/partner", label: "Home", exact: true, icon: "M10 2L2 8v10h5v-6h6v6h5V8l-8-6z" },
+  { href: "/partner/leads", label: "Leads", icon: "M3 4h14v2H3V4zm0 5h14v2H3V9zm0 5h9v2H3v-2z" },
+  { href: "/partner/projects", label: "Work", icon: "M4 5h12v10H4V5zm2 2v6h8V7H6z" },
+  { href: "/partner/payments", label: "Payments", icon: "M2 5h16v10H2V5zm2 2v6h12V7H4zm2 2h4v2H6V9z" },
+  { href: "/partner/profile", label: "Profile", icon: "M10 10a3 3 0 100-6 3 3 0 000 6zm0 2c-3 0-6 1.5-6 4v1h12v-1c0-2.5-3-4-6-4z" },
 ];
 
 export function VendorShell({ children }: { children: ReactNode }) {
