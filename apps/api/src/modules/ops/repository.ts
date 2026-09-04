@@ -41,6 +41,13 @@ export interface OpsLeadFilters {
   search?: string;
   /** Only leads with at least one service still awaiting assignment. */
   needsAssignment?: boolean;
+  /**
+   * Only work still in front of somebody — new, verified or in progress.
+   *
+   * Internal to the day screen; not exposed as a query parameter, because the
+   * queue's own status filter already covers what a coordinator would ask for.
+   */
+  openOnly?: boolean;
   limit: number;
   cursor?: string;
 }
@@ -50,6 +57,14 @@ function queueConditions(filters: OpsLeadFilters) {
 
   if (filters.status && filters.status !== "all") {
     conditions.push(eq(t.leads.overallStatus, filters.status));
+  }
+  /**
+   * Work still in front of somebody. Closed and archived leads are not things
+   * to do, and the day screen used to fetch them and drop them in JavaScript —
+   * which paid to assemble every one of them first.
+   */
+  if (filters.openOnly) {
+    conditions.push(inArray(t.leads.overallStatus, ["new", "verified", "in_progress"]));
   }
   if (filters.city) conditions.push(eq(t.leads.cityId, filters.city));
   if (filters.urgency) conditions.push(eq(t.leads.urgency, filters.urgency));
@@ -142,6 +157,15 @@ async function decorate(leadIds: string[]): Promise<OpsLeadRow[]> {
 
   const [views, activityRows, unassignedRows, awaitingRows] = await Promise.all([
     buildLeadViews(leadIds),
+    /**
+     * The last call on each lead, and who made it.
+     *
+     * Joined through `logged_by_user_id` rather than through the sales agent.
+     * A call logged by an admin covering the queue has no agent — that is the
+     * whole point of the column — and an inner join to `sales_agents` dropped
+     * those rows, so the queue showed "never called" on a lead somebody had
+     * called that morning.
+     */
     db
       .select({
         leadId: t.leadSalesActivities.leadId,
@@ -149,8 +173,7 @@ async function decorate(leadIds: string[]): Promise<OpsLeadRow[]> {
         agentName: t.users.name,
       })
       .from(t.leadSalesActivities)
-      .innerJoin(t.salesAgents, eq(t.salesAgents.id, t.leadSalesActivities.salesAgentId))
-      .innerJoin(t.users, eq(t.users.id, t.salesAgents.userId))
+      .leftJoin(t.users, eq(t.users.id, t.leadSalesActivities.loggedByUserId))
       .where(inArray(t.leadSalesActivities.leadId, leadIds))
       .orderBy(desc(t.leadSalesActivities.createdAt)),
     db
@@ -407,11 +430,13 @@ export async function getVendorPool(leadDomainId: string): Promise<VendorPoolEnt
  * ------------------------------------------------------------------ */
 
 export async function listCallLog(leadId: string) {
+  // Through the user who logged it, not through the sales agent. An admin
+  // covering the queue has no `sales_agents` row, and an inner join there
+  // deleted their calls from the history of the lead they made them on.
   const rows = await db
     .select({ activity: t.leadSalesActivities, agentName: t.users.name })
     .from(t.leadSalesActivities)
-    .innerJoin(t.salesAgents, eq(t.salesAgents.id, t.leadSalesActivities.salesAgentId))
-    .innerJoin(t.users, eq(t.users.id, t.salesAgents.userId))
+    .leftJoin(t.users, eq(t.users.id, t.leadSalesActivities.loggedByUserId))
     .where(eq(t.leadSalesActivities.leadId, leadId))
     .orderBy(desc(t.leadSalesActivities.createdAt));
 
@@ -440,11 +465,12 @@ export async function getTimeline(leadId: string): Promise<TimelineEvent[]> {
 
   const [calls, assignments, quotes, meetings, messages, agreements, projects, stages] =
     await Promise.all([
+      // Through the logging user, so a call made by an admin still appears on
+      // the timeline. See listCallLog.
       db
         .select({ a: t.leadSalesActivities, agent: t.users.name })
         .from(t.leadSalesActivities)
-        .innerJoin(t.salesAgents, eq(t.salesAgents.id, t.leadSalesActivities.salesAgentId))
-        .innerJoin(t.users, eq(t.users.id, t.salesAgents.userId))
+        .leftJoin(t.users, eq(t.users.id, t.leadSalesActivities.loggedByUserId))
         .where(eq(t.leadSalesActivities.leadId, leadId)),
       db
         .select({ a: t.leadDomainAssignments, domain: t.domains.name, pro: t.professionals.companyName })
@@ -663,38 +689,62 @@ export async function getSalesDashboard(agentId: string | null): Promise<SalesDa
           .where(eq(t.salesAgents.id, agentId))
           .limit(1)
       : [],
+    /**
+     * The four triage counts.
+     *
+     * Each one starts from the small, selective side and joins up to leads.
+     * The previous shape asked each question once per lead — with an agent
+     * holding 37,000 of them that meant 37,000 index scans for the assignment
+     * count and 37,000 sequential scans of the messages table for the reply
+     * count, which took a second. Turned around, they are index lookups over
+     * the handful of rows that can possibly qualify.
+     */
     db.execute<{
       new_leads: number;
       needs_assignment: number;
       awaiting_reply: number;
       follow_ups_due: number;
-      visits_today: number;
     }>(sql`
+      WITH scope AS (
+        SELECT l.id, l.overall_status
+        FROM ${t.leads} l
+        WHERE l.deleted_at IS NULL
+          AND (${agentId}::uuid IS NULL OR l.assigned_sales_agent_id = ${agentId}::uuid)
+      )
       SELECT
-        count(*) FILTER (WHERE l.overall_status = 'new')::int AS new_leads,
-        count(*) FILTER (WHERE EXISTS (
-          SELECT 1 FROM ${t.leadDomains} ld
-          WHERE ld.lead_id = l.id AND ld.status = 'pending_assignment'
-        ))::int AS needs_assignment,
-        count(*) FILTER (WHERE EXISTS (
-          SELECT 1 FROM ${t.leadDomains} ld
-          JOIN ${t.messages} m ON m.lead_domain_id = ld.id
-          WHERE ld.lead_id = l.id
-            AND m.channel = 'client_platform' AND m.sender_role = 'client'
-            AND m.created_at > COALESCE((
-              SELECT max(r.created_at) FROM ${t.messages} r
-              WHERE r.lead_domain_id = ld.id AND r.channel = 'client_platform'
-                AND r.sender_role = 'platform'
-            ), '-infinity'::timestamptz)
-        ))::int AS awaiting_reply,
-        count(*) FILTER (WHERE EXISTS (
-          SELECT 1 FROM ${t.leadSalesActivities} a
-          WHERE a.lead_id = l.id AND a.follow_up_date <= ${today}::date
-        ))::int AS follow_ups_due,
-        0::int AS visits_today
-      FROM ${t.leads} l
-      WHERE l.deleted_at IS NULL
-        AND (${agentId}::uuid IS NULL OR l.assigned_sales_agent_id = ${agentId}::uuid)
+        (SELECT count(*) FROM scope WHERE overall_status = 'new')::int AS new_leads,
+
+        (SELECT count(DISTINCT ld.lead_id)
+         FROM ${t.leadDomains} ld
+         JOIN scope s ON s.id = ld.lead_id
+         WHERE ld.status = 'pending_assignment' AND ld.deleted_at IS NULL)::int AS needs_assignment,
+
+        /*
+         * A thread is awaiting a reply when its newest message came from the
+         * customer.
+         *
+         * Starts from the messages, not from the leads. Asking each service
+         * "what was your last message?" means one lookup per service — fifty
+         * thousand of them, each a scan of the messages table. Taking the last
+         * message of every thread once and joining back is a single pass over a
+         * table that is small by comparison, and stays small: only threads that
+         * have been written in appear in it at all.
+         */
+        (SELECT count(DISTINCT ld.lead_id)
+         FROM (
+           SELECT DISTINCT ON (m.lead_domain_id) m.lead_domain_id, m.sender_role
+           FROM ${t.messages} m
+           WHERE m.channel = 'client_platform' AND m.deleted_at IS NULL
+           ORDER BY m.lead_domain_id, m.created_at DESC
+         ) latest
+         JOIN ${t.leadDomains} ld ON ld.id = latest.lead_domain_id
+         JOIN scope s ON s.id = ld.lead_id
+         WHERE latest.sender_role = 'client')::int AS awaiting_reply,
+
+        (SELECT count(DISTINCT a.lead_id)
+         FROM ${t.leadSalesActivities} a
+         JOIN scope s ON s.id = a.lead_id
+         WHERE a.follow_up_date <= ${today}::date AND a.deleted_at IS NULL)::int AS follow_ups_due
     `),
     db
       .select({ urgency: t.leads.urgency, value: count() })
@@ -744,17 +794,19 @@ export async function getMyDay(agentId: string | null): Promise<MyDayView> {
   const today = new Date().toISOString().slice(0, 10);
   const BUCKET = 25;
 
-  const dashboard = await getSalesDashboard(agentId);
+  // The two halves are independent, so they run together. Sequentially they
+  // added up to more than the whole screen's budget for no reason.
+  const [dashboard, live] = await Promise.all([
+    getSalesDashboard(agentId),
+    listLeads({
+      ...(agentId ? { agentId } : {}),
+      limit: 200,
+      status: "all",
+      openOnly: true,
+    }),
+  ]);
 
-  const live = await listLeads({
-    ...(agentId ? { agentId } : {}),
-    limit: 200,
-    status: "all",
-  });
-
-  const open = live.items.filter((r) =>
-    ["new", "verified", "in_progress"].includes(r.lead.lead.overallStatus),
-  );
+  const open = live.items;
 
   const [visitCounts, invoices] = await Promise.all([
     db.execute<{ today: number; needing_outcome: number }>(sql`
