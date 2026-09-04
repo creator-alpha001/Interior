@@ -10,6 +10,7 @@
  * UUIDs. `uid()` maps between them deterministically, so re-running this script
  * produces identical ids and foreign keys still resolve.
  */
+import "./as-owner";
 import { eq, inArray, sql as raw } from "drizzle-orm";
 import argon2 from "argon2";
 import { v5 as uuidv5 } from "uuid";

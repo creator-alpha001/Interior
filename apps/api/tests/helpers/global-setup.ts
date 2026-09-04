@@ -9,7 +9,13 @@
 import { execFileSync } from "node:child_process";
 import postgres from "postgres";
 
-const url = process.env.TEST_DATABASE_URL ?? "postgresql://aangan@localhost:55432/aangan_test";
+/**
+ * The owner connection. Creating a database, running migrations and seeding are
+ * all owner work — the API's own role deliberately cannot do them, which is the
+ * point of having two.
+ */
+const url =
+  process.env.TEST_OWNER_DATABASE_URL ?? "postgresql://aangan@localhost:55432/aangan_test";
 
 function adminUrl(): string {
   const parsed = new URL(url);

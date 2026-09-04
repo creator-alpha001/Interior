@@ -36,6 +36,20 @@
       "when": 1788521074728,
       "tag": "0004_queue_performance",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1788521538665,
+      "tag": "0005_row_level_security",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1788523234105,
+      "tag": "0006_lead_search",
+      "breakpoints": true
     }
   ]
 }

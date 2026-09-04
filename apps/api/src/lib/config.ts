@@ -13,7 +13,32 @@ const schema = z.object({
   PORT: z.coerce.number().int().default(4000),
   LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("info"),
 
+  /**
+   * The service's connection, as a role that is **not** a superuser.
+   *
+   * A superuser bypasses row-level security entirely, which would silently undo
+   * migration 0005. There is no way to check that from here — `rolsuper` is
+   * readable, but refusing to boot on it would strand anybody running a
+   * single-role setup — so it is stated here and asserted in the tests instead.
+   */
   DATABASE_URL: z.string().min(1, "DATABASE_URL is required — see apps/api/.env.example"),
+
+  /**
+   * The owner's connection, for work the app role cannot do: migrations, the
+   * seed, backups and the restore drill. Falls back to DATABASE_URL for a
+   * single-role setup.
+   */
+  OWNER_DATABASE_URL: z.string().optional(),
+
+  /**
+   * The staff surface's connection.
+   *
+   * A role with BYPASSRLS and nothing else extra. Ops read across every
+   * customer by design, so the policies let all their rows through anyway —
+   * they just charged for the check on each one. Falls back to DATABASE_URL,
+   * which is correct but slower on the dashboards.
+   */
+  OPS_DATABASE_URL: z.string().optional(),
 
   WEB_ORIGIN: z.string().url().default("http://localhost:3001"),
   ADMIN_ORIGIN: z.string().url().default("http://localhost:3002"),

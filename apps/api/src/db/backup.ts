@@ -18,6 +18,7 @@
  *
  * `pg_dump` must be on PATH and its major version must be at least the server's.
  */
+import "./as-owner";
 import { execFile } from "node:child_process";
 import { mkdirSync, statSync } from "node:fs";
 import { dirname, resolve } from "node:path";

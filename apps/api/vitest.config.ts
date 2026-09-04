@@ -17,8 +17,27 @@ export default defineConfig({
      */
     env: {
       NODE_ENV: "test",
+      /**
+       * Connects as the application role, not the owner.
+       *
+       * This matters more than it looks: a superuser bypasses row-level
+       * security entirely, so a suite run as the owner would pass every policy
+       * test while proving nothing. The role is created by migration 0005;
+       * `global-setup` migrates and seeds as the owner, the way a deploy does.
+       */
       DATABASE_URL:
-        process.env.TEST_DATABASE_URL ?? "postgresql://aangan@localhost:55432/aangan_test",
+        process.env.TEST_DATABASE_URL ?? "postgresql://aangan_app@localhost:55432/aangan_test",
+      OWNER_DATABASE_URL:
+        process.env.TEST_OWNER_DATABASE_URL ??
+        "postgresql://aangan@localhost:55432/aangan_test",
+      /**
+       * The staff pool, which bypasses row-level security. Included so the
+       * suite runs the same three-role arrangement production does — an ops
+       * test passing on the application role would prove the wrong thing.
+       */
+      OPS_DATABASE_URL:
+        process.env.TEST_OPS_DATABASE_URL ??
+        "postgresql://aangan_ops@localhost:55432/aangan_test",
       SESSION_SECRET: "test-session-secret-not-used-anywhere-real",
       OTP_DEV_ECHO: "true",
       RUN_JOBS: "false",

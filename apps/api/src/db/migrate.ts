@@ -4,6 +4,7 @@
  * Run as a release step before the new API instances start, so a deploy never
  * has code and schema out of step for longer than the migration takes.
  */
+import "./as-owner";
 import { migrate } from "drizzle-orm/postgres-js/migrator";
 import { fileURLToPath } from "node:url";
 import { dirname, resolve } from "node:path";

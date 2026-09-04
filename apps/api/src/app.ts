@@ -19,6 +19,13 @@ import { registerPublicRoutes } from "./routes/public";
 import { registerVendorRoutes } from "./routes/vendor";
 import { limitMutations } from "./lib/mutation-limit";
 import { reportError, startObservability } from "./lib/observability";
+// Imported for its side effect as well as its hooks: loading it is what makes
+// `db` resolve to a request's own connection.
+import {
+  enterActorScope,
+  releaseActorScope,
+  reserveActorScope,
+} from "./lib/scope-hook";
 
 export async function buildApp(): Promise<FastifyInstance> {
   startObservability();
@@ -63,7 +70,6 @@ export async function buildApp(): Promise<FastifyInstance> {
     // this, every rate limit would be keyed to the proxy.
     trustProxy: true,
     bodyLimit: 1_000_000,
-    disableRequestLogging: config.isTest,
   });
 
   await app.register(helmet, {
@@ -166,6 +172,14 @@ export async function buildApp(): Promise<FastifyInstance> {
   });
 
   app.addHook("onRequest", limitMutations);
+
+  /**
+   * Row-level security for the personal surfaces. Order matters: reserve, then
+   * enter, then the handler, then release once the response has gone.
+   */
+  app.addHook("preHandler", reserveActorScope);
+  app.addHook("preHandler", enterActorScope);
+  app.addHook("onResponse", releaseActorScope);
 
   await app.register(registerHealthRoutes);
   await app.register(registerAuthRoutes);
