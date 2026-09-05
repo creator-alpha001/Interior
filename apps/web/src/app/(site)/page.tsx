@@ -18,9 +18,36 @@ import {
   Section,
   SectionHeading,
   Stars,
-  Stat,
+  cn,
 } from "@repo/ui";
 import { Media } from "@repo/ui";
+
+/** What the platform guarantees, next to the thing that demonstrates it. */
+const assurances = [
+  "Every professional verified per trade, not in general",
+  "Your number is never given to a vendor",
+  "One written agreement, tracked to handover",
+];
+
+/**
+ * The comparison shown in the hero.
+ *
+ * Deliberately static. Real quotes are private to the customer who asked for
+ * them and the vendors who wrote them — they sit behind row-level security for
+ * exactly that reason — so putting live figures on a public marketing page
+ * would publish a vendor's pricing to their competitors. This is an
+ * illustration, and the card says so.
+ */
+const sampleComparison = {
+  scope: "Modular kitchen · up to 90 sq.ft",
+  where: "Gomti Nagar, Lucknow",
+  turnaround: "3 quotes in 4 days",
+  quotes: [
+    { vendor: "Rawat Modular", price: "₹2,38,000", timeline: "32 days", warranty: "5 years", chosen: false },
+    { vendor: "Casa Nidhi Studio", price: "₹2,45,000", timeline: "28 days", warranty: "7 years", chosen: true },
+    { vendor: "Nook & Grain", price: "₹2,71,000", timeline: "24 days", warranty: "5 years", chosen: false },
+  ],
+};
 
 const steps = [
   {
@@ -79,25 +106,34 @@ export default async function HomePage() {
   return (
     <>
       {/* ---------------- Hero ---------------- */}
+      {/*
+        The comparison is the opening image.
+
+        Three written quotes against one scope is the thing the platform does
+        that a directory or a contact form cannot, and it is far easier to show
+        than to describe. It also holds the page on its own, which the previous
+        collage could not: those four tiles are placeholders until photography
+        exists, and a hero built out of them is a hero built out of an absence.
+      */}
       <section className="relative overflow-hidden border-b border-line bg-paper">
         <Container width="wide" className="py-14 sm:py-20">
-          <div className="grid items-center gap-12 lg:grid-cols-[1.05fr_0.95fr]">
+          <div className="grid items-center gap-12 lg:grid-cols-[0.86fr_1.14fr]">
             <div>
-              <div className="inline-flex items-center gap-2 rounded-full border border-line bg-surface px-3 py-1.5 text-[13.5px] sm:text-[12.5px] text-ink-2">
-                <span className="h-1.5 w-1.5 rounded-full bg-positive" />
-                Now serving {stats.cities} cities · {stats.professionals} verified professionals
-              </div>
+              <p className="text-[12px] font-semibold uppercase tracking-[0.15em] text-clay sm:text-[11px]">
+                Free · no obligation
+              </p>
 
-              <h1 className="mt-6 text-[40px] leading-[1.06] sm:text-[56px]">
-                Four trades, three quotes,
+              <h1 className="mt-5 text-[40px] leading-[1.02] sm:text-[56px]">
+                Three quotes.
                 <br />
-                <span className="text-brand">one decision.</span>
+                One table.
+                <br />
+                <span className="text-brand">No sales calls.</span>
               </h1>
 
-              <p className="mt-5 max-w-xl text-[16px] leading-relaxed text-ink-2">
-                Interiors, furniture, fabrication and painting — from one place. Tell us what you
-                need and we put three verified professionals in front of you, each with a written
-                quote you can actually compare.
+              <p className="mt-5 max-w-md text-[16px] leading-relaxed text-ink-2">
+                Interiors, furniture, fabrication and painting. Every quote is written against the
+                same scope — so the numbers actually mean the same thing.
               </p>
 
               <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:flex-wrap sm:items-center">
@@ -114,46 +150,146 @@ export default async function HomePage() {
                 </ButtonLink>
               </div>
 
-              <div className="mt-10 grid max-w-lg grid-cols-3 gap-6 border-t border-line pt-8">
-                <Stat value={`${(stats.projects / 1000).toFixed(1)}K+`} label="Projects completed" />
-                <Stat value={stats.avgRating.toFixed(1)} label="Average rating" />
-                <Stat value="₹0" label="Cost to get quotes" />
-              </div>
+              <ul className="mt-9 flex flex-col gap-2.5 border-t border-line pt-7">
+                {assurances.map((line) => (
+                  <li key={line} className="flex items-start gap-2.5 text-[14.5px] text-ink-2 sm:text-[13.5px]">
+                    <svg
+                      viewBox="0 0 16 16"
+                      className="mt-[3px] h-3.5 w-3.5 shrink-0 fill-brand"
+                      aria-hidden="true"
+                    >
+                      <path d="M6.5 11.4L3.3 8.2l1-1 2.2 2.2 5-5 1 1-6 6z" />
+                    </svg>
+                    <span>{line}</span>
+                  </li>
+                ))}
+              </ul>
             </div>
 
-            {/* Layered hero imagery */}
-            <div className="relative">
-              <div className="grid grid-cols-2 gap-3.5">
-                <div className="space-y-3.5">
-                  <div className="aspect-[3/4] overflow-hidden rounded-xl">
-                    <Media src="ph:interior:hero-1" alt="Interior project" rounded={false} />
-                  </div>
-                  <div className="aspect-square overflow-hidden rounded-xl">
-                    <Media src="ph:fabrication:hero-2" alt="Fabrication work" rounded={false} />
-                  </div>
+            <div className="overflow-hidden rounded-xl border border-line bg-surface shadow-[var(--shadow-lift)]">
+              <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 py-4">
+                <div>
+                  <p className="text-[15px] font-semibold text-ink sm:text-[14.5px]">
+                    {sampleComparison.scope}
+                  </p>
+                  <p className="text-[13px] text-ink-3 sm:text-[12.5px]">{sampleComparison.where}</p>
                 </div>
-                <div className="space-y-3.5 pt-8">
-                  <div className="aspect-square overflow-hidden rounded-xl">
-                    <Media src="ph:painting:hero-3" alt="Painting work" rounded={false} />
-                  </div>
-                  <div className="aspect-[3/4] overflow-hidden rounded-xl">
-                    <Media src="ph:furniture:hero-4" alt="Furniture work" rounded={false} />
-                  </div>
-                </div>
+                <span className="inline-flex items-center rounded-full bg-brand-soft px-3 py-1 text-[12.5px] font-medium text-brand sm:text-[12px]">
+                  {sampleComparison.turnaround}
+                </span>
               </div>
 
-              <div className="absolute -bottom-4 -left-4 hidden w-64 rounded-xl border border-line bg-surface p-4 shadow-[var(--shadow-lift)] sm:block">
-                <div className="flex items-center gap-2">
-                  <Stars value={5} />
-                  <span className="text-[13.5px] sm:text-[12.5px] font-medium text-ink">3 quotes in 4 days</span>
-                </div>
-                <p className="mt-2 text-[13.5px] sm:text-[12.5px] leading-relaxed text-ink-3">
-                  “They were genuinely comparable, which is what I could not manage on my own.”
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[520px] border-collapse text-left">
+                  <thead>
+                    <tr className="bg-surface-2">
+                      {["Professional", "Quote", "Timeline", "Warranty"].map((h) => (
+                        <th
+                          key={h}
+                          className="px-5 py-2.5 text-[11px] font-medium uppercase tracking-[0.11em] text-ink-4 sm:text-[10.5px]"
+                        >
+                          {h}
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {sampleComparison.quotes.map((q) => (
+                      <tr
+                        key={q.vendor}
+                        className={cn(
+                          "border-t border-line",
+                          q.chosen ? "bg-brand-soft" : undefined,
+                        )}
+                      >
+                        <td
+                          className={cn(
+                            "px-5 py-3.5 text-[14.5px] font-medium sm:text-[14px]",
+                            q.chosen ? "text-brand" : "text-ink",
+                          )}
+                        >
+                          {q.vendor}
+                          <span
+                            className={cn("ml-1.5 text-[12px]", q.chosen ? "text-brand" : "text-positive")}
+                            aria-hidden="true"
+                          >
+                            ✓
+                          </span>
+                        </td>
+                        <td
+                          className={cn(
+                            "px-5 py-3.5 text-[14.5px] tabular-nums sm:text-[14px]",
+                            q.chosen ? "font-semibold text-brand" : "text-ink-2",
+                          )}
+                        >
+                          {q.price}
+                        </td>
+                        <td
+                          className={cn(
+                            "px-5 py-3.5 text-[14.5px] sm:text-[14px]",
+                            q.chosen ? "text-brand" : "text-ink-2",
+                          )}
+                        >
+                          {q.timeline}
+                        </td>
+                        <td
+                          className={cn(
+                            "px-5 py-3.5 text-[14.5px] sm:text-[14px]",
+                            q.chosen ? "text-brand" : "text-ink-2",
+                          )}
+                        >
+                          {q.warranty}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-2 border-t border-line bg-surface-2 px-5 py-3">
+                <p className="text-[13px] text-ink-3 sm:text-[12.5px]">
+                  Same scope. Same materials list. Compare the number, not the pitch.
                 </p>
-                <p className="mt-2 text-[12.5px] sm:text-[11.5px] text-ink-4">Ritu A. · Lucknow</p>
+                {/* Real quotes belong to the customer and the vendors who wrote
+                    them, so this is an illustration and says so. */}
+                <p className="text-[12.5px] text-ink-4 sm:text-[12px]">Illustrative quotes</p>
               </div>
             </div>
           </div>
+        </Container>
+      </section>
+
+      {/* ---------------- Proof strip ---------------- */}
+      {/*
+        Figures that are true at this size. The previous strip divided the
+        project count by a thousand, so a real early number printed as "0.0K+",
+        and averaged a rating across two reviews as though it meant something.
+      */}
+      <section className="border-b border-line bg-surface">
+        <Container width="wide" className="px-0">
+          <dl className="grid grid-cols-2 lg:grid-cols-4">
+            {[
+              { value: String(stats.cities), label: "Cities live today" },
+              { value: String(stats.professionals), label: "Verified professionals" },
+              { value: "3", label: "Quotes per service, always" },
+              { value: "₹0", label: "Cost to get quotes" },
+            ].map((item, i) => (
+              <div
+                key={item.label}
+                className={cn(
+                  "flex flex-col gap-1 px-6 py-7 sm:px-8",
+                  i < 3 && "lg:border-r lg:border-line",
+                  i % 2 === 0 && "border-r border-line lg:border-r",
+                  i < 2 && "border-b border-line lg:border-b-0",
+                )}
+              >
+                <dt className="order-2 text-[13.5px] text-ink-3 sm:text-[13px]">{item.label}</dt>
+                <dd className="order-1 font-display text-[30px] leading-none tabular-nums text-ink sm:text-[34px]">
+                  {item.value}
+                </dd>
+              </div>
+            ))}
+          </dl>
         </Container>
       </section>
 
@@ -178,6 +314,7 @@ export default async function HomePage() {
                     <Media
                       src={`ph:${domain.slug.replace("interior-design", "interior")}:domain-${domain.slug}`}
                       alt={domain.name}
+                      label={domain.name}
                       rounded={false}
                     />
                   </div>
