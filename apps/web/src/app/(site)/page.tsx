@@ -1,6 +1,7 @@
 import Link from "next/link";
 import {
   countCatalogueByDomain,
+  formatRupeesShort,
   getPlatformStats,
   listBanners,
   listDomains,
@@ -10,7 +11,7 @@ import {
   listProfessionals,
   listTestimonials,
 } from "@repo/data";
-import { PackageCard, PostCard, ProductCard, ProfessionalCard } from "@/components/cards";
+import { PostCard, ProductCard, ProfessionalCard } from "@/components/cards";
 import { getSelectedCity } from "@/lib/city";
 import {
   ButtonLink,
@@ -20,7 +21,15 @@ import {
   Stars,
   cn,
 } from "@repo/ui";
-import { Media } from "@repo/ui";
+
+/**
+ * The domain tint token for a trade.
+ *
+ * The tokens predate the slugs by one name: interior design is `interior`.
+ */
+function domainTint(slug: string): string {
+  return slug === "interior-design" ? "interior" : slug;
+}
 
 /** What the platform guarantees, next to the thing that demonstrates it. */
 const assurances = [
@@ -88,7 +97,7 @@ export default async function HomePage() {
       listDomains(),
       listBanners(),
       countCatalogueByDomain(),
-      listFeaturedPackages(4),
+      listFeaturedPackages(3),
       listProducts({ sort: "featured", limit: 8, cityId: city.id }),
       listProfessionals({ verifiedOnly: true, limit: 3, cityId: city.id }),
       listTestimonials(),
@@ -301,34 +310,40 @@ export default async function HomePage() {
             title="Four services, one platform"
             description="Every professional on Aangan is approved per trade, not in general — so a fabricator only receives fabrication leads unless they are separately approved for painting."
           />
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            {domains.map((domain) => {
+          {/*
+            Ruled cells rather than four image cards. The images here were
+            placeholders standing in for photographs nobody has taken, and a
+            trade is better identified by its name and a colour than by a
+            gradient pretending to be a room.
+          */}
+          <div className="grid border-t border-line-strong sm:grid-cols-2 lg:grid-cols-4">
+            {domains.map((domain, i) => {
               const count = countFor(domain.id);
               return (
                 <Link
                   key={domain.id}
                   href={`/catalogue/${domain.slug}`}
-                  className="group flex flex-col overflow-hidden rounded-xl border border-line bg-surface transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]"
+                  className={cn(
+                    "group flex flex-col gap-2.5 border-b border-line p-6 transition-colors hover:bg-surface",
+                    // A rule between columns, never after the last one in a row.
+                    i % 2 === 0 && "sm:border-r",
+                    i < domains.length - 1 && "lg:border-r",
+                    i % 2 === 1 && "lg:border-r",
+                  )}
                 >
-                  <div className="aspect-[16/10] overflow-hidden">
-                    <Media
-                      src={`ph:${domain.slug.replace("interior-design", "interior")}:domain-${domain.slug}`}
-                      alt={domain.name}
-                      label={domain.name}
-                      rounded={false}
-                    />
-                  </div>
-                  <div className="flex flex-1 flex-col p-5">
-                    <h3 className="font-display text-[21px] text-ink transition-colors group-hover:text-brand">
-                      {domain.name}
-                    </h3>
-                    <p className="mt-2 flex-1 text-[14.5px] sm:text-[13.5px] leading-relaxed text-ink-3">
-                      {domain.tagline}
-                    </p>
-                    <p className="mt-4 text-[13.5px] sm:text-[12.5px] text-ink-4">
-                      {count?.products ?? 0} items · {count?.packages ?? 0} packages
-                    </p>
-                  </div>
+                  <span
+                    className="h-1 w-9 rounded-full"
+                    style={{ background: `var(--color-domain-${domainTint(domain.slug)})` }}
+                  />
+                  <h3 className="font-display text-[22px] text-ink transition-colors group-hover:text-brand">
+                    {domain.name}
+                  </h3>
+                  <p className="text-[14.5px] leading-relaxed text-ink-2 sm:text-[13.5px]">
+                    {domain.tagline}
+                  </p>
+                  <p className="mt-auto pt-3 text-[13.5px] text-ink-4 sm:text-[12.5px]">
+                    {count?.products ?? 0} items · {count?.packages ?? 0} packages
+                  </p>
                 </Link>
               );
             })}
@@ -349,38 +364,118 @@ export default async function HomePage() {
               </ButtonLink>
             }
           />
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">
-            {featuredPackages.map((pkg) => (
-              <PackageCard key={pkg.servicePackage.id} view={pkg} />
+          {/*
+            The exclusions are the point of this section — the heading promises
+            that what a package leaves out is stated as prominently as what it
+            includes, and until now the card showed only the inclusions. They
+            were in the data the whole time.
+          */}
+          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {featuredPackages.map(({ servicePackage: pkg, domain }) => (
+              <Link
+                key={pkg.id}
+                href={`/packages/${pkg.slug}`}
+                className="group flex flex-col rounded-xl border border-line bg-surface p-6 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]"
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-[12px] font-medium uppercase tracking-[0.1em] text-ink-4 sm:text-[11px]">
+                      {domain.name}
+                    </p>
+                    <h3 className="mt-1.5 font-display text-[22px] leading-tight text-ink transition-colors group-hover:text-brand">
+                      {pkg.name}
+                    </h3>
+                  </div>
+                  {pkg.badge ? (
+                    <span className="shrink-0 whitespace-nowrap rounded-full border border-clay-line bg-clay-soft px-2.5 py-1 text-[12px] font-medium text-clay sm:text-[11px]">
+                      {pkg.badge}
+                    </span>
+                  ) : null}
+                </div>
+
+                <ul className="mt-4 flex flex-col gap-2">
+                  {pkg.inclusions.slice(0, 3).map((line) => (
+                    <li key={line} className="flex gap-2.5 text-[14.5px] text-ink-2 sm:text-[13.5px]">
+                      <svg
+                        viewBox="0 0 16 16"
+                        className="mt-[3px] h-3.5 w-3.5 shrink-0 fill-positive"
+                        aria-hidden="true"
+                      >
+                        <path d="M6.5 11.4L3.3 8.2l1-1 2.2 2.2 5-5 1 1-6 6z" />
+                      </svg>
+                      <span className="line-clamp-1">{line}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                {pkg.exclusions.length > 0 ? (
+                  <ul className="mt-3.5 flex flex-col gap-1.5 border-t border-dashed border-line-strong pt-3.5">
+                    {pkg.exclusions.slice(0, 2).map((line) => (
+                      <li key={line} className="flex gap-2.5 text-[13.5px] text-ink-3 sm:text-[12.5px]">
+                        <span className="mt-[1px] shrink-0 text-ink-4" aria-hidden="true">
+                          —
+                        </span>
+                        <span className="line-clamp-1">{line}</span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : null}
+
+                <div className="mt-auto flex items-end justify-between gap-3 border-t border-line pt-4">
+                  <div>
+                    <div className="font-display text-[24px] leading-none text-ink">
+                      {formatRupeesShort(pkg.price)}
+                    </div>
+                    <div className="mt-1.5 text-[12.5px] text-ink-4 sm:text-[11.5px]">
+                      {pkg.priceBasis}
+                    </div>
+                  </div>
+                  <span className="whitespace-nowrap text-[13px] text-ink-3 sm:text-[12.5px]">
+                    {pkg.durationDays} days
+                  </span>
+                </div>
+              </Link>
             ))}
           </div>
         </Container>
       </Section>
 
       {/* ---------------- How it works ---------------- */}
-      <Section tone="brand">
+      {/*
+        Light, with the rule above each step carrying the brand colour. The
+        dark band this replaces has not been dropped — it moves to the closing
+        block, where a single emphatic panel does more than a mid-page one.
+      */}
+      <Section tone="surface">
         <Container width="wide">
           <SectionHeading
             eyebrow="How it works"
             title="From enquiry to handover"
             description="The same five steps whether you want one wardrobe or a full renovation across three trades."
-            invert
           />
-          <ol className="grid gap-6 sm:grid-cols-2 lg:grid-cols-5">
+          <ol className="grid sm:grid-cols-2 lg:grid-cols-5">
             {steps.map((step, i) => (
-              <li key={step.title} className="border-t border-white/20 pt-5">
-                <span className="font-display text-[30px] leading-none text-white/40">
+              <li
+                key={step.title}
+                className={cn(
+                  "flex flex-col gap-2 border-t-2 border-brand px-5 py-5 first:pl-0 lg:px-6",
+                  i > 0 && "lg:border-l lg:border-l-line",
+                )}
+              >
+                <span className="text-[12px] font-semibold tabular-nums text-brand">
                   {String(i + 1).padStart(2, "0")}
                 </span>
-                <h3 className="mt-3 font-sans text-[15px] font-semibold text-white">{step.title}</h3>
-                <p className="mt-2 text-[14.5px] sm:text-[13.5px] leading-relaxed text-white/70">{step.body}</p>
+                <h3 className="font-sans text-[16px] font-semibold leading-snug text-ink sm:text-[15px]">
+                  {step.title}
+                </h3>
+                <p className="text-[14.5px] leading-relaxed text-ink-2 sm:text-[13.5px]">
+                  {step.body}
+                </p>
               </li>
             ))}
           </ol>
           <div className="mt-10">
-            <ButtonLink href="/submit-requirement" variant="onDark">
-              Start with a free consultation
-            </ButtonLink>
+            <ButtonLink href="/submit-requirement">Start with a free consultation</ButtonLink>
           </div>
         </Container>
       </Section>
@@ -475,25 +570,19 @@ export default async function HomePage() {
       {hero ? (
         <section className="border-t border-line bg-paper">
           <Container width="wide" className="py-16">
-            <div className="overflow-hidden rounded-xl border border-line bg-surface">
-              <div className="grid items-center gap-0 md:grid-cols-2">
-                <div className="p-8 sm:p-12">
-                  <p className="text-[12px] sm:text-[11px] font-semibold uppercase tracking-[0.14em] text-clay">
-                    {hero.title}
-                  </p>
-                  <h2 className="mt-3 text-[30px] leading-tight sm:text-[36px]">
-                    {hero.subtitle}
-                  </h2>
-                  <div className="mt-7 flex flex-wrap gap-3">
-                    <ButtonLink href={hero.ctaHref}>{hero.ctaLabel}</ButtonLink>
-                    <ButtonLink href="/submit-requirement" variant="secondary">
-                      Get free quotes
-                    </ButtonLink>
-                  </div>
-                </div>
-                <div className="aspect-[16/10] md:aspect-auto md:h-full md:min-h-[320px]">
-                  <Media src={hero.imageUrl} alt={hero.title} rounded={false} />
-                </div>
+            <div className="flex flex-wrap items-center justify-between gap-8 rounded-xl bg-brand p-10 sm:p-14">
+              <div>
+                <p className="text-[12px] font-semibold uppercase tracking-[0.14em] text-white/60 sm:text-[11px]">
+                  {hero.title}
+                </p>
+                <h2 className="mt-3 max-w-[20ch] text-[30px] leading-tight text-white sm:text-[38px]">
+                  {hero.subtitle}
+                </h2>
+              </div>
+              <div className="flex flex-wrap gap-3">
+                <ButtonLink href={hero.ctaHref} variant="onDark">
+                  {hero.ctaLabel}
+                </ButtonLink>
               </div>
             </div>
           </Container>
