@@ -257,6 +257,18 @@ function Star({ className }: { className?: string }) {
   );
 }
 
+/**
+ * A rating, or an honest statement that there is not one yet.
+ *
+ * Five empty stars beside "0.0" is exactly how a *badly* rated vendor looks, so
+ * rendering it for somebody nobody has reviewed tells the visitor the opposite
+ * of the truth. Early on that is most of the directory, which makes it the
+ * first impression the platform gives.
+ *
+ * `count === 0` is the unreviewed case and gets said in words. `count`
+ * undefined means the caller does not want a tally shown at all, which is a
+ * different thing and still renders stars.
+ */
 export function RatingLine({
   value,
   count,
@@ -266,6 +278,19 @@ export function RatingLine({
   count?: number;
   className?: string;
 }) {
+  if (count === 0) {
+    return (
+      <span
+        className={cn(
+          "inline-flex items-center rounded-full border border-clay-line bg-clay-soft px-2 py-0.5 text-[12.5px] font-medium text-clay sm:text-[11.5px]",
+          className,
+        )}
+      >
+        New
+      </span>
+    );
+  }
+
   return (
     <span className={cn("inline-flex items-center gap-1.5 text-[14px] sm:text-[13px]", className)}>
       <Stars value={value} />

@@ -14,7 +14,15 @@ export function ProductCard({ view, className }: { view: ProductView; className?
       )}
     >
       <div className="relative aspect-[4/3] overflow-hidden">
-        <Media src={product.media[0]?.url ?? "ph:default:x"} alt={product.name} rounded={false} />
+        {/* `label` names the piece on a placeholder tile, so an item without a
+            photograph reads as a designed card rather than an image that failed
+            to load. Real photography ignores it. */}
+        <Media
+          src={product.media[0]?.url ?? "ph:default:x"}
+          alt={product.name}
+          label={product.name}
+          rounded={false}
+        />
         {product.tags.includes("bestseller") ? (
           <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[12px] sm:text-[11px] font-semibold text-clay shadow-sm">
             Bestseller
@@ -59,7 +67,12 @@ export function PackageCard({ view, className }: { view: PackageView; className?
       )}
     >
       <div className="relative aspect-[16/10] overflow-hidden">
-        <Media src={pkg.media[0]?.url ?? "ph:default:x"} alt={pkg.name} rounded={false} />
+        <Media
+          src={pkg.media[0]?.url ?? "ph:default:x"}
+          alt={pkg.name}
+          label={pkg.name}
+          rounded={false}
+        />
         {pkg.badge ? (
           <span className="absolute left-3 top-3 rounded-full bg-clay px-2.5 py-1 text-[12px] sm:text-[11px] font-semibold text-white">
             {pkg.badge}
@@ -156,7 +169,12 @@ export function ProfessionalCard({
       <dl className="mt-4 grid grid-cols-3 gap-2 border-t border-line pt-4 text-center">
         <div>
           <dt className="text-[12px] sm:text-[11px] text-ink-4">Rating</dt>
-          <dd className="mt-0.5 text-[15px] sm:text-[14px] font-semibold text-ink">{rating.toFixed(1)}</dd>
+          {/* An unreviewed vendor has no rating. "0.0" would claim they have a
+              terrible one, and their experience below is the honest thing to
+              read instead. */}
+          <dd className="mt-0.5 text-[15px] sm:text-[14px] font-semibold text-ink">
+            {count === 0 ? <span className="text-ink-4">—</span> : rating.toFixed(1)}
+          </dd>
         </div>
         <div className="border-x border-line">
           <dt className="text-[12px] sm:text-[11px] text-ink-4">Experience</dt>
