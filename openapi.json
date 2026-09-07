@@ -5571,20 +5571,7 @@
         "type": "object",
         "properties": {
           "actor": {
-            "anyOf": [
-              {
-                "$ref": "#/components/schemas/ActorClient"
-              },
-              {
-                "$ref": "#/components/schemas/ActorProfessional"
-              },
-              {
-                "$ref": "#/components/schemas/ActorSalesAgent"
-              },
-              {
-                "$ref": "#/components/schemas/ActorAdmin"
-              }
-            ]
+            "$ref": "#/components/schemas/Actor"
           },
           "name": {
             "type": "string"

@@ -191,6 +191,21 @@ const componentByShape = (() => {
     if (existing) collisions.push(`${existing} == ${name}`);
     else map.set(key, name);
   }
+
+  /**
+   * A union *nested inside* another shape resolves to the union, not to its
+   * expansion.
+   *
+   * `SessionUser.actor` is `actorSchema`, which expands to a four-branch
+   * `anyOf`. Without this, it stayed inline and the Dart client grew a second,
+   * separate union type called `SessionUserActorUnion` — so the role check at
+   * launch could not use the same `Actor` the rest of the app does.
+   */
+  for (const [name, split] of unionSplits) {
+    const component = components.find((c) => c.name === name);
+    if (component) map.set(canonical(expand(component.schema)), name);
+    void split;
+  }
   if (collisions.length) {
     console.warn(
       `openapi: components with identical shapes, the first name wins: ${collisions.join(", ")}`,
