@@ -23,11 +23,13 @@
     "db:restore-drill": "npm run db:restore-drill --workspace=api",
     "db:seed": "npm run db:seed --workspace=api",
     "db:studio": "npm run db:studio --workspace=api",
-    "test": "npm run test --workspace=@repo/types && npm run test --workspace=api",
+    "test": "npm run test --workspace=@repo/types && npm run test --workspace=@repo/contract && npm run test --workspace=api",
     "test:schema": "npm run test --workspace=@repo/types",
     "test:api": "npm run test --workspace=api",
-    "typecheck": "npm run typecheck --workspace=@repo/types && npm run typecheck --workspace=web && npm run typecheck --workspace=admin && npm run typecheck --workspace=api",
-    "job": "npm run job --workspace=api --"
+    "typecheck": "npm run typecheck --workspace=@repo/types && npm run typecheck --workspace=@repo/contract && npm run typecheck --workspace=web && npm run typecheck --workspace=admin && npm run typecheck --workspace=api",
+    "job": "npm run job --workspace=api --",
+    "openapi": "npm run openapi --workspace=@repo/contract",
+    "openapi:check": "npm run openapi:check --workspace=@repo/contract"
   },
   "engines": {
     "node": ">=20"

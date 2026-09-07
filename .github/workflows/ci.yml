@@ -45,6 +45,33 @@ jobs:
       - run: npm ci
       - run: npm run lint --workspace=web
 
+  contract:
+    name: Contract and schemas
+    runs-on: ubuntu-latest
+
+    # No database and no server: the response schemas, the route manifest and
+    # the OpenAPI document generated from it are all pure values. This is the
+    # cheap gate, and it is the one that catches a contract change.
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+
+      # Parses the whole seed through the response schemas, and asserts the
+      # vendor-facing shapes still have nowhere to put a phone number.
+      - name: Schema and contract tests
+        run: |
+          npm run test --workspace=@repo/types
+          npm run test --workspace=@repo/contract
+
+      # A generator nobody runs is worse than no generator: the committed
+      # document would still look authoritative while describing the old API.
+      - name: openapi.json is not stale
+        run: npm run openapi:check
+
   api:
     name: API and migrations
     runs-on: ubuntu-latest

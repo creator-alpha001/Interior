@@ -5,11 +5,26 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./responses": "./src/responses.ts",
+    "./openapi": "./src/openapi/generate.ts"
   },
+  "sideEffects": false,
   "dependencies": {
     "@repo/types": "*",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "zod-to-json-schema": "^3.25.2"
   },
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "openapi": "tsx src/openapi/write.ts",
+    "openapi:check": "tsx src/openapi/write.ts --check",
+    "test": "vitest run",
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "vitest": "^5.0.0",
+    "typescript": "^5.7.3"
+  }
 }
