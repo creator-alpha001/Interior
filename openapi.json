@@ -51,7 +51,10 @@
             "type": "string"
           },
           "retained": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
@@ -61,143 +64,123 @@
         "additionalProperties": false
       },
       "Actor": {
-        "anyOf": [
+        "oneOf": [
           {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "enum": [
-                  "client"
-                ]
-              },
-              "userId": {
-                "type": "string"
-              },
-              "clientId": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "role",
-              "userId",
-              "clientId"
-            ],
-            "additionalProperties": false
+            "$ref": "#/components/schemas/ActorClient"
           },
           {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "enum": [
-                  "professional"
-                ]
-              },
-              "userId": {
-                "type": "string"
-              },
-              "professionalId": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "role",
-              "userId",
-              "professionalId"
-            ],
-            "additionalProperties": false
+            "$ref": "#/components/schemas/ActorProfessional"
           },
           {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "enum": [
-                  "sales_agent"
-                ]
-              },
-              "userId": {
-                "type": "string"
-              },
-              "salesAgentId": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "role",
-              "userId",
-              "salesAgentId"
-            ],
-            "additionalProperties": false
+            "$ref": "#/components/schemas/ActorSalesAgent"
           },
           {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "enum": [
-                  "admin"
-                ]
-              },
-              "userId": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "role",
-              "userId"
-            ],
-            "additionalProperties": false
+            "$ref": "#/components/schemas/ActorAdmin"
           }
-        ]
+        ],
+        "discriminator": {
+          "propertyName": "role",
+          "mapping": {
+            "client": "#/components/schemas/ActorClient",
+            "professional": "#/components/schemas/ActorProfessional",
+            "sales_agent": "#/components/schemas/ActorSalesAgent",
+            "admin": "#/components/schemas/ActorAdmin"
+          }
+        }
+      },
+      "ActorAdmin": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin"
+            ]
+          },
+          "userId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "userId"
+        ],
+        "additionalProperties": false
+      },
+      "ActorClient": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "client"
+            ]
+          },
+          "userId": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "userId",
+          "clientId"
+        ],
+        "additionalProperties": false
+      },
+      "ActorProfessional": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "professional"
+            ]
+          },
+          "userId": {
+            "type": "string"
+          },
+          "professionalId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "userId",
+          "professionalId"
+        ],
+        "additionalProperties": false
+      },
+      "ActorSalesAgent": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "sales_agent"
+            ]
+          },
+          "userId": {
+            "type": "string"
+          },
+          "salesAgentId": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "userId",
+          "salesAgentId"
+        ],
+        "additionalProperties": false
       },
       "AdminDashboard": {
         "type": "object",
         "properties": {
           "totals": {
-            "type": "object",
-            "properties": {
-              "leads": {
-                "type": "number"
-              },
-              "activeLeads": {
-                "type": "number"
-              },
-              "vendors": {
-                "type": "number"
-              },
-              "pendingVerification": {
-                "type": "number"
-              },
-              "revenue": {
-                "type": "number"
-              },
-              "commissionBilled": {
-                "type": "number"
-              },
-              "commissionPending": {
-                "type": "number"
-              },
-              "commissionOverdue": {
-                "type": "number"
-              },
-              "openTickets": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "leads",
-              "activeLeads",
-              "vendors",
-              "pendingVerification",
-              "revenue",
-              "commissionBilled",
-              "commissionPending",
-              "commissionOverdue",
-              "openTickets"
-            ],
-            "additionalProperties": false
+            "$ref": "#/components/schemas/AdminTotals"
           },
           "byDomain": {
             "type": "array",
@@ -208,24 +191,7 @@
           "byCity": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "cityName": {
-                  "type": "string"
-                },
-                "leads": {
-                  "type": "number"
-                },
-                "revenue": {
-                  "type": "number"
-                }
-              },
-              "required": [
-                "cityName",
-                "leads",
-                "revenue"
-              ],
-              "additionalProperties": false
+              "$ref": "#/components/schemas/CitySlice"
             }
           }
         },
@@ -293,6 +259,50 @@
           "ticket",
           "raisedByName",
           "raisedByRole"
+        ],
+        "additionalProperties": false
+      },
+      "AdminTotals": {
+        "type": "object",
+        "properties": {
+          "leads": {
+            "type": "number"
+          },
+          "activeLeads": {
+            "type": "number"
+          },
+          "vendors": {
+            "type": "number"
+          },
+          "pendingVerification": {
+            "type": "number"
+          },
+          "revenue": {
+            "type": "number"
+          },
+          "commissionBilled": {
+            "type": "number"
+          },
+          "commissionPending": {
+            "type": "number"
+          },
+          "commissionOverdue": {
+            "type": "number"
+          },
+          "openTickets": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "leads",
+          "activeLeads",
+          "vendors",
+          "pendingVerification",
+          "revenue",
+          "commissionBilled",
+          "commissionPending",
+          "commissionOverdue",
+          "openTickets"
         ],
         "additionalProperties": false
       },
@@ -407,12 +417,6 @@
         ],
         "additionalProperties": false
       },
-      "AgreementIds": {
-        "type": "array",
-        "items": {
-          "type": "string"
-        }
-      },
       "AgreementLeadDomain": {
         "type": "object",
         "properties": {
@@ -454,6 +458,42 @@
         ],
         "additionalProperties": false
       },
+      "AgreementLine": {
+        "type": "object",
+        "properties": {
+          "link": {
+            "$ref": "#/components/schemas/AgreementLeadDomain"
+          },
+          "domain": {
+            "$ref": "#/components/schemas/Domain"
+          },
+          "quote": {
+            "$ref": "#/components/schemas/Quote"
+          }
+        },
+        "required": [
+          "link",
+          "domain",
+          "quote"
+        ],
+        "additionalProperties": false
+      },
+      "AgreementProject": {
+        "type": "object",
+        "properties": {
+          "project": {
+            "$ref": "#/components/schemas/Project"
+          },
+          "domain": {
+            "$ref": "#/components/schemas/Domain"
+          }
+        },
+        "required": [
+          "project",
+          "domain"
+        ],
+        "additionalProperties": false
+      },
       "AgreementStatus": {
         "type": "string",
         "enum": [
@@ -480,24 +520,7 @@
           "lines": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "link": {
-                  "$ref": "#/components/schemas/AgreementLeadDomain"
-                },
-                "domain": {
-                  "$ref": "#/components/schemas/Domain"
-                },
-                "quote": {
-                  "$ref": "#/components/schemas/Quote"
-                }
-              },
-              "required": [
-                "link",
-                "domain",
-                "quote"
-              ],
-              "additionalProperties": false
+              "$ref": "#/components/schemas/AgreementLine"
             }
           },
           "isCombined": {
@@ -510,63 +533,11 @@
             }
           },
           "invoice": {
-            "type": "object",
-            "properties": {
-              "createdAt": {
-                "type": "string"
-              },
-              "updatedAt": {
-                "type": "string"
-              },
-              "deletedAt": {
-                "type": "string",
-                "nullable": true
-              },
-              "id": {
-                "type": "string"
-              },
-              "reference": {
-                "type": "string"
-              },
-              "professionalId": {
-                "type": "string"
-              },
-              "agreementId": {
-                "type": "string"
-              },
-              "amount": {
-                "type": "number"
-              },
-              "status": {
-                "$ref": "#/components/schemas/InvoiceStatus"
-              },
-              "dueDate": {
-                "type": "string"
-              },
-              "paidDate": {
-                "type": "string",
-                "nullable": true
-              },
-              "adjustmentNote": {
-                "type": "string",
-                "nullable": true
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CommissionInvoice"
               }
-            },
-            "required": [
-              "createdAt",
-              "updatedAt",
-              "deletedAt",
-              "id",
-              "reference",
-              "professionalId",
-              "agreementId",
-              "amount",
-              "status",
-              "dueDate",
-              "paidDate",
-              "adjustmentNote"
             ],
-            "additionalProperties": false,
             "nullable": true
           }
         },
@@ -605,6 +576,22 @@
           "rejected"
         ]
       },
+      "AssignmentView": {
+        "type": "object",
+        "properties": {
+          "assignment": {
+            "$ref": "#/components/schemas/LeadDomainAssignment"
+          },
+          "professional": {
+            "$ref": "#/components/schemas/ProfessionalSummary"
+          }
+        },
+        "required": [
+          "assignment",
+          "professional"
+        ],
+        "additionalProperties": false
+      },
       "AuditLog": {
         "type": "object",
         "properties": {
@@ -642,120 +629,141 @@
         "additionalProperties": false
       },
       "AuthSession": {
-        "anyOf": [
+        "oneOf": [
           {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "enum": [
-                  "client"
-                ]
-              },
-              "userId": {
-                "type": "string"
-              },
-              "clientId": {
-                "type": "string"
-              },
-              "sessionToken": {
-                "type": "string"
-              },
-              "expiresAt": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "role",
-              "userId",
-              "clientId"
-            ],
-            "additionalProperties": false
+            "$ref": "#/components/schemas/AuthSessionClient"
           },
           {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "enum": [
-                  "professional"
-                ]
-              },
-              "userId": {
-                "type": "string"
-              },
-              "professionalId": {
-                "type": "string"
-              },
-              "sessionToken": {
-                "type": "string"
-              },
-              "expiresAt": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "role",
-              "userId",
-              "professionalId"
-            ],
-            "additionalProperties": false
+            "$ref": "#/components/schemas/AuthSessionProfessional"
           },
           {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "enum": [
-                  "sales_agent"
-                ]
-              },
-              "userId": {
-                "type": "string"
-              },
-              "salesAgentId": {
-                "type": "string"
-              },
-              "sessionToken": {
-                "type": "string"
-              },
-              "expiresAt": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "role",
-              "userId",
-              "salesAgentId"
-            ],
-            "additionalProperties": false
+            "$ref": "#/components/schemas/AuthSessionSalesAgent"
           },
           {
-            "type": "object",
-            "properties": {
-              "role": {
-                "type": "string",
-                "enum": [
-                  "admin"
-                ]
-              },
-              "userId": {
-                "type": "string"
-              },
-              "sessionToken": {
-                "type": "string"
-              },
-              "expiresAt": {
-                "type": "string"
-              }
-            },
-            "required": [
-              "role",
-              "userId"
-            ],
-            "additionalProperties": false
+            "$ref": "#/components/schemas/AuthSessionAdmin"
           }
-        ]
+        ],
+        "discriminator": {
+          "propertyName": "role",
+          "mapping": {
+            "client": "#/components/schemas/AuthSessionClient",
+            "professional": "#/components/schemas/AuthSessionProfessional",
+            "sales_agent": "#/components/schemas/AuthSessionSalesAgent",
+            "admin": "#/components/schemas/AuthSessionAdmin"
+          }
+        }
+      },
+      "AuthSessionAdmin": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "admin"
+            ]
+          },
+          "userId": {
+            "type": "string"
+          },
+          "sessionToken": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "userId"
+        ],
+        "additionalProperties": false
+      },
+      "AuthSessionClient": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "client"
+            ]
+          },
+          "userId": {
+            "type": "string"
+          },
+          "clientId": {
+            "type": "string"
+          },
+          "sessionToken": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "userId",
+          "clientId"
+        ],
+        "additionalProperties": false
+      },
+      "AuthSessionProfessional": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "professional"
+            ]
+          },
+          "userId": {
+            "type": "string"
+          },
+          "professionalId": {
+            "type": "string"
+          },
+          "sessionToken": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "userId",
+          "professionalId"
+        ],
+        "additionalProperties": false
+      },
+      "AuthSessionSalesAgent": {
+        "type": "object",
+        "properties": {
+          "role": {
+            "type": "string",
+            "enum": [
+              "sales_agent"
+            ]
+          },
+          "userId": {
+            "type": "string"
+          },
+          "salesAgentId": {
+            "type": "string"
+          },
+          "sessionToken": {
+            "type": "string"
+          },
+          "expiresAt": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "role",
+          "userId",
+          "salesAgentId"
+        ],
+        "additionalProperties": false
       },
       "Banner": {
         "type": "object",
@@ -793,7 +801,10 @@
             "nullable": true
           },
           "cityIds": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "isActive": {
             "type": "boolean"
@@ -918,7 +929,10 @@
             "type": "string"
           },
           "tagIds": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "domainId": {
             "type": "string",
@@ -989,73 +1003,17 @@
             "$ref": "#/components/schemas/BlogCategory"
           },
           "tags": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "domain": {
-            "type": "object",
-            "properties": {
-              "createdAt": {
-                "type": "string"
-              },
-              "updatedAt": {
-                "type": "string"
-              },
-              "deletedAt": {
-                "type": "string",
-                "nullable": true
-              },
-              "id": {
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              },
-              "slug": {
-                "type": "string"
-              },
-              "tagline": {
-                "type": "string"
-              },
-              "description": {
-                "type": "string"
-              },
-              "iconKey": {
-                "type": "string"
-              },
-              "bannerUrl": {
-                "type": "string",
-                "nullable": true
-              },
-              "defaultCommissionPercent": {
-                "type": "number"
-              },
-              "isActive": {
-                "type": "boolean"
-              },
-              "sortOrder": {
-                "type": "number"
-              },
-              "labels": {
-                "$ref": "#/components/schemas/DomainLabels"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Domain"
               }
-            },
-            "required": [
-              "createdAt",
-              "updatedAt",
-              "deletedAt",
-              "id",
-              "name",
-              "slug",
-              "tagline",
-              "description",
-              "iconKey",
-              "bannerUrl",
-              "defaultCommissionPercent",
-              "isActive",
-              "sortOrder",
-              "labels"
             ],
-            "additionalProperties": false,
             "nullable": true
           }
         },
@@ -1120,6 +1078,57 @@
         ],
         "additionalProperties": false
       },
+      "CatalogueSelection": {
+        "type": "object",
+        "properties": {
+          "domainId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "productId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "packageId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "itemName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "quantity": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 999
+          },
+          "selectedOptions": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "string",
+              "maxLength": 120
+            }
+          },
+          "indicativePrice": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000,
+            "nullable": true
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          }
+        },
+        "required": [
+          "domainId",
+          "itemName",
+          "quantity"
+        ],
+        "additionalProperties": false
+      },
       "City": {
         "type": "object",
         "properties": {
@@ -1145,6 +1154,26 @@
           "slug",
           "state",
           "isActive"
+        ],
+        "additionalProperties": false
+      },
+      "CitySlice": {
+        "type": "object",
+        "properties": {
+          "cityName": {
+            "type": "string"
+          },
+          "leads": {
+            "type": "number"
+          },
+          "revenue": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "cityName",
+          "leads",
+          "revenue"
         ],
         "additionalProperties": false
       },
@@ -1273,7 +1302,10 @@
             "type": "number"
           },
           "domains": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
@@ -1348,6 +1380,219 @@
         ],
         "additionalProperties": false
       },
+      "CommissionSummary": {
+        "type": "object",
+        "properties": {
+          "pending": {
+            "type": "number"
+          },
+          "overdue": {
+            "type": "number"
+          },
+          "overdueCount": {
+            "type": "number"
+          },
+          "dueSoonCount": {
+            "type": "number"
+          },
+          "rows": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CommissionFocusRow"
+            }
+          }
+        },
+        "required": [
+          "pending",
+          "overdue",
+          "overdueCount",
+          "dueSoonCount",
+          "rows"
+        ],
+        "additionalProperties": false
+      },
+      "Count": {
+        "type": "object",
+        "properties": {
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "count"
+        ],
+        "additionalProperties": false
+      },
+      "CreateRequirementBody": {
+        "type": "object",
+        "properties": {
+          "cityId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "domainIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "maxItems": 6
+          },
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "urgency": {
+            "$ref": "#/components/schemas/Urgency"
+          },
+          "materialSource": {
+            "type": "object",
+            "additionalProperties": {
+              "$ref": "#/components/schemas/MaterialSource"
+            },
+            "default": {}
+          },
+          "siteAccessibilityTags": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/SiteAccessibilityTag"
+            },
+            "maxItems": 4
+          },
+          "budgetMin": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000,
+            "nullable": true
+          },
+          "budgetMax": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000,
+            "nullable": true
+          },
+          "preferredProfessionalId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "photoIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 6
+          },
+          "catalogueItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/CatalogueSelection"
+            },
+            "maxItems": 40
+          }
+        },
+        "required": [
+          "cityId",
+          "domainIds",
+          "description",
+          "urgency"
+        ],
+        "additionalProperties": false
+      },
+      "CreateTicketBody": {
+        "type": "object",
+        "properties": {
+          "category": {
+            "type": "string",
+            "enum": [
+              "complaint",
+              "escalation",
+              "refund",
+              "query",
+              "technical"
+            ]
+          },
+          "subject": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "leadId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "projectId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        },
+        "required": [
+          "category",
+          "subject",
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "CreateUploadTicketBody": {
+        "type": "object",
+        "properties": {
+          "purpose": {
+            "$ref": "#/components/schemas/UploadPurpose"
+          },
+          "fileName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 255
+          },
+          "contentType": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 100
+          },
+          "sizeBytes": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "minimum": 0,
+            "maximum": 50000000
+          }
+        },
+        "required": [
+          "purpose",
+          "fileName",
+          "contentType",
+          "sizeBytes"
+        ],
+        "additionalProperties": false
+      },
+      "DeleteAccountBody": {
+        "type": "object",
+        "properties": {
+          "confirm": {
+            "type": "string",
+            "enum": [
+              "DELETE"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "confirm"
+        ],
+        "additionalProperties": false
+      },
       "DeviceToken": {
         "type": "object",
         "properties": {
@@ -1387,6 +1632,20 @@
           "userId",
           "token",
           "platform"
+        ],
+        "additionalProperties": false
+      },
+      "DeviceTokenParam": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 4096
+          }
+        },
+        "required": [
+          "token"
         ],
         "additionalProperties": false
       },
@@ -1464,6 +1723,22 @@
           "rejected"
         ]
       },
+      "DomainCount": {
+        "type": "object",
+        "properties": {
+          "domain": {
+            "$ref": "#/components/schemas/Domain"
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "domain",
+          "count"
+        ],
+        "additionalProperties": false
+      },
       "DomainLabels": {
         "type": "object",
         "properties": {
@@ -1481,6 +1756,92 @@
           "materials",
           "warranty",
           "pricingBasis"
+        ],
+        "additionalProperties": false
+      },
+      "DomainLabelsInput": {
+        "type": "object",
+        "properties": {
+          "materials": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "warranty": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "pricingBasis": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          }
+        },
+        "required": [
+          "materials",
+          "warranty",
+          "pricingBasis"
+        ],
+        "additionalProperties": false
+      },
+      "DomainPerformance": {
+        "type": "object",
+        "properties": {
+          "domain": {
+            "$ref": "#/components/schemas/Domain"
+          },
+          "rating": {
+            "type": "number"
+          },
+          "ratingCount": {
+            "type": "number"
+          },
+          "completed": {
+            "type": "number"
+          },
+          "won": {
+            "type": "number"
+          },
+          "lost": {
+            "type": "number"
+          },
+          "winRatePercent": {
+            "type": "number"
+          },
+          "commissionPercent": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "domain",
+          "rating",
+          "ratingCount",
+          "completed",
+          "won",
+          "lost",
+          "winRatePercent",
+          "commissionPercent"
+        ],
+        "additionalProperties": false
+      },
+      "DomainRating": {
+        "type": "object",
+        "properties": {
+          "domainId": {
+            "type": "string"
+          },
+          "avgRating": {
+            "type": "number"
+          },
+          "ratingCount": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "domainId",
+          "avgRating",
+          "ratingCount"
         ],
         "additionalProperties": false
       },
@@ -1541,7 +1902,10 @@
             "type": "string"
           },
           "domains": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "isCombined": {
             "type": "boolean"
@@ -1852,20 +2216,7 @@
           "assignments": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "assignment": {
-                  "$ref": "#/components/schemas/LeadDomainAssignment"
-                },
-                "professional": {
-                  "$ref": "#/components/schemas/ProfessionalSummary"
-                }
-              },
-              "required": [
-                "assignment",
-                "professional"
-              ],
-              "additionalProperties": false
+              "$ref": "#/components/schemas/AssignmentView"
             }
           },
           "quotes": {
@@ -1877,20 +2228,7 @@
           "meetings": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "meeting": {
-                  "$ref": "#/components/schemas/Meeting"
-                },
-                "professional": {
-                  "$ref": "#/components/schemas/ProfessionalSummary"
-                }
-              },
-              "required": [
-                "meeting",
-                "professional"
-              ],
-              "additionalProperties": false
+              "$ref": "#/components/schemas/MeetingView"
             }
           },
           "items": {
@@ -1900,88 +2238,11 @@
             }
           },
           "selectedProfessional": {
-            "type": "object",
-            "properties": {
-              "id": {
-                "type": "string"
-              },
-              "name": {
-                "type": "string"
-              },
-              "companyName": {
-                "type": "string"
-              },
-              "avatarUrl": {
-                "type": "string",
-                "nullable": true
-              },
-              "city": {
-                "$ref": "#/components/schemas/City"
-              },
-              "experienceYears": {
-                "type": "number"
-              },
-              "completedProjects": {
-                "type": "number"
-              },
-              "avgRating": {
-                "type": "number"
-              },
-              "ratingCount": {
-                "type": "number"
-              },
-              "languages": {
-                "$ref": "#/components/schemas/AgreementIds"
-              },
-              "isVerified": {
-                "type": "boolean"
-              },
-              "avgResponseHours": {
-                "type": "number"
-              },
-              "domains": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/Domain"
-                }
-              },
-              "domainRating": {
-                "type": "object",
-                "properties": {
-                  "domainId": {
-                    "type": "string"
-                  },
-                  "avgRating": {
-                    "type": "number"
-                  },
-                  "ratingCount": {
-                    "type": "number"
-                  }
-                },
-                "required": [
-                  "domainId",
-                  "avgRating",
-                  "ratingCount"
-                ],
-                "additionalProperties": false
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/ProfessionalSummary"
               }
-            },
-            "required": [
-              "id",
-              "name",
-              "companyName",
-              "avatarUrl",
-              "city",
-              "experienceYears",
-              "completedProjects",
-              "avgRating",
-              "ratingCount",
-              "languages",
-              "isVerified",
-              "avgResponseHours",
-              "domains"
             ],
-            "additionalProperties": false,
             "nullable": true
           },
           "unreadMessages": {
@@ -1999,6 +2260,17 @@
           "unreadMessages"
         ],
         "additionalProperties": false
+      },
+      "LeadFilter": {
+        "type": "string",
+        "enum": [
+          "all",
+          "new",
+          "quoting",
+          "won",
+          "lost"
+        ],
+        "default": "all"
       },
       "LeadProjectView": {
         "type": "object",
@@ -2062,6 +2334,68 @@
           "currentStage",
           "milestones"
         ],
+        "additionalProperties": false
+      },
+      "LeadQueue": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 24
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "status": {
+            "type": "string",
+            "enum": [
+              "all",
+              "new",
+              "verified",
+              "in_progress",
+              "closed",
+              "archived"
+            ]
+          },
+          "domain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "city": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "urgency": {
+            "$ref": "#/components/schemas/Urgency"
+          },
+          "agentId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "search": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "needsAssignment": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "true",
+                  "false"
+                ]
+              }
+            ]
+          }
+        },
         "additionalProperties": false
       },
       "LeadSalesActivity": {
@@ -2161,7 +2495,10 @@
             }
           },
           "domainNames": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "isMultiDomain": {
             "type": "boolean"
@@ -2195,9 +2532,7 @@
           },
           "contactReleased": {
             "type": "boolean",
-            "enum": [
-              false
-            ]
+            "description": "Always false."
           }
         },
         "required": [
@@ -2352,6 +2687,22 @@
           "handover"
         ]
       },
+      "MeetingView": {
+        "type": "object",
+        "properties": {
+          "meeting": {
+            "$ref": "#/components/schemas/Meeting"
+          },
+          "professional": {
+            "$ref": "#/components/schemas/ProfessionalSummary"
+          }
+        },
+        "required": [
+          "meeting",
+          "professional"
+        ],
+        "additionalProperties": false
+      },
       "Message": {
         "type": "object",
         "properties": {
@@ -2493,35 +2844,7 @@
             "type": "number"
           },
           "commission": {
-            "type": "object",
-            "properties": {
-              "pending": {
-                "type": "number"
-              },
-              "overdue": {
-                "type": "number"
-              },
-              "overdueCount": {
-                "type": "number"
-              },
-              "dueSoonCount": {
-                "type": "number"
-              },
-              "rows": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/CommissionFocusRow"
-                }
-              }
-            },
-            "required": [
-              "pending",
-              "overdue",
-              "overdueCount",
-              "dueSoonCount",
-              "rows"
-            ],
-            "additionalProperties": false
+            "$ref": "#/components/schemas/CommissionSummary"
           }
         },
         "required": [
@@ -2620,6 +2943,19 @@
           "review_received"
         ]
       },
+      "Ok": {
+        "type": "object",
+        "properties": {
+          "ok": {
+            "type": "boolean",
+            "description": "Always true."
+          }
+        },
+        "required": [
+          "ok"
+        ],
+        "additionalProperties": false
+      },
       "OnboardingStep": {
         "type": "object",
         "properties": {
@@ -2665,6 +3001,58 @@
           "bank"
         ]
       },
+      "OpsAssignBody": {
+        "type": "object",
+        "properties": {
+          "professionalIds": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "maxItems": 6
+          }
+        },
+        "required": [
+          "professionalIds"
+        ],
+        "additionalProperties": false
+      },
+      "OpsCreateDomainBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "tagline": {
+            "type": "string",
+            "maxLength": 200,
+            "default": ""
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "default": ""
+          },
+          "defaultCommissionPercent": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 50
+          },
+          "labels": {
+            "$ref": "#/components/schemas/DomainLabelsInput"
+          }
+        },
+        "required": [
+          "name",
+          "defaultCommissionPercent",
+          "labels"
+        ],
+        "additionalProperties": false
+      },
       "OpsLeadRow": {
         "type": "object",
         "properties": {
@@ -2676,62 +3064,11 @@
             "nullable": true
           },
           "lastActivity": {
-            "type": "object",
-            "properties": {
-              "createdAt": {
-                "type": "string"
-              },
-              "updatedAt": {
-                "type": "string"
-              },
-              "deletedAt": {
-                "type": "string",
-                "nullable": true
-              },
-              "id": {
-                "type": "string"
-              },
-              "leadId": {
-                "type": "string"
-              },
-              "salesAgentId": {
-                "type": "string"
-              },
-              "callStatus": {
-                "type": "string",
-                "enum": [
-                  "connected",
-                  "not_reachable",
-                  "busy",
-                  "callback_requested",
-                  "not_interested"
-                ]
-              },
-              "remarks": {
-                "type": "string"
-              },
-              "recordingUrl": {
-                "type": "string",
-                "nullable": true
-              },
-              "followUpDate": {
-                "type": "string",
-                "nullable": true
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/LeadSalesActivity"
               }
-            },
-            "required": [
-              "createdAt",
-              "updatedAt",
-              "deletedAt",
-              "id",
-              "leadId",
-              "salesAgentId",
-              "callStatus",
-              "remarks",
-              "recordingUrl",
-              "followUpDate"
             ],
-            "additionalProperties": false,
             "nullable": true
           },
           "followUpDate": {
@@ -2756,6 +3093,223 @@
           "unassignedDomains",
           "awaitingReply",
           "ageDays"
+        ],
+        "additionalProperties": false
+      },
+      "OpsLogCallBody": {
+        "type": "object",
+        "properties": {
+          "callStatus": {
+            "type": "string",
+            "enum": [
+              "connected",
+              "not_reachable",
+              "busy",
+              "callback_requested",
+              "not_interested"
+            ]
+          },
+          "remarks": {
+            "type": "string",
+            "maxLength": 4000,
+            "default": ""
+          },
+          "followUpDate": {
+            "type": "string",
+            "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+            "nullable": true
+          }
+        },
+        "required": [
+          "callStatus"
+        ],
+        "additionalProperties": false
+      },
+      "OpsReplyToClientBody": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          },
+          "sourceMessageId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "OpsReplyToTicketBody": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "additionalProperties": false
+      },
+      "OpsReviewProofBody": {
+        "type": "object",
+        "properties": {
+          "approve": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          }
+        },
+        "required": [
+          "approve"
+        ],
+        "additionalProperties": false
+      },
+      "OpsScheduleVisitBody": {
+        "type": "object",
+        "properties": {
+          "professionalId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "scheduledAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "type": {
+            "$ref": "#/components/schemas/MeetingType"
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          }
+        },
+        "required": [
+          "professionalId",
+          "scheduledAt",
+          "type"
+        ],
+        "additionalProperties": false
+      },
+      "OpsSetInvoiceStatusBody": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/InvoiceStatus"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "OpsSetTicketStatusBody": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "open",
+              "in_progress",
+              "resolved",
+              "closed"
+            ]
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "OpsSetVendorDomainBody": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/DomainApprovalStatus"
+          },
+          "commissionPercentOverride": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 50,
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
+      "OpsSetVendorStatusBody": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "$ref": "#/components/schemas/VerificationStatus"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false
+      },
+      "OpsUpdateDomainBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "tagline": {
+            "type": "string",
+            "maxLength": 200,
+            "default": ""
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 2000,
+            "default": ""
+          },
+          "defaultCommissionPercent": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 50
+          },
+          "labels": {
+            "$ref": "#/components/schemas/DomainLabelsInput"
+          },
+          "isActive": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "OpsVisitOutcomeBody": {
+        "type": "object",
+        "properties": {
+          "outcome": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 4000
+          },
+          "changedScope": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "required": [
+          "outcome"
         ],
         "additionalProperties": false
       },
@@ -2820,6 +3374,27 @@
         ],
         "additionalProperties": false
       },
+      "PackageLine": {
+        "type": "object",
+        "properties": {
+          "label": {
+            "type": "string"
+          },
+          "quantity": {
+            "type": "number"
+          },
+          "productId": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "label",
+          "quantity",
+          "productId"
+        ],
+        "additionalProperties": false
+      },
       "PackageView": {
         "type": "object",
         "properties": {
@@ -2832,25 +3407,7 @@
           "items": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "label": {
-                  "type": "string"
-                },
-                "quantity": {
-                  "type": "number"
-                },
-                "productId": {
-                  "type": "string",
-                  "nullable": true
-                }
-              },
-              "required": [
-                "label",
-                "quantity",
-                "productId"
-              ],
-              "additionalProperties": false
+              "$ref": "#/components/schemas/PackageLine"
             }
           }
         },
@@ -2858,6 +3415,22 @@
           "servicePackage",
           "domain",
           "items"
+        ],
+        "additionalProperties": false
+      },
+      "PartnerAcknowledgement": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "label": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "key",
+          "label"
         ],
         "additionalProperties": false
       },
@@ -2903,7 +3476,10 @@
             "nullable": true
           },
           "acknowledgedClauses": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "signedFromIp": {
             "type": "string",
@@ -2964,39 +3540,13 @@
           "sections": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "heading": {
-                  "type": "string"
-                },
-                "body": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "heading",
-                "body"
-              ],
-              "additionalProperties": false
+              "$ref": "#/components/schemas/PartnerTermsSection"
             }
           },
           "acknowledgements": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "key": {
-                  "type": "string"
-                },
-                "label": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "key",
-                "label"
-              ],
-              "additionalProperties": false
+              "$ref": "#/components/schemas/PartnerAcknowledgement"
             }
           }
         },
@@ -3007,6 +3557,22 @@
           "summary",
           "sections",
           "acknowledgements"
+        ],
+        "additionalProperties": false
+      },
+      "PartnerTermsSection": {
+        "type": "object",
+        "properties": {
+          "heading": {
+            "type": "string"
+          },
+          "body": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "heading",
+          "body"
         ],
         "additionalProperties": false
       },
@@ -3103,6 +3669,44 @@
         ],
         "additionalProperties": false
       },
+      "PostQuery": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 24
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "tag": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "domain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "search": {
+            "type": "string",
+            "maxLength": 120
+          }
+        },
+        "additionalProperties": false
+      },
       "PriceUnit": {
         "type": "string",
         "enum": [
@@ -3179,7 +3783,10 @@
             }
           },
           "tags": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "isFeatured": {
             "type": "boolean"
@@ -3359,6 +3966,60 @@
         ],
         "additionalProperties": false
       },
+      "ProductQuery": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 24
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "domain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "category": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "search": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "tags": {
+            "type": "string"
+          },
+          "city": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "maxPrice": {
+            "type": "integer",
+            "exclusiveMinimum": true,
+            "minimum": 0
+          },
+          "sort": {
+            "type": "string",
+            "enum": [
+              "featured",
+              "price_asc",
+              "price_desc",
+              "rating"
+            ],
+            "default": "featured"
+          }
+        },
+        "additionalProperties": false
+      },
       "ProductView": {
         "type": "object",
         "properties": {
@@ -3425,7 +4086,10 @@
             "type": "number"
           },
           "languages": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "verificationStatus": {
             "$ref": "#/components/schemas/VerificationStatus"
@@ -3507,6 +4171,22 @@
         ],
         "additionalProperties": false
       },
+      "ProfessionalDomainLink": {
+        "type": "object",
+        "properties": {
+          "link": {
+            "$ref": "#/components/schemas/ProfessionalDomain"
+          },
+          "domain": {
+            "$ref": "#/components/schemas/Domain"
+          }
+        },
+        "required": [
+          "link",
+          "domain"
+        ],
+        "additionalProperties": false
+      },
       "ProfessionalProfile": {
         "type": "object",
         "properties": {
@@ -3539,7 +4219,10 @@
             "type": "number"
           },
           "languages": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "isVerified": {
             "type": "boolean"
@@ -3554,24 +4237,7 @@
             }
           },
           "domainRating": {
-            "type": "object",
-            "properties": {
-              "domainId": {
-                "type": "string"
-              },
-              "avgRating": {
-                "type": "number"
-              },
-              "ratingCount": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "domainId",
-              "avgRating",
-              "ratingCount"
-            ],
-            "additionalProperties": false
+            "$ref": "#/components/schemas/DomainRating"
           },
           "professional": {
             "$ref": "#/components/schemas/Professional"
@@ -3631,6 +4297,50 @@
         ],
         "additionalProperties": false
       },
+      "ProfessionalQuery": {
+        "type": "object",
+        "properties": {
+          "limit": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 100,
+            "default": 24
+          },
+          "cursor": {
+            "type": "string",
+            "maxLength": 4096
+          },
+          "domain": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200,
+            "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
+          },
+          "city": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "search": {
+            "type": "string",
+            "maxLength": 120
+          },
+          "verifiedOnly": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "string",
+                "enum": [
+                  "true",
+                  "false"
+                ]
+              }
+            ]
+          }
+        },
+        "additionalProperties": false
+      },
       "ProfessionalServiceArea": {
         "type": "object",
         "properties": {
@@ -3654,7 +4364,10 @@
             "type": "string"
           },
           "localities": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
@@ -3700,7 +4413,10 @@
             "type": "number"
           },
           "languages": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "isVerified": {
             "type": "boolean"
@@ -3715,24 +4431,7 @@
             }
           },
           "domainRating": {
-            "type": "object",
-            "properties": {
-              "domainId": {
-                "type": "string"
-              },
-              "avgRating": {
-                "type": "number"
-              },
-              "ratingCount": {
-                "type": "number"
-              }
-            },
-            "required": [
-              "domainId",
-              "avgRating",
-              "ratingCount"
-            ],
-            "additionalProperties": false
+            "$ref": "#/components/schemas/DomainRating"
           }
         },
         "required": [
@@ -3931,99 +4630,11 @@
             "$ref": "#/components/schemas/ClientSummary"
           },
           "review": {
-            "type": "object",
-            "properties": {
-              "createdAt": {
-                "type": "string"
-              },
-              "updatedAt": {
-                "type": "string"
-              },
-              "deletedAt": {
-                "type": "string",
-                "nullable": true
-              },
-              "id": {
-                "type": "string"
-              },
-              "projectId": {
-                "type": "string"
-              },
-              "clientId": {
-                "type": "string"
-              },
-              "professionalId": {
-                "type": "string"
-              },
-              "domainId": {
-                "type": "string"
-              },
-              "rating": {
-                "anyOf": [
-                  {
-                    "type": "number",
-                    "enum": [
-                      1
-                    ]
-                  },
-                  {
-                    "type": "number",
-                    "enum": [
-                      2
-                    ]
-                  },
-                  {
-                    "type": "number",
-                    "enum": [
-                      3
-                    ]
-                  },
-                  {
-                    "type": "number",
-                    "enum": [
-                      4
-                    ]
-                  },
-                  {
-                    "type": "number",
-                    "enum": [
-                      5
-                    ]
-                  }
-                ]
-              },
-              "comment": {
-                "type": "string"
-              },
-              "qualityRating": {
-                "type": "number",
-                "nullable": true
-              },
-              "timelinessRating": {
-                "type": "number",
-                "nullable": true
-              },
-              "professionalismRating": {
-                "type": "number",
-                "nullable": true
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Review"
               }
-            },
-            "required": [
-              "createdAt",
-              "updatedAt",
-              "deletedAt",
-              "id",
-              "projectId",
-              "clientId",
-              "professionalId",
-              "domainId",
-              "rating",
-              "comment",
-              "qualityRating",
-              "timelinessRating",
-              "professionalismRating"
             ],
-            "additionalProperties": false,
             "nullable": true
           }
         },
@@ -4133,6 +4744,39 @@
           "quotePdfUrl",
           "status",
           "notes"
+        ],
+        "additionalProperties": false
+      },
+      "QuoteLineDraft": {
+        "type": "object",
+        "properties": {
+          "description": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 300
+          },
+          "quantity": {
+            "type": "number",
+            "exclusiveMinimum": true,
+            "minimum": 0,
+            "maximum": 100000
+          },
+          "unit": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 30
+          },
+          "rate": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 1000000000
+          }
+        },
+        "required": [
+          "description",
+          "quantity",
+          "unit",
+          "rate"
         ],
         "additionalProperties": false
       },
@@ -4246,6 +4890,22 @@
         ],
         "additionalProperties": false
       },
+      "ReferralEntry": {
+        "type": "object",
+        "properties": {
+          "referral": {
+            "$ref": "#/components/schemas/Referral"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "referral",
+          "name"
+        ],
+        "additionalProperties": false
+      },
       "ReferralSummary": {
         "type": "object",
         "properties": {
@@ -4270,20 +4930,7 @@
           "referrals": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "referral": {
-                  "$ref": "#/components/schemas/Referral"
-                },
-                "name": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "referral",
-                "name"
-              ],
-              "additionalProperties": false
+              "$ref": "#/components/schemas/ReferralEntry"
             }
           }
         },
@@ -4359,6 +5006,33 @@
         ],
         "additionalProperties": false
       },
+      "RegisterDeviceBody": {
+        "type": "object",
+        "properties": {
+          "token": {
+            "type": "string",
+            "minLength": 16,
+            "maxLength": 4096
+          },
+          "platform": {
+            "type": "string",
+            "enum": [
+              "android",
+              "ios",
+              "web"
+            ]
+          },
+          "appVersion": {
+            "type": "string",
+            "maxLength": 40
+          }
+        },
+        "required": [
+          "token",
+          "platform"
+        ],
+        "additionalProperties": false
+      },
       "RelayThread": {
         "type": "object",
         "properties": {
@@ -4417,6 +5091,49 @@
           "clientThread",
           "clientAwaitingReply",
           "vendorThreads"
+        ],
+        "additionalProperties": false
+      },
+      "RequestOtpBody": {
+        "type": "object",
+        "properties": {
+          "mobile": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "mobile"
+        ],
+        "additionalProperties": false
+      },
+      "RequestRescheduleBody": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "maxLength": 500,
+            "default": ""
+          }
+        },
+        "additionalProperties": false
+      },
+      "RespondToLeadBody": {
+        "type": "object",
+        "properties": {
+          "response": {
+            "type": "string",
+            "enum": [
+              "accepted",
+              "rejected"
+            ]
+          },
+          "reason": {
+            "type": "string",
+            "maxLength": 500
+          }
+        },
+        "required": [
+          "response"
         ],
         "additionalProperties": false
       },
@@ -4559,7 +5276,10 @@
             "type": "string"
           },
           "assignedCityIds": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "dailyTarget": {
             "type": "number"
@@ -4603,39 +5323,13 @@
           "byUrgency": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "urgency": {
-                  "$ref": "#/components/schemas/Urgency"
-                },
-                "count": {
-                  "type": "number"
-                }
-              },
-              "required": [
-                "urgency",
-                "count"
-              ],
-              "additionalProperties": false
+              "$ref": "#/components/schemas/UrgencyCount"
             }
           },
           "byDomain": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "domain": {
-                  "$ref": "#/components/schemas/Domain"
-                },
-                "count": {
-                  "type": "number"
-                }
-              },
-              "required": [
-                "domain",
-                "count"
-              ],
-              "additionalProperties": false
+              "$ref": "#/components/schemas/DomainCount"
             }
           }
         },
@@ -4755,6 +5449,33 @@
         ],
         "additionalProperties": false
       },
+      "SelectQuoteBody": {
+        "type": "object",
+        "properties": {
+          "quoteId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "quoteId"
+        ],
+        "additionalProperties": false
+      },
+      "SendServiceMessageBody": {
+        "type": "object",
+        "properties": {
+          "body": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 2000
+          }
+        },
+        "required": [
+          "body"
+        ],
+        "additionalProperties": false
+      },
       "ServicePackage": {
         "type": "object",
         "properties": {
@@ -4802,10 +5523,16 @@
             "type": "number"
           },
           "inclusions": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "exclusions": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "isFeatured": {
             "type": "boolean"
@@ -4844,7 +5571,20 @@
         "type": "object",
         "properties": {
           "actor": {
-            "$ref": "#/components/schemas/Actor"
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ActorClient"
+              },
+              {
+                "$ref": "#/components/schemas/ActorProfessional"
+              },
+              {
+                "$ref": "#/components/schemas/ActorSalesAgent"
+              },
+              {
+                "$ref": "#/components/schemas/ActorAdmin"
+              }
+            ]
           },
           "name": {
             "type": "string"
@@ -4865,6 +5605,55 @@
         ],
         "additionalProperties": false
       },
+      "SetPassword": {
+        "type": "object",
+        "properties": {
+          "password": {
+            "type": "string",
+            "minLength": 12,
+            "maxLength": 200
+          }
+        },
+        "required": [
+          "password"
+        ],
+        "additionalProperties": false
+      },
+      "SignPartnerAgreementBody": {
+        "type": "object",
+        "properties": {
+          "signatoryName": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "signatoryRole": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 80
+          },
+          "signatureText": {
+            "type": "string",
+            "minLength": 3,
+            "maxLength": 120
+          },
+          "acknowledgedClauses": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 60
+            },
+            "minItems": 1
+          }
+        },
+        "required": [
+          "signatoryName",
+          "signatoryRole",
+          "signatureText",
+          "acknowledgedClauses"
+        ],
+        "additionalProperties": false
+      },
       "SiteAccessibilityTag": {
         "type": "string",
         "enum": [
@@ -4873,6 +5662,145 @@
           "timing_restriction",
           "other"
         ]
+      },
+      "StaffLoginBody": {
+        "type": "object",
+        "properties": {
+          "email": {
+            "type": "string",
+            "format": "email"
+          },
+          "password": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 200
+          },
+          "totp": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          }
+        },
+        "required": [
+          "email",
+          "password"
+        ],
+        "additionalProperties": false
+      },
+      "SubmitMilestoneProofBody": {
+        "type": "object",
+        "properties": {
+          "note": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 1000
+          },
+          "proof": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "maxItems": 8
+          }
+        },
+        "required": [
+          "note",
+          "proof"
+        ],
+        "additionalProperties": false
+      },
+      "SubmitQuoteBody": {
+        "type": "object",
+        "properties": {
+          "lineItems": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/QuoteLineDraft"
+            },
+            "minItems": 1,
+            "maxItems": 60
+          },
+          "taxPercent": {
+            "type": "number",
+            "minimum": 0,
+            "maximum": 50
+          },
+          "timelineDays": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 730
+          },
+          "warrantyMonths": {
+            "type": "integer",
+            "minimum": 0,
+            "maximum": 240
+          },
+          "warrantyDetails": {
+            "type": "string",
+            "maxLength": 1000,
+            "default": ""
+          },
+          "materialsSummary": {
+            "type": "string",
+            "maxLength": 2000,
+            "default": ""
+          },
+          "notes": {
+            "type": "string",
+            "maxLength": 2000,
+            "nullable": true
+          }
+        },
+        "required": [
+          "lineItems",
+          "taxPercent",
+          "timelineDays",
+          "warrantyMonths"
+        ],
+        "additionalProperties": false
+      },
+      "SubmitReviewBody": {
+        "type": "object",
+        "properties": {
+          "projectId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "rating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
+          },
+          "comment": {
+            "type": "string",
+            "maxLength": 2000,
+            "default": ""
+          },
+          "qualityRating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "nullable": true
+          },
+          "timelinessRating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "nullable": true
+          },
+          "professionalismRating": {
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5,
+            "nullable": true
+          }
+        },
+        "required": [
+          "projectId",
+          "rating"
+        ],
+        "additionalProperties": false
       },
       "SupportTicket": {
         "type": "object",
@@ -5105,6 +6033,15 @@
           "review"
         ]
       },
+      "UploadPurpose": {
+        "type": "string",
+        "enum": [
+          "requirement_photo",
+          "milestone_proof",
+          "portfolio_item",
+          "vendor_document"
+        ]
+      },
       "UploadTicket": {
         "type": "object",
         "properties": {
@@ -5139,6 +6076,22 @@
           "within_month",
           "exploring"
         ]
+      },
+      "UrgencyCount": {
+        "type": "object",
+        "properties": {
+          "urgency": {
+            "$ref": "#/components/schemas/Urgency"
+          },
+          "count": {
+            "type": "number"
+          }
+        },
+        "required": [
+          "urgency",
+          "count"
+        ],
+        "additionalProperties": false
       },
       "User": {
         "type": "object",
@@ -5224,24 +6177,7 @@
           "lines": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "link": {
-                  "$ref": "#/components/schemas/AgreementLeadDomain"
-                },
-                "domain": {
-                  "$ref": "#/components/schemas/Domain"
-                },
-                "quote": {
-                  "$ref": "#/components/schemas/Quote"
-                }
-              },
-              "required": [
-                "link",
-                "domain",
-                "quote"
-              ],
-              "additionalProperties": false
+              "$ref": "#/components/schemas/AgreementLine"
             }
           },
           "isCombined": {
@@ -5250,80 +6186,15 @@
           "projects": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "project": {
-                  "$ref": "#/components/schemas/Project"
-                },
-                "domain": {
-                  "$ref": "#/components/schemas/Domain"
-                }
-              },
-              "required": [
-                "project",
-                "domain"
-              ],
-              "additionalProperties": false
+              "$ref": "#/components/schemas/AgreementProject"
             }
           },
           "invoice": {
-            "type": "object",
-            "properties": {
-              "createdAt": {
-                "type": "string"
-              },
-              "updatedAt": {
-                "type": "string"
-              },
-              "deletedAt": {
-                "type": "string",
-                "nullable": true
-              },
-              "id": {
-                "type": "string"
-              },
-              "reference": {
-                "type": "string"
-              },
-              "professionalId": {
-                "type": "string"
-              },
-              "agreementId": {
-                "type": "string"
-              },
-              "amount": {
-                "type": "number"
-              },
-              "status": {
-                "$ref": "#/components/schemas/InvoiceStatus"
-              },
-              "dueDate": {
-                "type": "string"
-              },
-              "paidDate": {
-                "type": "string",
-                "nullable": true
-              },
-              "adjustmentNote": {
-                "type": "string",
-                "nullable": true
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/CommissionInvoice"
               }
-            },
-            "required": [
-              "createdAt",
-              "updatedAt",
-              "deletedAt",
-              "id",
-              "reference",
-              "professionalId",
-              "agreementId",
-              "amount",
-              "status",
-              "dueDate",
-              "paidDate",
-              "adjustmentNote"
             ],
-            "additionalProperties": false,
             "nullable": true
           }
         },
@@ -5349,20 +6220,7 @@
           "domains": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "link": {
-                  "$ref": "#/components/schemas/ProfessionalDomain"
-                },
-                "domain": {
-                  "$ref": "#/components/schemas/Domain"
-                }
-              },
-              "required": [
-                "link",
-                "domain"
-              ],
-              "additionalProperties": false
+              "$ref": "#/components/schemas/ProfessionalDomainLink"
             }
           },
           "newLeads": {
@@ -5419,7 +6277,10 @@
             "type": "string"
           },
           "domains": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           }
         },
         "required": [
@@ -5467,111 +6328,21 @@
             "nullable": true
           },
           "siteNotes": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "budgetMax": {
             "type": "number",
             "nullable": true
           },
           "myQuote": {
-            "type": "object",
-            "properties": {
-              "createdAt": {
-                "type": "string"
-              },
-              "updatedAt": {
-                "type": "string"
-              },
-              "deletedAt": {
-                "type": "string",
-                "nullable": true
-              },
-              "id": {
-                "type": "string"
-              },
-              "leadDomainId": {
-                "type": "string"
-              },
-              "professionalId": {
-                "type": "string"
-              },
-              "version": {
-                "type": "number"
-              },
-              "supersedesQuoteId": {
-                "type": "string",
-                "nullable": true
-              },
-              "lineItems": {
-                "type": "array",
-                "items": {
-                  "$ref": "#/components/schemas/QuoteLineItem"
-                }
-              },
-              "subtotal": {
-                "type": "number"
-              },
-              "taxPercent": {
-                "type": "number"
-              },
-              "taxAmount": {
-                "type": "number"
-              },
-              "total": {
-                "type": "number"
-              },
-              "timelineDays": {
-                "type": "number"
-              },
-              "warrantyMonths": {
-                "type": "number"
-              },
-              "warrantyDetails": {
-                "type": "string"
-              },
-              "materialsSummary": {
-                "type": "string"
-              },
-              "boqUrl": {
-                "type": "string",
-                "nullable": true
-              },
-              "quotePdfUrl": {
-                "type": "string",
-                "nullable": true
-              },
-              "status": {
-                "$ref": "#/components/schemas/QuoteStatus"
-              },
-              "notes": {
-                "type": "string",
-                "nullable": true
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Quote"
               }
-            },
-            "required": [
-              "createdAt",
-              "updatedAt",
-              "deletedAt",
-              "id",
-              "leadDomainId",
-              "professionalId",
-              "version",
-              "supersedesQuoteId",
-              "lineItems",
-              "subtotal",
-              "taxPercent",
-              "taxAmount",
-              "total",
-              "timelineDays",
-              "warrantyMonths",
-              "warrantyDetails",
-              "materialsSummary",
-              "boqUrl",
-              "quotePdfUrl",
-              "status",
-              "notes"
             ],
-            "additionalProperties": false,
             "nullable": true
           },
           "visits": {
@@ -5641,80 +6412,11 @@
             "nullable": true
           },
           "agreement": {
-            "type": "object",
-            "properties": {
-              "createdAt": {
-                "type": "string"
-              },
-              "updatedAt": {
-                "type": "string"
-              },
-              "deletedAt": {
-                "type": "string",
-                "nullable": true
-              },
-              "id": {
-                "type": "string"
-              },
-              "professionalId": {
-                "type": "string"
-              },
-              "termsVersion": {
-                "type": "string"
-              },
-              "status": {
-                "$ref": "#/components/schemas/PartnerAgreementStatus"
-              },
-              "signatureText": {
-                "type": "string",
-                "nullable": true
-              },
-              "signatoryName": {
-                "type": "string",
-                "nullable": true
-              },
-              "signatoryRole": {
-                "type": "string",
-                "nullable": true
-              },
-              "signedAt": {
-                "type": "string",
-                "nullable": true
-              },
-              "acknowledgedClauses": {
-                "$ref": "#/components/schemas/AgreementIds"
-              },
-              "signedFromIp": {
-                "type": "string",
-                "nullable": true
-              },
-              "signedUserAgent": {
-                "type": "string",
-                "nullable": true
-              },
-              "documentUrl": {
-                "type": "string",
-                "nullable": true
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/PartnerAgreement"
               }
-            },
-            "required": [
-              "createdAt",
-              "updatedAt",
-              "deletedAt",
-              "id",
-              "professionalId",
-              "termsVersion",
-              "status",
-              "signatureText",
-              "signatoryName",
-              "signatoryRole",
-              "signedAt",
-              "acknowledgedClauses",
-              "signedFromIp",
-              "signedUserAgent",
-              "documentUrl"
             ],
-            "additionalProperties": false,
             "nullable": true
           },
           "terms": {
@@ -5739,44 +6441,7 @@
           "byDomain": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "domain": {
-                  "$ref": "#/components/schemas/Domain"
-                },
-                "rating": {
-                  "type": "number"
-                },
-                "ratingCount": {
-                  "type": "number"
-                },
-                "completed": {
-                  "type": "number"
-                },
-                "won": {
-                  "type": "number"
-                },
-                "lost": {
-                  "type": "number"
-                },
-                "winRatePercent": {
-                  "type": "number"
-                },
-                "commissionPercent": {
-                  "type": "number"
-                }
-              },
-              "required": [
-                "domain",
-                "rating",
-                "ratingCount",
-                "completed",
-                "won",
-                "lost",
-                "winRatePercent",
-                "commissionPercent"
-              ],
-              "additionalProperties": false
+              "$ref": "#/components/schemas/DomainPerformance"
             }
           },
           "avgResponseHours": {
@@ -5788,24 +6453,7 @@
           "reviews": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "review": {
-                  "$ref": "#/components/schemas/Review"
-                },
-                "domain": {
-                  "$ref": "#/components/schemas/Domain"
-                },
-                "clientName": {
-                  "type": "string"
-                }
-              },
-              "required": [
-                "review",
-                "domain",
-                "clientName"
-              ],
-              "additionalProperties": false
+              "$ref": "#/components/schemas/VendorReview"
             }
           }
         },
@@ -5857,99 +6505,11 @@
             "type": "string"
           },
           "review": {
-            "type": "object",
-            "properties": {
-              "createdAt": {
-                "type": "string"
-              },
-              "updatedAt": {
-                "type": "string"
-              },
-              "deletedAt": {
-                "type": "string",
-                "nullable": true
-              },
-              "id": {
-                "type": "string"
-              },
-              "projectId": {
-                "type": "string"
-              },
-              "clientId": {
-                "type": "string"
-              },
-              "professionalId": {
-                "type": "string"
-              },
-              "domainId": {
-                "type": "string"
-              },
-              "rating": {
-                "anyOf": [
-                  {
-                    "type": "number",
-                    "enum": [
-                      1
-                    ]
-                  },
-                  {
-                    "type": "number",
-                    "enum": [
-                      2
-                    ]
-                  },
-                  {
-                    "type": "number",
-                    "enum": [
-                      3
-                    ]
-                  },
-                  {
-                    "type": "number",
-                    "enum": [
-                      4
-                    ]
-                  },
-                  {
-                    "type": "number",
-                    "enum": [
-                      5
-                    ]
-                  }
-                ]
-              },
-              "comment": {
-                "type": "string"
-              },
-              "qualityRating": {
-                "type": "number",
-                "nullable": true
-              },
-              "timelinessRating": {
-                "type": "number",
-                "nullable": true
-              },
-              "professionalismRating": {
-                "type": "number",
-                "nullable": true
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/Review"
               }
-            },
-            "required": [
-              "createdAt",
-              "updatedAt",
-              "deletedAt",
-              "id",
-              "projectId",
-              "clientId",
-              "professionalId",
-              "domainId",
-              "rating",
-              "comment",
-              "qualityRating",
-              "timelinessRating",
-              "professionalismRating"
             ],
-            "additionalProperties": false,
             "nullable": true
           }
         },
@@ -5959,6 +6519,26 @@
           "client",
           "cityName",
           "review"
+        ],
+        "additionalProperties": false
+      },
+      "VendorReview": {
+        "type": "object",
+        "properties": {
+          "review": {
+            "$ref": "#/components/schemas/Review"
+          },
+          "domain": {
+            "$ref": "#/components/schemas/Domain"
+          },
+          "clientName": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "review",
+          "domain",
+          "clientName"
         ],
         "additionalProperties": false
       },
@@ -5974,24 +6554,14 @@
           "domainLinks": {
             "type": "array",
             "items": {
-              "type": "object",
-              "properties": {
-                "link": {
-                  "$ref": "#/components/schemas/ProfessionalDomain"
-                },
-                "domain": {
-                  "$ref": "#/components/schemas/Domain"
-                }
-              },
-              "required": [
-                "link",
-                "domain"
-              ],
-              "additionalProperties": false
+              "$ref": "#/components/schemas/ProfessionalDomainLink"
             }
           },
           "serviceCities": {
-            "$ref": "#/components/schemas/AgreementIds"
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
           },
           "liveJobs": {
             "type": "number"
@@ -6054,6 +6624,33 @@
           "suspended",
           "blacklisted"
         ]
+      },
+      "VerifyOtpBody": {
+        "type": "object",
+        "properties": {
+          "challengeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          },
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "cityId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "challengeId",
+          "code"
+        ],
+        "additionalProperties": false
       },
       "ApiProblem": {
         "type": "object",
@@ -6141,16 +6738,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "mobile": {
-                    "type": "string"
-                  }
-                },
-                "required": [
-                  "mobile"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/RequestOtpBody"
               }
             }
           }
@@ -6223,31 +6811,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "challengeId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "code": {
-                    "type": "string",
-                    "pattern": "^\\d{6}$"
-                  },
-                  "name": {
-                    "type": "string",
-                    "minLength": 2,
-                    "maxLength": 80
-                  },
-                  "cityId": {
-                    "type": "string",
-                    "format": "uuid"
-                  }
-                },
-                "required": [
-                  "challengeId",
-                  "code"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/VerifyOtpBody"
               }
             }
           }
@@ -6320,27 +6884,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "email": {
-                    "type": "string",
-                    "format": "email"
-                  },
-                  "password": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 200
-                  },
-                  "totp": {
-                    "type": "string",
-                    "pattern": "^\\d{6}$"
-                  }
-                },
-                "required": [
-                  "email",
-                  "password"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/StaffLoginBody"
               }
             }
           }
@@ -6362,19 +6906,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/Ok"
                 }
               }
             }
@@ -6416,18 +6948,6 @@
                 "schema": {
                   "$ref": "#/components/schemas/ApiProblem"
                 }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": false
               }
             }
           }
@@ -6512,19 +7032,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/Ok"
                 }
               }
             }
@@ -6575,31 +7083,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "token": {
-                    "type": "string",
-                    "minLength": 16,
-                    "maxLength": 4096
-                  },
-                  "platform": {
-                    "type": "string",
-                    "enum": [
-                      "android",
-                      "ios",
-                      "web"
-                    ]
-                  },
-                  "appVersion": {
-                    "type": "string",
-                    "maxLength": 40
-                  }
-                },
-                "required": [
-                  "token",
-                  "platform"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/RegisterDeviceBody"
               }
             }
           }
@@ -6632,19 +7116,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "ok": {
-                      "type": "boolean",
-                      "enum": [
-                        true
-                      ]
-                    }
-                  },
-                  "required": [
-                    "ok"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/Ok"
                 }
               }
             }
@@ -6758,23 +7230,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "confirm": {
-                    "type": "string",
-                    "enum": [
-                      "DELETE"
-                    ]
-                  },
-                  "reason": {
-                    "type": "string",
-                    "maxLength": 500
-                  }
-                },
-                "required": [
-                  "confirm"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/DeleteAccountBody"
               }
             }
           }
@@ -9091,41 +9547,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "purpose": {
-                    "type": "string",
-                    "enum": [
-                      "requirement_photo",
-                      "milestone_proof",
-                      "portfolio_item",
-                      "vendor_document"
-                    ]
-                  },
-                  "fileName": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 255
-                  },
-                  "contentType": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 100
-                  },
-                  "sizeBytes": {
-                    "type": "integer",
-                    "exclusiveMinimum": true,
-                    "minimum": 0,
-                    "maximum": 50000000
-                  }
-                },
-                "required": [
-                  "purpose",
-                  "fileName",
-                  "contentType",
-                  "sizeBytes"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/CreateUploadTicketBody"
               }
             }
           }
@@ -9310,131 +9732,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "cityId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "domainIds": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "minItems": 1,
-                    "maxItems": 6
-                  },
-                  "description": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 4000
-                  },
-                  "urgency": {
-                    "$ref": "#/components/schemas/Urgency"
-                  },
-                  "materialSource": {
-                    "type": "object",
-                    "additionalProperties": {
-                      "$ref": "#/components/schemas/MaterialSource"
-                    },
-                    "default": {}
-                  },
-                  "siteAccessibilityTags": {
-                    "type": "array",
-                    "items": {
-                      "$ref": "#/components/schemas/SiteAccessibilityTag"
-                    },
-                    "maxItems": 4
-                  },
-                  "budgetMin": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 1000000000,
-                    "nullable": true
-                  },
-                  "budgetMax": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 1000000000,
-                    "nullable": true
-                  },
-                  "preferredProfessionalId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "nullable": true
-                  },
-                  "photoIds": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "maxItems": 6
-                  },
-                  "catalogueItems": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "domainId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "productId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "packageId": {
-                          "type": "string",
-                          "format": "uuid"
-                        },
-                        "itemName": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 200
-                        },
-                        "quantity": {
-                          "type": "integer",
-                          "minimum": 1,
-                          "maximum": 999
-                        },
-                        "selectedOptions": {
-                          "type": "object",
-                          "additionalProperties": {
-                            "type": "string",
-                            "maxLength": 120
-                          }
-                        },
-                        "indicativePrice": {
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 1000000000,
-                          "nullable": true
-                        },
-                        "notes": {
-                          "type": "string",
-                          "maxLength": 1000,
-                          "nullable": true
-                        }
-                      },
-                      "required": [
-                        "domainId",
-                        "itemName",
-                        "quantity"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "maxItems": 40
-                  }
-                },
-                "required": [
-                  "cityId",
-                  "domainIds",
-                  "description",
-                  "urgency"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/CreateRequirementBody"
               }
             }
           }
@@ -9748,18 +10046,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "body": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2000
-                  }
-                },
-                "required": [
-                  "body"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/SendServiceMessageBody"
               }
             }
           }
@@ -9870,17 +10157,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "quoteId": {
-                    "type": "string",
-                    "format": "uuid"
-                  }
-                },
-                "required": [
-                  "quoteId"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/SelectQuoteBody"
               }
             }
           }
@@ -10083,18 +10360,6 @@
             }
           }
         },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": false
-              }
-            }
-          }
-        },
         "security": [
           {
             "bearerAuth": []
@@ -10192,18 +10457,6 @@
                 "schema": {
                   "$ref": "#/components/schemas/ApiProblem"
                 }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": false
               }
             }
           }
@@ -10398,46 +10651,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "projectId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "rating": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 5
-                  },
-                  "comment": {
-                    "type": "string",
-                    "maxLength": 2000,
-                    "default": ""
-                  },
-                  "qualityRating": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 5,
-                    "nullable": true
-                  },
-                  "timelinessRating": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 5,
-                    "nullable": true
-                  },
-                  "professionalismRating": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 5,
-                    "nullable": true
-                  }
-                },
-                "required": [
-                  "projectId",
-                  "rating"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/SubmitReviewBody"
               }
             }
           }
@@ -10548,15 +10762,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "note": {
-                    "type": "string",
-                    "maxLength": 500,
-                    "default": ""
-                  }
-                },
-                "additionalProperties": false
+                "$ref": "#/components/schemas/RequestRescheduleBody"
               }
             }
           }
@@ -10680,16 +10886,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object",
-                  "properties": {
-                    "count": {
-                      "type": "number"
-                    }
-                  },
-                  "required": [
-                    "count"
-                  ],
-                  "additionalProperties": false
+                  "$ref": "#/components/schemas/Count"
                 }
               }
             }
@@ -10751,18 +10948,6 @@
                 "schema": {
                   "$ref": "#/components/schemas/ApiProblem"
                 }
-              }
-            }
-          }
-        },
-        "requestBody": {
-          "required": true,
-          "content": {
-            "application/json": {
-              "schema": {
-                "type": "object",
-                "properties": {},
-                "additionalProperties": false
               }
             }
           }
@@ -10955,45 +11140,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "category": {
-                    "type": "string",
-                    "enum": [
-                      "complaint",
-                      "escalation",
-                      "refund",
-                      "query",
-                      "technical"
-                    ]
-                  },
-                  "subject": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 160
-                  },
-                  "body": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 4000
-                  },
-                  "leadId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "nullable": true
-                  },
-                  "projectId": {
-                    "type": "string",
-                    "format": "uuid",
-                    "nullable": true
-                  }
-                },
-                "required": [
-                  "category",
-                  "subject",
-                  "body"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/CreateTicketBody"
               }
             }
           }
@@ -11104,18 +11251,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "body": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2000
-                  }
-                },
-                "required": [
-                  "body"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/SendServiceMessageBody"
               }
             }
           }
@@ -11235,15 +11371,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "type": "string",
-              "enum": [
-                "all",
-                "new",
-                "quoting",
-                "won",
-                "lost"
-              ],
-              "default": "all"
+              "$ref": "#/components/schemas/LeadFilter"
             }
           }
         ],
@@ -11529,24 +11657,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "response": {
-                    "type": "string",
-                    "enum": [
-                      "accepted",
-                      "rejected"
-                    ]
-                  },
-                  "reason": {
-                    "type": "string",
-                    "maxLength": 500
-                  }
-                },
-                "required": [
-                  "response"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/RespondToLeadBody"
               }
             }
           }
@@ -11657,84 +11768,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "lineItems": {
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "properties": {
-                        "description": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 300
-                        },
-                        "quantity": {
-                          "type": "number",
-                          "exclusiveMinimum": true,
-                          "minimum": 0,
-                          "maximum": 100000
-                        },
-                        "unit": {
-                          "type": "string",
-                          "minLength": 1,
-                          "maxLength": 30
-                        },
-                        "rate": {
-                          "type": "integer",
-                          "minimum": 0,
-                          "maximum": 1000000000
-                        }
-                      },
-                      "required": [
-                        "description",
-                        "quantity",
-                        "unit",
-                        "rate"
-                      ],
-                      "additionalProperties": false
-                    },
-                    "minItems": 1,
-                    "maxItems": 60
-                  },
-                  "taxPercent": {
-                    "type": "number",
-                    "minimum": 0,
-                    "maximum": 50
-                  },
-                  "timelineDays": {
-                    "type": "integer",
-                    "minimum": 1,
-                    "maximum": 730
-                  },
-                  "warrantyMonths": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 240
-                  },
-                  "warrantyDetails": {
-                    "type": "string",
-                    "maxLength": 1000,
-                    "default": ""
-                  },
-                  "materialsSummary": {
-                    "type": "string",
-                    "maxLength": 2000,
-                    "default": ""
-                  },
-                  "notes": {
-                    "type": "string",
-                    "maxLength": 2000,
-                    "nullable": true
-                  }
-                },
-                "required": [
-                  "lineItems",
-                  "taxPercent",
-                  "timelineDays",
-                  "warrantyMonths"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/SubmitQuoteBody"
               }
             }
           }
@@ -11947,18 +11981,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "body": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2000
-                  }
-                },
-                "required": [
-                  "body"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/SendServiceMessageBody"
               }
             }
           }
@@ -12360,28 +12383,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "note": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 1000
-                  },
-                  "proof": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "minItems": 1,
-                    "maxItems": 8
-                  }
-                },
-                "required": [
-                  "note",
-                  "proof"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/SubmitMilestoneProofBody"
               }
             }
           }
@@ -12946,39 +12948,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "signatoryName": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 120
-                  },
-                  "signatoryRole": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 80
-                  },
-                  "signatureText": {
-                    "type": "string",
-                    "minLength": 3,
-                    "maxLength": 120
-                  },
-                  "acknowledgedClauses": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "maxLength": 60
-                    },
-                    "minItems": 1
-                  }
-                },
-                "required": [
-                  "signatoryName",
-                  "signatoryRole",
-                  "signatureText",
-                  "acknowledgedClauses"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/SignPartnerAgreementBody"
               }
             }
           }
@@ -13698,33 +13668,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "callStatus": {
-                    "type": "string",
-                    "enum": [
-                      "connected",
-                      "not_reachable",
-                      "busy",
-                      "callback_requested",
-                      "not_interested"
-                    ]
-                  },
-                  "remarks": {
-                    "type": "string",
-                    "maxLength": 4000,
-                    "default": ""
-                  },
-                  "followUpDate": {
-                    "type": "string",
-                    "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
-                    "nullable": true
-                  }
-                },
-                "required": [
-                  "callStatus"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/OpsLogCallBody"
               }
             }
           }
@@ -13922,22 +13866,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "body": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2000
-                  },
-                  "sourceMessageId": {
-                    "type": "string",
-                    "format": "uuid"
-                  }
-                },
-                "required": [
-                  "body"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/OpsReplyToClientBody"
               }
             }
           }
@@ -14041,22 +13970,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "body": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 2000
-                  },
-                  "sourceMessageId": {
-                    "type": "string",
-                    "format": "uuid"
-                  }
-                },
-                "required": [
-                  "body"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/OpsReplyToClientBody"
               }
             }
           }
@@ -14254,22 +14168,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "professionalIds": {
-                    "type": "array",
-                    "items": {
-                      "type": "string",
-                      "format": "uuid"
-                    },
-                    "minItems": 1,
-                    "maxItems": 6
-                  }
-                },
-                "required": [
-                  "professionalIds"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/OpsAssignBody"
               }
             }
           }
@@ -14373,31 +14272,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "professionalId": {
-                    "type": "string",
-                    "format": "uuid"
-                  },
-                  "scheduledAt": {
-                    "type": "string",
-                    "format": "date-time"
-                  },
-                  "type": {
-                    "$ref": "#/components/schemas/MeetingType"
-                  },
-                  "notes": {
-                    "type": "string",
-                    "maxLength": 1000,
-                    "nullable": true
-                  }
-                },
-                "required": [
-                  "professionalId",
-                  "scheduledAt",
-                  "type"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/OpsScheduleVisitBody"
               }
             }
           }
@@ -14501,22 +14376,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "outcome": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 4000
-                  },
-                  "changedScope": {
-                    "type": "boolean",
-                    "default": false
-                  }
-                },
-                "required": [
-                  "outcome"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/OpsVisitOutcomeBody"
               }
             }
           }
@@ -14629,21 +14489,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "approve": {
-                    "type": "boolean"
-                  },
-                  "note": {
-                    "type": "string",
-                    "maxLength": 1000,
-                    "nullable": true
-                  }
-                },
-                "required": [
-                  "approve"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/OpsReviewProofBody"
               }
             }
           }
@@ -15353,16 +15199,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "status": {
-                    "$ref": "#/components/schemas/VerificationStatus"
-                  }
-                },
-                "required": [
-                  "status"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/OpsSetVendorStatusBody"
               }
             }
           }
@@ -15569,19 +15406,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "status": {
-                    "$ref": "#/components/schemas/DomainApprovalStatus"
-                  },
-                  "commissionPercentOverride": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 50,
-                    "nullable": true
-                  }
-                },
-                "additionalProperties": false
+                "$ref": "#/components/schemas/OpsSetVendorDomainBody"
               }
             }
           }
@@ -15925,21 +15750,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "status": {
-                    "$ref": "#/components/schemas/InvoiceStatus"
-                  },
-                  "note": {
-                    "type": "string",
-                    "maxLength": 1000,
-                    "nullable": true
-                  }
-                },
-                "required": [
-                  "status"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/OpsSetInvoiceStatusBody"
               }
             }
           }
@@ -16115,61 +15926,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 80
-                  },
-                  "tagline": {
-                    "type": "string",
-                    "maxLength": 200,
-                    "default": ""
-                  },
-                  "description": {
-                    "type": "string",
-                    "maxLength": 2000,
-                    "default": ""
-                  },
-                  "defaultCommissionPercent": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 50
-                  },
-                  "labels": {
-                    "type": "object",
-                    "properties": {
-                      "materials": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 80
-                      },
-                      "warranty": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 80
-                      },
-                      "pricingBasis": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 120
-                      }
-                    },
-                    "required": [
-                      "materials",
-                      "warranty",
-                      "pricingBasis"
-                    ],
-                    "additionalProperties": false
-                  }
-                },
-                "required": [
-                  "name",
-                  "defaultCommissionPercent",
-                  "labels"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/OpsCreateDomainBody"
               }
             }
           }
@@ -16273,59 +16030,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "name": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 80
-                  },
-                  "tagline": {
-                    "type": "string",
-                    "maxLength": 200,
-                    "default": ""
-                  },
-                  "description": {
-                    "type": "string",
-                    "maxLength": 2000,
-                    "default": ""
-                  },
-                  "defaultCommissionPercent": {
-                    "type": "integer",
-                    "minimum": 0,
-                    "maximum": 50
-                  },
-                  "labels": {
-                    "type": "object",
-                    "properties": {
-                      "materials": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 80
-                      },
-                      "warranty": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 80
-                      },
-                      "pricingBasis": {
-                        "type": "string",
-                        "minLength": 1,
-                        "maxLength": 120
-                      }
-                    },
-                    "required": [
-                      "materials",
-                      "warranty",
-                      "pricingBasis"
-                    ],
-                    "additionalProperties": false
-                  },
-                  "isActive": {
-                    "type": "boolean"
-                  }
-                },
-                "additionalProperties": false
+                "$ref": "#/components/schemas/OpsUpdateDomainBody"
               }
             }
           }
@@ -16651,18 +16356,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "body": {
-                    "type": "string",
-                    "minLength": 1,
-                    "maxLength": 4000
-                  }
-                },
-                "required": [
-                  "body"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/OpsReplyToTicketBody"
               }
             }
           }
@@ -16766,22 +16460,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "type": "object",
-                "properties": {
-                  "status": {
-                    "type": "string",
-                    "enum": [
-                      "open",
-                      "in_progress",
-                      "resolved",
-                      "closed"
-                    ]
-                  }
-                },
-                "required": [
-                  "status"
-                ],
-                "additionalProperties": false
+                "$ref": "#/components/schemas/OpsSetTicketStatusBody"
               }
             }
           }

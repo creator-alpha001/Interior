@@ -49,7 +49,43 @@ function expand(schema: z.ZodTypeAny): JsonSchema {
   }) as JsonSchema;
   delete out["$schema"];
   delete out["definitions"];
-  return out;
+  return describeBooleanLiterals(out) as JsonSchema;
+}
+
+/**
+ * A `z.literal(true)` becomes prose rather than a one-value enum.
+ *
+ * `{ type: "boolean", enum: [false] }` is correct OpenAPI, and it is what
+ * `contactReleased` and the `ok` acknowledgement genuinely are. But generators
+ * reach for an enum *class* on seeing `enum`, and swagger_parser's boolean case
+ * is broken — it emits `valueTrue('true')` against a `bool?` field, which does
+ * not compile.
+ *
+ * A single-value boolean carries no information a `bool` does not, so the
+ * constraint moves into the description. Nothing is lost that was being
+ * enforced here: zod still refuses `contactReleased: true` at runtime, and
+ * `packages/contract/tests/contract.test.ts` asserts exactly that.
+ */
+function describeBooleanLiterals(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(describeBooleanLiterals);
+  if (!node || typeof node !== "object") return node;
+
+  const record = node as Record<string, unknown>;
+  const values = record["enum"];
+
+  if (record["type"] === "boolean" && Array.isArray(values) && values.length === 1) {
+    const { enum: _enum, description, ...rest } = record;
+    return {
+      ...rest,
+      description: description
+        ? `${String(description)} Always ${String(values[0])}.`
+        : `Always ${String(values[0])}.`,
+    };
+  }
+
+  return Object.fromEntries(
+    Object.entries(record).map(([k, v]) => [k, describeBooleanLiterals(v)]),
+  );
 }
 
 /** Key-sorted JSON, so two structurally equal schemas compare equal as text. */
@@ -68,9 +104,75 @@ function canonical(value: unknown): string {
   return JSON.stringify(sort(value));
 }
 
+/**
+ * Discriminated unions, split into named variants.
+ *
+ * zod-to-json-schema renders `z.discriminatedUnion` as a bare `anyOf`, which
+ * carries no hint that the branches are mutually exclusive or what tells them
+ * apart. A generator handed that produces `ActorUnion.variant1` with an enum
+ * called `ActorUnionVariant1Role` — technically a union, useless to switch on.
+ *
+ * Emitting OpenAPI's `oneOf` + `discriminator` instead gives every branch a
+ * name derived from its discriminator value (`ActorClient`,
+ * `ActorSalesAgent`), which is what makes the four-way role check in the mobile
+ * client a readable, compiler-checked switch.
+ */
+interface UnionSplit {
+  /** `Actor` -> the oneOf + discriminator wrapper. */
+  base: JsonSchema;
+  /** `ActorClient`, `ActorProfessional`, ... expanded in full. */
+  variants: Map<string, JsonSchema>;
+}
+
+function splitDiscriminatedUnion(name: string, schema: z.ZodTypeAny): UnionSplit | null {
+  if (!(schema instanceof z.ZodDiscriminatedUnion)) return null;
+
+  const key = schema.discriminator as string;
+  const variants = new Map<string, JsonSchema>();
+  const mapping: Record<string, string> = {};
+
+  for (const option of schema.options as z.ZodObject<z.ZodRawShape>[]) {
+    const literal = option.shape[key];
+    // The discriminator is a literal on every branch; that is what
+    // `z.discriminatedUnion` guarantees and what makes the mapping possible.
+    const value = (literal as z.ZodLiteral<string>).value;
+    const variantName = `${name}${pascal(value)}`;
+    variants.set(variantName, expand(option));
+    mapping[value] = `${COMPONENT_PATH}${variantName}`;
+  }
+
+  return {
+    base: {
+      oneOf: Object.values(mapping).map(($ref) => ({ $ref })),
+      discriminator: { propertyName: key, mapping },
+    },
+    variants,
+  };
+}
+
+/** `sales_agent` -> `SalesAgent`. */
+function pascal(value: string): string {
+  return value
+    .split(/[_-]/)
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join('');
+}
+
+const unionSplits = new Map<string, UnionSplit>();
+for (const { name, schema } of components) {
+  const split = splitDiscriminatedUnion(name, schema);
+  if (split) unionSplits.set(name, split);
+}
+
 /** Every component, expanded once. Built before any substitution happens. */
 const expanded = new Map<string, JsonSchema>(
-  components.map(({ name, schema }) => [name, expand(schema)] as const),
+  components.flatMap(({ name, schema }) => {
+    const split = unionSplits.get(name);
+    if (!split) return [[name, expand(schema)] as const];
+    // The variants are components in their own right; the base is assembled
+    // after substitution, since its branches are pure refs already.
+    return [...split.variants].map(([variantName, body]) => [variantName, body] as const);
+  }),
 );
 
 /**
@@ -102,36 +204,81 @@ const componentByShape = (() => {
  *
  * `self` keeps a component from being replaced by a reference to itself when
  * its own definition is being emitted.
+ *
+ * The `nullable` handling is not a detail. `quoteSchema.nullable()` expands to
+ * the whole quote shape *plus* `nullable: true`, which no longer compares equal
+ * to the `Quote` component — so a first version of this missed every optional
+ * relationship in the contract and the Dart generator emitted an anonymous
+ * class for each one. Seven components' worth of duplicates
+ * (`Invoice2`, `Review2`, ...) came from exactly this.
+ *
+ * OpenAPI 3.0 has no clean nullable `$ref`: siblings of `$ref` are ignored, so
+ * `{ $ref, nullable }` silently drops the null. `allOf` is the form that works.
  */
 function refify(node: unknown, self?: string): unknown {
   if (Array.isArray(node)) return node.map((item) => refify(item));
   if (!node || typeof node !== "object") return node;
 
-  const name = componentByShape.get(canonical(node));
-  if (name && name !== self) return { $ref: `${COMPONENT_PATH}${name}` };
+  const record = node as Record<string, unknown>;
 
-  return Object.fromEntries(
-    Object.entries(node as Record<string, unknown>).map(([k, v]) => [k, refify(v)]),
-  );
+  const direct = componentByShape.get(canonical(record));
+  if (direct && direct !== self) return { $ref: `${COMPONENT_PATH}${direct}` };
+
+  if (record["nullable"] === true) {
+    const { nullable: _nullable, ...bare } = record;
+    const name = componentByShape.get(canonical(bare));
+    if (name && name !== self) {
+      return { allOf: [{ $ref: `${COMPONENT_PATH}${name}` }], nullable: true };
+    }
+  }
+
+  return Object.fromEntries(Object.entries(record).map(([k, v]) => [k, refify(v)]));
 }
 
 /** Converts a per-route request or response shape, with components ref'd. */
 function toJsonSchema(schema: z.ZodTypeAny): JsonSchema {
+  // A route answering a whole union answers the named union, not its expansion.
+  for (const [name] of unionSplits) {
+    const component = components.find((c) => c.name === name);
+    if (component && component.schema === schema) {
+      return { $ref: `${COMPONENT_PATH}${name}` };
+    }
+  }
   return refify(expand(schema)) as JsonSchema;
 }
 
 /** The `components.schemas` block: each component expanded, its children ref'd. */
 function allComponents(): Record<string, unknown> {
-  return Object.fromEntries(
-    [...expanded]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([name, schema]) => [name, refify(schema, name)]),
-  );
+  const entries: Array<[string, unknown]> = [...expanded]
+    // Drop a component that lost a shape collision. `refify` sends every
+    // reference to the winning name, so the loser would be emitted, referenced
+    // by nothing, and arrive in the Dart client as a dead class.
+    .filter(([name, schema]) => componentByShape.get(canonical(schema)) === name)
+    .map(([name, schema]) => [name, refify(schema, name)]);
+
+  // The union wrappers reference their variants and are not expanded.
+  for (const [name, split] of unionSplits) entries.push([name, split.base]);
+
+  return Object.fromEntries(entries.sort(([a], [b]) => a.localeCompare(b)));
 }
 
 /** "/products/:slug" -> "/products/{slug}" */
 function toOpenApiPath(path: string): string {
   return path.replace(/:([A-Za-z0-9_]+)/g, "{$1}");
+}
+
+/**
+ * A body of `z.object({})`, which several mutations declare.
+ *
+ * `POST /me/agreements/:id/sign` takes nothing beyond its path parameter; the
+ * empty object is there so the route's shape is uniform, not because a caller
+ * has anything to send. Emitting it as a required request body makes every
+ * generated client demand `body: {}` at the call site, which reads as though
+ * something were missing.
+ */
+function isEmptyObject(schema: z.ZodTypeAny): boolean {
+  if (!(schema instanceof z.ZodObject)) return false;
+  return Object.keys(schema.shape as Record<string, unknown>).length === 0;
 }
 
 /**
@@ -249,7 +396,7 @@ function operationFor(name: string, route: RouteDefinition): Record<string, unkn
     },
   };
 
-  if (route.body && route.method !== "GET") {
+  if (route.body && route.method !== "GET" && !isEmptyObject(route.body)) {
     operation["requestBody"] = {
       required: true,
       content: json(toJsonSchema(route.body)),

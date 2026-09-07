@@ -31,6 +31,20 @@ import { blogCategorySchema, blogPostSchema } from "./content";
 import { productCategorySchema, productSchema, servicePackageSchema } from "./catalog";
 import { clientSchema, professionalSchema, userSchema } from "./identity";
 
+/**
+ * A vendor's rating *in one trade*.
+ *
+ * Named rather than inlined, like every other nested shape in this file. An
+ * anonymous object here becomes an anonymous class in the generated Dart, under
+ * a name derived from whichever field the generator met first — `DomainRating2`,
+ * `DomainRating3` — and nothing is assignable to anything else.
+ */
+export const domainRatingSchema = z.object({
+  domainId: idSchema,
+  avgRating: z.number(),
+  ratingCount: z.number(),
+});
+
 export const professionalSummarySchema = z.object({
   id: idSchema,
   name: z.string(),
@@ -46,9 +60,7 @@ export const professionalSummarySchema = z.object({
   avgResponseHours: z.number(),
   domains: z.array(domainSchema),
   /** Per-domain rating, when viewing this vendor in the context of one domain. */
-  domainRating: z
-    .object({ domainId: idSchema, avgRating: z.number(), ratingCount: z.number() })
-    .optional(),
+  domainRating: domainRatingSchema.optional(),
 });
 
 export const reviewViewSchema = z.object({
@@ -107,20 +119,25 @@ export const quoteViewSchema = z.object({
   domain: domainSchema,
 });
 
+/** One professional offered this service, with who they are. */
+export const assignmentViewSchema = z.object({
+  assignment: leadDomainAssignmentSchema,
+  professional: professionalSummarySchema,
+});
+
+/** One visit, with the professional attending it. */
+export const meetingViewSchema = z.object({
+  meeting: meetingSchema,
+  professional: professionalSummarySchema,
+});
+
 /** One service track inside a requirement, with everything hanging off it. */
 export const leadDomainViewSchema = z.object({
   leadDomain: leadDomainSchema,
   domain: domainSchema,
-  assignments: z.array(
-    z.object({
-      assignment: leadDomainAssignmentSchema,
-      professional: professionalSummarySchema,
-    }),
-  ),
+  assignments: z.array(assignmentViewSchema),
   quotes: z.array(quoteViewSchema),
-  meetings: z.array(
-    z.object({ meeting: meetingSchema, professional: professionalSummarySchema }),
-  ),
+  meetings: z.array(meetingViewSchema),
   items: z.array(leadDomainItemSchema),
   selectedProfessional: professionalSummarySchema.nullable(),
   /** Unread messages in the client's thread with the platform. */
@@ -145,17 +162,23 @@ export const projectViewSchema = z.object({
   review: reviewSchema.nullable(),
 });
 
+/**
+ * One service covered by an agreement, at the price agreed for it.
+ *
+ * Shared by the customer and vendor views of an agreement: it is the same line,
+ * and a combined agreement has several.
+ */
+export const agreementLineSchema = z.object({
+  link: agreementLeadDomainSchema,
+  domain: domainSchema,
+  quote: quoteSchema,
+});
+
 export const agreementViewSchema = z.object({
   agreement: agreementSchema,
   professional: professionalSummarySchema,
   client: clientSummarySchema,
-  lines: z.array(
-    z.object({
-      link: agreementLeadDomainSchema,
-      domain: domainSchema,
-      quote: quoteSchema,
-    }),
-  ),
+  lines: z.array(agreementLineSchema),
   /** True when one professional covers several domains under one contract. */
   isCombined: z.boolean(),
   projects: z.array(projectViewSchema),
@@ -170,16 +193,17 @@ export const productViewSchema = z.object({
   effectivePrice: rupeesSchema,
 });
 
+/** One line inside a package. Not always a catalogue product. */
+export const packageLineSchema = z.object({
+  label: z.string(),
+  quantity: z.number(),
+  productId: idSchema.nullable(),
+});
+
 export const packageViewSchema = z.object({
   servicePackage: servicePackageSchema,
   domain: domainSchema,
-  items: z.array(
-    z.object({
-      label: z.string(),
-      quantity: z.number(),
-      productId: idSchema.nullable(),
-    }),
-  ),
+  items: z.array(packageLineSchema),
 });
 
 export const blogPostViewSchema = z.object({
@@ -244,10 +268,16 @@ export const vendorLeadCardSchema = z.object({
   lost: z.boolean(),
 });
 
+/** A trade a vendor is approved for, with the approval itself. */
+export const professionalDomainLinkSchema = z.object({
+  link: professionalDomainSchema,
+  domain: domainSchema,
+});
+
 export const vendorDashboardSchema = z.object({
   professional: professionalSchema,
   displayName: z.string(),
-  domains: z.array(z.object({ link: professionalDomainSchema, domain: domainSchema })),
+  domains: z.array(professionalDomainLinkSchema),
   newLeads: z.number(),
   awaitingQuote: z.number(),
   quotesOut: z.number(),
@@ -259,18 +289,18 @@ export const vendorDashboardSchema = z.object({
   unreadMessages: z.number(),
 });
 
+/** A project under an agreement, and which trade it is. */
+export const agreementProjectSchema = z.object({
+  project: projectSchema,
+  domain: domainSchema,
+});
+
 export const vendorAgreementViewSchema = z.object({
   agreement: agreementSchema,
   client: maskedClientSummarySchema,
-  lines: z.array(
-    z.object({
-      link: agreementLeadDomainSchema,
-      domain: domainSchema,
-      quote: quoteSchema,
-    }),
-  ),
+  lines: z.array(agreementLineSchema),
   isCombined: z.boolean(),
-  projects: z.array(z.object({ project: projectSchema, domain: domainSchema })),
+  projects: z.array(agreementProjectSchema),
   invoice: commissionInvoiceSchema.nullable(),
 });
 
@@ -282,28 +312,35 @@ export const vendorProjectViewSchema = z.object({
   review: reviewSchema.nullable(),
 });
 
+/**
+ * How a vendor performs in one trade.
+ *
+ * Per-trade is the point: excellent at painting, average at carpentry, shown as
+ * exactly that rather than averaged into one number.
+ */
+export const domainPerformanceSchema = z.object({
+  domain: domainSchema,
+  rating: z.number(),
+  ratingCount: z.number(),
+  completed: z.number(),
+  won: z.number(),
+  lost: z.number(),
+  winRatePercent: z.number(),
+  commissionPercent: z.number(),
+});
+
+/** A review as the vendor sees it — the customer named, never contactable. */
+export const vendorReviewSchema = z.object({
+  review: reviewSchema,
+  domain: domainSchema,
+  clientName: z.string(),
+});
+
 export const vendorPerformanceSchema = z.object({
-  byDomain: z.array(
-    z.object({
-      domain: domainSchema,
-      rating: z.number(),
-      ratingCount: z.number(),
-      completed: z.number(),
-      won: z.number(),
-      lost: z.number(),
-      winRatePercent: z.number(),
-      commissionPercent: z.number(),
-    }),
-  ),
+  byDomain: z.array(domainPerformanceSchema),
   avgResponseHours: z.number(),
   totalRevenue: rupeesSchema,
-  reviews: z.array(
-    z.object({
-      review: reviewSchema,
-      domain: domainSchema,
-      clientName: z.string(),
-    }),
-  ),
+  reviews: z.array(vendorReviewSchema),
 });
 
 export const vendorInvoiceViewSchema = z.object({
@@ -423,6 +460,16 @@ export const commissionFocusRowSchema = z.object({
   domains: z.array(z.string()),
 });
 
+export const urgencyCountSchema = z.object({
+  urgency: urgencySchema,
+  count: z.number(),
+});
+
+export const domainCountSchema = z.object({
+  domain: domainSchema,
+  count: z.number(),
+});
+
 export const salesDashboardSchema = z.object({
   agentName: z.string(),
   target: z.number(),
@@ -431,8 +478,17 @@ export const salesDashboardSchema = z.object({
   awaitingReply: z.number(),
   followUpsDue: z.number(),
   visitsToday: z.number(),
-  byUrgency: z.array(z.object({ urgency: urgencySchema, count: z.number() })),
-  byDomain: z.array(z.object({ domain: domainSchema, count: z.number() })),
+  byUrgency: z.array(urgencyCountSchema),
+  byDomain: z.array(domainCountSchema),
+});
+
+/** The commission block on My Day: the totals, and the rows behind them. */
+export const commissionSummarySchema = z.object({
+  pending: rupeesSchema,
+  overdue: rupeesSchema,
+  overdueCount: z.number(),
+  dueSoonCount: z.number(),
+  rows: z.array(commissionFocusRowSchema),
 });
 
 export const myDayViewSchema = z.object({
@@ -446,13 +502,7 @@ export const myDayViewSchema = z.object({
   stalled: z.array(opsLeadRowSchema),
   visitsToday: z.number(),
   visitsNeedingOutcome: z.number(),
-  commission: z.object({
-    pending: rupeesSchema,
-    overdue: rupeesSchema,
-    overdueCount: z.number(),
-    dueSoonCount: z.number(),
-    rows: z.array(commissionFocusRowSchema),
-  }),
+  commission: commissionSummarySchema,
 });
 
 export const domainSliceSchema = z.object({
@@ -467,30 +517,34 @@ export const domainSliceSchema = z.object({
   vendors: z.number(),
 });
 
+export const adminTotalsSchema = z.object({
+  leads: z.number(),
+  activeLeads: z.number(),
+  vendors: z.number(),
+  pendingVerification: z.number(),
+  revenue: rupeesSchema,
+  commissionBilled: rupeesSchema,
+  commissionPending: rupeesSchema,
+  commissionOverdue: rupeesSchema,
+  openTickets: z.number(),
+});
+
+export const citySliceSchema = z.object({
+  cityName: z.string(),
+  leads: z.number(),
+  revenue: rupeesSchema,
+});
+
 export const adminDashboardSchema = z.object({
-  totals: z.object({
-    leads: z.number(),
-    activeLeads: z.number(),
-    vendors: z.number(),
-    pendingVerification: z.number(),
-    revenue: rupeesSchema,
-    commissionBilled: rupeesSchema,
-    commissionPending: rupeesSchema,
-    commissionOverdue: rupeesSchema,
-    openTickets: z.number(),
-  }),
+  totals: adminTotalsSchema,
   byDomain: z.array(domainSliceSchema),
-  byCity: z.array(
-    z.object({ cityName: z.string(), leads: z.number(), revenue: rupeesSchema }),
-  ),
+  byCity: z.array(citySliceSchema),
 });
 
 export const vendorRowSchema = z.object({
   professional: professionalSchema,
   summary: professionalSummarySchema,
-  domainLinks: z.array(
-    z.object({ link: professionalDomainSchema, domain: domainSchema }),
-  ),
+  domainLinks: z.array(professionalDomainLinkSchema),
   serviceCities: z.array(z.string()),
   liveJobs: z.number(),
   pendingDomainRequests: z.number(),

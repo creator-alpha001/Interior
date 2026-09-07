@@ -59,16 +59,25 @@ export const reviewProofSchema = z.object({
   note: z.string().trim().max(1000).nullish(),
 });
 
+/**
+ * The per-trade captions on the compare-quotes table.
+ *
+ * Named rather than inline: an anonymous object here generated a second class
+ * called `Labels` alongside the response side's `DomainLabels`, which is the
+ * same shape under a different name.
+ */
+export const domainLabelsInputSchema = z.object({
+  materials: shortText(80),
+  warranty: shortText(80),
+  pricingBasis: shortText(120),
+});
+
 export const domainInputSchema = z.object({
   name: shortText(80),
   tagline: z.string().trim().max(200).default(""),
   description: z.string().trim().max(2000).default(""),
   defaultCommissionPercent: z.number().int().min(0).max(50),
-  labels: z.object({
-    materials: shortText(80),
-    warranty: shortText(80),
-    pricingBasis: shortText(120),
-  }),
+  labels: domainLabelsInputSchema,
 });
 
 export const invoiceStatusSchema = z.object({

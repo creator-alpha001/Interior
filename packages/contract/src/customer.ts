@@ -54,6 +54,23 @@ export const materialSourceSchema = z.enum([
   "undecided",
 ]);
 
+/**
+ * One catalogue item the customer picked, carried into the requirement.
+ *
+ * Named rather than inline so the generated client calls it
+ * `CatalogueSelection` instead of `CatalogueItems`.
+ */
+export const catalogueSelectionSchema = z.object({
+  domainId: idSchema,
+  productId: idSchema.optional(),
+  packageId: idSchema.optional(),
+  itemName: shortText(200),
+  quantity: z.number().int().min(1).max(999),
+  selectedOptions: z.record(z.string().max(60), z.string().max(120)).optional(),
+  indicativePrice: rupeesSchema.nullish(),
+  notes: z.string().trim().max(1000).nullish(),
+});
+
 export const requirementSchema = z
   .object({
     cityId: idSchema,
@@ -71,21 +88,7 @@ export const requirementSchema = z
     /** A vendor asked for by name. Honoured only where they are approved. */
     preferredProfessionalId: idSchema.nullish(),
     photoIds: z.array(mediaIdSchema).max(6).optional(),
-    catalogueItems: z
-      .array(
-        z.object({
-          domainId: idSchema,
-          productId: idSchema.optional(),
-          packageId: idSchema.optional(),
-          itemName: shortText(200),
-          quantity: z.number().int().min(1).max(999),
-          selectedOptions: z.record(z.string().max(60), z.string().max(120)).optional(),
-          indicativePrice: rupeesSchema.nullish(),
-          notes: z.string().trim().max(1000).nullish(),
-        }),
-      )
-      .max(40)
-      .optional(),
+    catalogueItems: z.array(catalogueSelectionSchema).max(40).optional(),
   })
   .refine(
     (value) =>

@@ -5,7 +5,9 @@ import type {
   onboardingStepSchema,
   partnerAgreementSchema,
   partnerAgreementStatusSchema,
+  partnerAcknowledgementSchema,
   partnerTermsSchema,
+  partnerTermsSectionSchema,
   vendorOnboardingSchema,
 } from "./schema/onboarding";
 
@@ -17,6 +19,11 @@ import type {
  * worth very little when the terms have moved on.
  */
 export type PartnerTerms = z.infer<typeof partnerTermsSchema>;
+
+export type PartnerTermsSection = z.infer<typeof partnerTermsSectionSchema>;
+
+/** One clause a vendor ticks on its own, so consent is provable clause by clause. */
+export type PartnerAcknowledgement = z.infer<typeof partnerAcknowledgementSchema>;
 
 export type PartnerAgreementStatus = z.infer<typeof partnerAgreementStatusSchema>;
 

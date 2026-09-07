@@ -13,21 +13,33 @@ import type { z } from "zod";
 import type {
   adminDashboardSchema,
   adminTicketRowSchema,
+  adminTotalsSchema,
+  agreementLineSchema,
+  agreementProjectSchema,
   agreementViewSchema,
+  assignmentViewSchema,
   blogPostViewSchema,
+  citySliceSchema,
   clientRecordSchema,
   clientSummarySchema,
   commissionFocusRowSchema,
+  commissionSummarySchema,
+  domainCountSchema,
+  domainPerformanceSchema,
+  domainRatingSchema,
   domainSliceSchema,
   invoiceRowSchema,
   leadDomainViewSchema,
   leadProjectViewSchema,
   leadViewSchema,
   maskedClientSummarySchema,
+  meetingViewSchema,
   myDayViewSchema,
   opsLeadRowSchema,
+  packageLineSchema,
   packageViewSchema,
   productViewSchema,
+  professionalDomainLinkSchema,
   professionalProfileSchema,
   professionalSummarySchema,
   projectViewSchema,
@@ -39,6 +51,7 @@ import type {
   searchResultsSchema,
   timelineEventSchema,
   timelineKindSchema,
+  urgencyCountSchema,
   vendorAgreementViewSchema,
   vendorDashboardSchema,
   vendorInvoiceViewSchema,
@@ -46,9 +59,56 @@ import type {
   vendorPerformanceSchema,
   vendorPoolEntrySchema,
   vendorProjectViewSchema,
+  vendorReviewSchema,
   vendorRowSchema,
   vendorVisitViewSchema,
 } from "./schema/views";
+
+/* ------------------------------------------------------------------ *
+ * Nested shapes, named
+ *
+ * These were anonymous objects inside the view models until the Dart generator
+ * turned each one into a class called `DomainRating2`, `Lines2`, `Invoice2` —
+ * numbered by whichever field it met first, and mutually unassignable. Naming
+ * them fixed the generated client and gave the TypeScript side a vocabulary for
+ * shapes it could previously only describe inline.
+ * ------------------------------------------------------------------ */
+
+/** A vendor's rating in one trade. */
+export type DomainRating = z.infer<typeof domainRatingSchema>;
+
+/** One professional offered a service, with who they are. */
+export type AssignmentView = z.infer<typeof assignmentViewSchema>;
+
+/** One visit, with the professional attending it. */
+export type MeetingView = z.infer<typeof meetingViewSchema>;
+
+/** One service covered by an agreement, at the price agreed for it. */
+export type AgreementLine = z.infer<typeof agreementLineSchema>;
+
+/** A project under an agreement, and which trade it is. */
+export type AgreementProject = z.infer<typeof agreementProjectSchema>;
+
+/** One line inside a package. Not always a catalogue product. */
+export type PackageLine = z.infer<typeof packageLineSchema>;
+
+/** A trade a vendor is approved for, with the approval itself. */
+export type ProfessionalDomainLink = z.infer<typeof professionalDomainLinkSchema>;
+
+/** How a vendor performs in one trade. Per-trade is the point. */
+export type DomainPerformance = z.infer<typeof domainPerformanceSchema>;
+
+/** A review as the vendor sees it — the customer named, never contactable. */
+export type VendorReview = z.infer<typeof vendorReviewSchema>;
+
+export type UrgencyCount = z.infer<typeof urgencyCountSchema>;
+export type DomainCount = z.infer<typeof domainCountSchema>;
+
+/** The commission block on My Day: the totals, and the rows behind them. */
+export type CommissionSummary = z.infer<typeof commissionSummarySchema>;
+
+export type AdminTotals = z.infer<typeof adminTotalsSchema>;
+export type CitySlice = z.infer<typeof citySliceSchema>;
 
 export type ProfessionalSummary = z.infer<typeof professionalSummarySchema>;
 

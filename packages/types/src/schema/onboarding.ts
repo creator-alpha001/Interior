@@ -8,17 +8,33 @@ import { baseRecordSchema, dateOnlySchema, idSchema, timestampSchema } from "./c
  * actually agreed to — an agreement that points at "the current terms" is
  * worth very little when the terms have moved on.
  */
+export const partnerTermsSectionSchema = z.object({
+  heading: z.string(),
+  body: z.string(),
+});
+
+/**
+ * One clause that must be ticked on its own.
+ *
+ * `key` is what gets stored in `acknowledgedClauses`, so consent can be proved
+ * clause by clause rather than as a single "I agree".
+ */
+export const partnerAcknowledgementSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+});
+
 export const partnerTermsSchema = z.object({
   version: z.string(),
   effectiveFrom: dateOnlySchema,
   title: z.string(),
   summary: z.string(),
-  sections: z.array(z.object({ heading: z.string(), body: z.string() })),
+  sections: z.array(partnerTermsSectionSchema),
   /**
    * Clauses that must be ticked individually rather than swept up in a single
    * "I agree". These are the ones vendors most often claim not to have seen.
    */
-  acknowledgements: z.array(z.object({ key: z.string(), label: z.string() })),
+  acknowledgements: z.array(partnerAcknowledgementSchema),
 });
 
 export const partnerAgreementStatusSchema = z.enum([

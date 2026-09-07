@@ -31,16 +31,17 @@ export const respondSchema = z.object({
   reason: z.string().trim().max(500).optional(),
 });
 
+/** One priced line of a quote. The trade decides what `unit` means. */
+export const quoteLineDraftSchema = z.object({
+  description: shortText(300),
+  quantity: z.number().positive().max(100_000),
+  unit: shortText(30),
+  rate: rupeesSchema,
+});
+
 export const quoteDraftSchema = z.object({
   lineItems: z
-    .array(
-      z.object({
-        description: shortText(300),
-        quantity: z.number().positive().max(100_000),
-        unit: shortText(30),
-        rate: rupeesSchema,
-      }),
-    )
+    .array(quoteLineDraftSchema)
     .min(1, "A quote needs at least one line")
     .max(60),
   taxPercent: z.number().min(0).max(50),

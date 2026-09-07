@@ -140,6 +140,12 @@ export const searchSuggestionSchema = z.object({
 
 /* ---------------- customer ---------------- */
 
+/** One person invited, and what became of it. */
+export const referralEntrySchema = z.object({
+  referral: referralSchema,
+  name: z.string(),
+});
+
 export const referralSummarySchema = z.object({
   code: z.string(),
   shareUrl: z.string(),
@@ -147,7 +153,7 @@ export const referralSummarySchema = z.object({
   earned: z.number(),
   pending: z.number(),
   rewardPerReferral: rupeesSchema,
-  referrals: z.array(z.object({ referral: referralSchema, name: z.string() })),
+  referrals: z.array(referralEntrySchema),
 });
 
 /** `POST /me/requirements/:id/agreements` answers with the ids it created. */
