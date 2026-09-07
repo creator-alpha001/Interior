@@ -34,7 +34,7 @@ export const blogPostSchema = baseRecordSchema.extend({
   domainId: idSchema.nullable(),
   status: z.enum(["draft", "scheduled", "published", "archived"]),
   publishedAt: timestampSchema.nullable(),
-  readingMinutes: z.number(),
+  readingMinutes: z.number().int(),
   seoTitle: z.string(),
   seoDescription: z.string(),
   ogImageUrl: z.string().nullable(),
@@ -52,7 +52,7 @@ export const bannerSchema = baseRecordSchema.extend({
   domainId: idSchema.nullable(),
   cityIds: z.array(idSchema),
   isActive: z.boolean(),
-  sortOrder: z.number(),
+  sortOrder: z.number().int(),
 });
 
 export const testimonialSchema = baseRecordSchema.extend({

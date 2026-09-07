@@ -82,5 +82,5 @@ export const paginatedSchema = <Item extends z.ZodTypeAny>(item: Item) =>
     /** Opaque. Pass back as `cursor` to get the next page; null on the last. */
     nextCursor: z.string().nullable(),
     /** Rows matching the filters, ignoring pagination. */
-    total: z.number(),
+    total: z.number().int(),
   });

@@ -39,13 +39,13 @@ export { paginatedSchema };
  */
 export const okSchema = z.object({ ok: z.literal(true) });
 
-export const countSchema = z.object({ count: z.number() });
+export const countSchema = z.object({ count: z.number().int() });
 
 /* ---------------- auth ---------------- */
 
 export const otpChallengeSchema = z.object({
   challengeId: idSchema,
-  expiresInSeconds: z.number(),
+  expiresInSeconds: z.number().int(),
   /**
    * Present only when OTP_DEV_ECHO is on, which the config refuses to allow in
    * production. Documented because a mobile client in development reads it.
@@ -87,7 +87,7 @@ export { actorSchema };
 
 /** `GET /app/version` — the only lever there is once a bad build is on a phone. */
 export const appVersionSchema = z.object({
-  minBuild: z.number(),
+  minBuild: z.number().int(),
   message: z.string(),
 });
 
@@ -121,14 +121,14 @@ export const uploadTicketSchema = z.object({
 
 export const catalogueCountSchema = z.object({
   domainId: idSchema,
-  products: z.number(),
-  packages: z.number(),
+  products: z.number().int(),
+  packages: z.number().int(),
 });
 
 export const platformStatsSchema = z.object({
-  professionals: z.number(),
-  projects: z.number(),
-  cities: z.number(),
+  professionals: z.number().int(),
+  projects: z.number().int(),
+  cities: z.number().int(),
   avgRating: z.number(),
 });
 
@@ -149,9 +149,9 @@ export const referralEntrySchema = z.object({
 export const referralSummarySchema = z.object({
   code: z.string(),
   shareUrl: z.string(),
-  invited: z.number(),
-  earned: z.number(),
-  pending: z.number(),
+  invited: z.number().int(),
+  earned: z.number().int(),
+  pending: z.number().int(),
   rewardPerReferral: rupeesSchema,
   referrals: z.array(referralEntrySchema),
 });

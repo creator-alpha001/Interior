@@ -89,8 +89,8 @@ export const onboardingStepSchema = z.object({
 export const vendorOnboardingSchema = z.object({
   professionalId: idSchema,
   steps: z.array(onboardingStepSchema),
-  completedCount: z.number(),
-  totalCount: z.number(),
+  completedCount: z.number().int(),
+  totalCount: z.number().int(),
   /** False while any blocking step is outstanding. */
   canReceiveLeads: z.boolean(),
   blockedReason: z.string().nullable(),

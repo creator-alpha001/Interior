@@ -40,8 +40,8 @@ export const professionalSchema = baseRecordSchema.extend({
   bio: z.string(),
   /** Cached across all domains; per-domain ratings live on ProfessionalDomain. */
   avgRating: z.number(),
-  ratingCount: z.number(),
-  completedProjects: z.number(),
+  ratingCount: z.number().int(),
+  completedProjects: z.number().int(),
   languages: z.array(z.string()),
   verificationStatus: verificationStatusSchema,
   /** Median hours to respond to a new lead. Surfaced on the Performance screen. */
@@ -52,7 +52,7 @@ export const salesAgentSchema = baseRecordSchema.extend({
   id: idSchema,
   userId: idSchema,
   assignedCityIds: z.array(idSchema),
-  dailyTarget: z.number(),
+  dailyTarget: z.number().int(),
 });
 
 /* ---- Admin access control ---- */

@@ -266,16 +266,16 @@
         "type": "object",
         "properties": {
           "leads": {
-            "type": "number"
+            "type": "integer"
           },
           "activeLeads": {
-            "type": "number"
+            "type": "integer"
           },
           "vendors": {
-            "type": "number"
+            "type": "integer"
           },
           "pendingVerification": {
-            "type": "number"
+            "type": "integer"
           },
           "revenue": {
             "type": "integer"
@@ -290,7 +290,7 @@
             "type": "integer"
           },
           "openTickets": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -556,7 +556,7 @@
         "type": "object",
         "properties": {
           "minBuild": {
-            "type": "number"
+            "type": "integer"
           },
           "message": {
             "type": "string"
@@ -810,7 +810,7 @@
             "type": "boolean"
           },
           "sortOrder": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -952,7 +952,7 @@
             "nullable": true
           },
           "readingMinutes": {
-            "type": "number"
+            "type": "integer"
           },
           "seoTitle": {
             "type": "string"
@@ -1065,10 +1065,10 @@
             "type": "string"
           },
           "products": {
-            "type": "number"
+            "type": "integer"
           },
           "packages": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -1164,7 +1164,7 @@
             "type": "string"
           },
           "leads": {
-            "type": "number"
+            "type": "integer"
           },
           "revenue": {
             "type": "integer"
@@ -1299,7 +1299,7 @@
             "type": "string"
           },
           "daysOverdue": {
-            "type": "number"
+            "type": "integer"
           },
           "domains": {
             "type": "array",
@@ -1390,10 +1390,10 @@
             "type": "integer"
           },
           "overdueCount": {
-            "type": "number"
+            "type": "integer"
           },
           "dueSoonCount": {
-            "type": "number"
+            "type": "integer"
           },
           "rows": {
             "type": "array",
@@ -1415,7 +1415,7 @@
         "type": "object",
         "properties": {
           "count": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -1691,7 +1691,7 @@
             "type": "boolean"
           },
           "sortOrder": {
-            "type": "number"
+            "type": "integer"
           },
           "labels": {
             "$ref": "#/components/schemas/DomainLabels"
@@ -1730,7 +1730,7 @@
             "$ref": "#/components/schemas/Domain"
           },
           "count": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -1795,16 +1795,16 @@
             "type": "number"
           },
           "ratingCount": {
-            "type": "number"
+            "type": "integer"
           },
           "completed": {
-            "type": "number"
+            "type": "integer"
           },
           "won": {
-            "type": "number"
+            "type": "integer"
           },
           "lost": {
-            "type": "number"
+            "type": "integer"
           },
           "winRatePercent": {
             "type": "number"
@@ -1835,7 +1835,7 @@
             "type": "number"
           },
           "ratingCount": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -1852,13 +1852,13 @@
             "$ref": "#/components/schemas/Domain"
           },
           "leads": {
-            "type": "number"
+            "type": "integer"
           },
           "quoted": {
-            "type": "number"
+            "type": "integer"
           },
           "won": {
-            "type": "number"
+            "type": "integer"
           },
           "revenue": {
             "type": "integer"
@@ -1873,7 +1873,7 @@
             "type": "number"
           },
           "vendors": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -1911,7 +1911,7 @@
             "type": "boolean"
           },
           "daysOverdue": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -2246,7 +2246,7 @@
             "nullable": true
           },
           "unreadMessages": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -2300,13 +2300,13 @@
             "type": "number"
           },
           "approvedStages": {
-            "type": "number"
+            "type": "integer"
           },
           "totalStages": {
-            "type": "number"
+            "type": "integer"
           },
           "awaitingReview": {
-            "type": "number"
+            "type": "integer"
           },
           "currentStage": {
             "type": "string",
@@ -2799,7 +2799,7 @@
             "type": "string"
           },
           "target": {
-            "type": "number"
+            "type": "integer"
           },
           "live": {
             "type": "array",
@@ -2838,10 +2838,10 @@
             }
           },
           "visitsToday": {
-            "type": "number"
+            "type": "integer"
           },
           "visitsNeedingOutcome": {
-            "type": "number"
+            "type": "integer"
           },
           "commission": {
             "$ref": "#/components/schemas/CommissionSummary"
@@ -3076,13 +3076,13 @@
             "nullable": true
           },
           "unassignedDomains": {
-            "type": "number"
+            "type": "integer"
           },
           "awaitingReply": {
-            "type": "number"
+            "type": "integer"
           },
           "ageDays": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -3320,7 +3320,7 @@
             "type": "string"
           },
           "expiresInSeconds": {
-            "type": "number"
+            "type": "integer"
           },
           "devCode": {
             "type": "string"
@@ -3597,13 +3597,13 @@
         "type": "object",
         "properties": {
           "professionals": {
-            "type": "number"
+            "type": "integer"
           },
           "projects": {
-            "type": "number"
+            "type": "integer"
           },
           "cities": {
-            "type": "number"
+            "type": "integer"
           },
           "avgRating": {
             "type": "number"
@@ -3765,7 +3765,7 @@
             "$ref": "#/components/schemas/PriceUnit"
           },
           "leadTimeDays": {
-            "type": "number"
+            "type": "integer"
           },
           "isCustomisable": {
             "type": "boolean"
@@ -3798,7 +3798,7 @@
             "type": "number"
           },
           "ratingCount": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -3864,7 +3864,7 @@
             "nullable": true
           },
           "sortOrder": {
-            "type": "number"
+            "type": "integer"
           },
           "isActive": {
             "type": "boolean"
@@ -4080,10 +4080,10 @@
             "type": "number"
           },
           "ratingCount": {
-            "type": "number"
+            "type": "integer"
           },
           "completedProjects": {
-            "type": "number"
+            "type": "integer"
           },
           "languages": {
             "type": "array",
@@ -4150,10 +4150,10 @@
             "type": "number"
           },
           "ratingCount": {
-            "type": "number"
+            "type": "integer"
           },
           "completedProjects": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -4210,13 +4210,13 @@
             "type": "number"
           },
           "completedProjects": {
-            "type": "number"
+            "type": "integer"
           },
           "avgRating": {
             "type": "number"
           },
           "ratingCount": {
-            "type": "number"
+            "type": "integer"
           },
           "languages": {
             "type": "array",
@@ -4404,13 +4404,13 @@
             "type": "number"
           },
           "completedProjects": {
-            "type": "number"
+            "type": "integer"
           },
           "avgRating": {
             "type": "number"
           },
           "ratingCount": {
-            "type": "number"
+            "type": "integer"
           },
           "languages": {
             "type": "array",
@@ -4670,7 +4670,7 @@
             "type": "string"
           },
           "version": {
-            "type": "number"
+            "type": "integer"
           },
           "supersedesQuoteId": {
             "type": "string",
@@ -4695,10 +4695,10 @@
             "type": "integer"
           },
           "timelineDays": {
-            "type": "number"
+            "type": "integer"
           },
           "warrantyMonths": {
-            "type": "number"
+            "type": "integer"
           },
           "warrantyDetails": {
             "type": "string"
@@ -4916,13 +4916,13 @@
             "type": "string"
           },
           "invited": {
-            "type": "number"
+            "type": "integer"
           },
           "earned": {
-            "type": "number"
+            "type": "integer"
           },
           "pending": {
-            "type": "number"
+            "type": "integer"
           },
           "rewardPerReferral": {
             "type": "integer"
@@ -5282,7 +5282,7 @@
             }
           },
           "dailyTarget": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -5303,22 +5303,22 @@
             "type": "string"
           },
           "target": {
-            "type": "number"
+            "type": "integer"
           },
           "newLeads": {
-            "type": "number"
+            "type": "integer"
           },
           "needsAssignment": {
-            "type": "number"
+            "type": "integer"
           },
           "awaitingReply": {
-            "type": "number"
+            "type": "integer"
           },
           "followUpsDue": {
-            "type": "number"
+            "type": "integer"
           },
           "visitsToday": {
-            "type": "number"
+            "type": "integer"
           },
           "byUrgency": {
             "type": "array",
@@ -5392,7 +5392,7 @@
             "type": "string"
           },
           "total": {
-            "type": "number"
+            "type": "integer"
           },
           "products": {
             "type": "array",
@@ -5520,7 +5520,7 @@
             "type": "string"
           },
           "durationDays": {
-            "type": "number"
+            "type": "integer"
           },
           "inclusions": {
             "type": "array",
@@ -6071,7 +6071,7 @@
             "$ref": "#/components/schemas/Urgency"
           },
           "count": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -6211,22 +6211,22 @@
             }
           },
           "newLeads": {
-            "type": "number"
+            "type": "integer"
           },
           "awaitingQuote": {
-            "type": "number"
+            "type": "integer"
           },
           "quotesOut": {
-            "type": "number"
+            "type": "integer"
           },
           "wonThisPeriod": {
-            "type": "number"
+            "type": "integer"
           },
           "liveProjects": {
-            "type": "number"
+            "type": "integer"
           },
           "visitsToday": {
-            "type": "number"
+            "type": "integer"
           },
           "commissionDue": {
             "type": "integer"
@@ -6235,7 +6235,7 @@
             "type": "integer"
           },
           "unreadMessages": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -6339,10 +6339,10 @@
             }
           },
           "unreadMessages": {
-            "type": "number"
+            "type": "integer"
           },
           "competingQuotes": {
-            "type": "number"
+            "type": "integer"
           },
           "won": {
             "type": "boolean"
@@ -6386,10 +6386,10 @@
             }
           },
           "completedCount": {
-            "type": "number"
+            "type": "integer"
           },
           "totalCount": {
-            "type": "number"
+            "type": "integer"
           },
           "canReceiveLeads": {
             "type": "boolean"
@@ -6465,7 +6465,7 @@
             "type": "boolean"
           },
           "activeLoad": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -6551,10 +6551,10 @@
             }
           },
           "liveJobs": {
-            "type": "number"
+            "type": "integer"
           },
           "pendingDomainRequests": {
-            "type": "number"
+            "type": "integer"
           },
           "totalRevenue": {
             "type": "integer"
@@ -7665,7 +7665,7 @@
                       "nullable": true
                     },
                     "total": {
-                      "type": "number"
+                      "type": "integer"
                     }
                   },
                   "required": [
@@ -8401,7 +8401,7 @@
                       "nullable": true
                     },
                     "total": {
-                      "type": "number"
+                      "type": "integer"
                     }
                   },
                   "required": [
@@ -8821,7 +8821,7 @@
                       "nullable": true
                     },
                     "total": {
-                      "type": "number"
+                      "type": "integer"
                     }
                   },
                   "required": [

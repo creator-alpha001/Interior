@@ -42,7 +42,7 @@ import { clientSchema, professionalSchema, userSchema } from "./identity";
 export const domainRatingSchema = z.object({
   domainId: idSchema,
   avgRating: z.number(),
-  ratingCount: z.number(),
+  ratingCount: z.number().int(),
 });
 
 export const professionalSummarySchema = z.object({
@@ -52,9 +52,9 @@ export const professionalSummarySchema = z.object({
   avatarUrl: z.string().nullable(),
   city: citySchema,
   experienceYears: z.number(),
-  completedProjects: z.number(),
+  completedProjects: z.number().int(),
   avgRating: z.number(),
-  ratingCount: z.number(),
+  ratingCount: z.number().int(),
   languages: z.array(z.string()),
   isVerified: z.boolean(),
   avgResponseHours: z.number(),
@@ -141,7 +141,7 @@ export const leadDomainViewSchema = z.object({
   items: z.array(leadDomainItemSchema),
   selectedProfessional: professionalSummarySchema.nullable(),
   /** Unread messages in the client's thread with the platform. */
-  unreadMessages: z.number(),
+  unreadMessages: z.number().int(),
 });
 
 export const leadViewSchema = z.object({
@@ -216,7 +216,7 @@ export const blogPostViewSchema = z.object({
 /** Everything one search box query can turn up, ranked by intent. */
 export const searchResultsSchema = z.object({
   query: z.string(),
-  total: z.number(),
+  total: z.number().int(),
   products: z.array(productViewSchema),
   packages: z.array(packageViewSchema),
   professionals: z.array(professionalSummarySchema),
@@ -254,12 +254,12 @@ export const vendorLeadCardSchema = z.object({
   budgetMax: rupeesSchema.nullable(),
   myQuote: quoteSchema.nullable(),
   visits: z.array(meetingSchema),
-  unreadMessages: z.number(),
+  unreadMessages: z.number().int(),
   /**
    * How many others are quoting. Stated plainly so nobody assumes the job is
    * theirs.
    */
-  competingQuotes: z.number(),
+  competingQuotes: z.number().int(),
   /**
    * Decided server-side. A screen comparing `selectedProfessionalId` against a
    * hardcoded "who am I" is a bug waiting for the day that value is wrong.
@@ -278,15 +278,15 @@ export const vendorDashboardSchema = z.object({
   professional: professionalSchema,
   displayName: z.string(),
   domains: z.array(professionalDomainLinkSchema),
-  newLeads: z.number(),
-  awaitingQuote: z.number(),
-  quotesOut: z.number(),
-  wonThisPeriod: z.number(),
-  liveProjects: z.number(),
-  visitsToday: z.number(),
+  newLeads: z.number().int(),
+  awaitingQuote: z.number().int(),
+  quotesOut: z.number().int(),
+  wonThisPeriod: z.number().int(),
+  liveProjects: z.number().int(),
+  visitsToday: z.number().int(),
   commissionDue: rupeesSchema,
   commissionOverdue: rupeesSchema,
-  unreadMessages: z.number(),
+  unreadMessages: z.number().int(),
 });
 
 /** A project under an agreement, and which trade it is. */
@@ -321,10 +321,10 @@ export const vendorProjectViewSchema = z.object({
 export const domainPerformanceSchema = z.object({
   domain: domainSchema,
   rating: z.number(),
-  ratingCount: z.number(),
-  completed: z.number(),
-  won: z.number(),
-  lost: z.number(),
+  ratingCount: z.number().int(),
+  completed: z.number().int(),
+  won: z.number().int(),
+  lost: z.number().int(),
   winRatePercent: z.number(),
   commissionPercent: z.number(),
 });
@@ -370,10 +370,10 @@ export const opsLeadRowSchema = z.object({
   lastActivity: leadSalesActivitySchema.nullable(),
   followUpDate: z.string().nullable(),
   /** Services still waiting on us to assign professionals. */
-  unassignedDomains: z.number(),
+  unassignedDomains: z.number().int(),
   /** Client questions with no reply from us yet. */
-  awaitingReply: z.number(),
-  ageDays: z.number(),
+  awaitingReply: z.number().int(),
+  ageDays: z.number().int(),
 });
 
 export const relayThreadSchema = z.object({
@@ -405,7 +405,7 @@ export const vendorPoolEntrySchema = z.object({
   /** The client asked for this one by name. */
   isPreferred: z.boolean(),
   /** How many other live leads they are already quoting on. */
-  activeLoad: z.number(),
+  activeLoad: z.number().int(),
 });
 
 export const timelineKindSchema = z.enum([
@@ -441,9 +441,9 @@ export const leadProjectViewSchema = z.object({
   professionalId: idSchema,
   status: z.string(),
   completionPercent: z.number(),
-  approvedStages: z.number(),
-  totalStages: z.number(),
-  awaitingReview: z.number(),
+  approvedStages: z.number().int(),
+  totalStages: z.number().int(),
+  awaitingReview: z.number().int(),
   currentStage: z.string().nullable(),
   milestones: z.array(projectMilestoneSchema),
 });
@@ -456,28 +456,28 @@ export const commissionFocusRowSchema = z.object({
   amount: rupeesSchema,
   dueDate: z.string(),
   status: z.string(),
-  daysOverdue: z.number(),
+  daysOverdue: z.number().int(),
   domains: z.array(z.string()),
 });
 
 export const urgencyCountSchema = z.object({
   urgency: urgencySchema,
-  count: z.number(),
+  count: z.number().int(),
 });
 
 export const domainCountSchema = z.object({
   domain: domainSchema,
-  count: z.number(),
+  count: z.number().int(),
 });
 
 export const salesDashboardSchema = z.object({
   agentName: z.string(),
-  target: z.number(),
-  newLeads: z.number(),
-  needsAssignment: z.number(),
-  awaitingReply: z.number(),
-  followUpsDue: z.number(),
-  visitsToday: z.number(),
+  target: z.number().int(),
+  newLeads: z.number().int(),
+  needsAssignment: z.number().int(),
+  awaitingReply: z.number().int(),
+  followUpsDue: z.number().int(),
+  visitsToday: z.number().int(),
   byUrgency: z.array(urgencyCountSchema),
   byDomain: z.array(domainCountSchema),
 });
@@ -486,52 +486,52 @@ export const salesDashboardSchema = z.object({
 export const commissionSummarySchema = z.object({
   pending: rupeesSchema,
   overdue: rupeesSchema,
-  overdueCount: z.number(),
-  dueSoonCount: z.number(),
+  overdueCount: z.number().int(),
+  dueSoonCount: z.number().int(),
   rows: z.array(commissionFocusRowSchema),
 });
 
 export const myDayViewSchema = z.object({
   agentName: z.string(),
-  target: z.number(),
+  target: z.number().int(),
   live: z.array(opsLeadRowSchema),
   awaitingReply: z.array(opsLeadRowSchema),
   needsAssignment: z.array(opsLeadRowSchema),
   followUpsDue: z.array(opsLeadRowSchema),
   neverCalled: z.array(opsLeadRowSchema),
   stalled: z.array(opsLeadRowSchema),
-  visitsToday: z.number(),
-  visitsNeedingOutcome: z.number(),
+  visitsToday: z.number().int(),
+  visitsNeedingOutcome: z.number().int(),
   commission: commissionSummarySchema,
 });
 
 export const domainSliceSchema = z.object({
   domain: domainSchema,
-  leads: z.number(),
-  quoted: z.number(),
-  won: z.number(),
+  leads: z.number().int(),
+  quoted: z.number().int(),
+  won: z.number().int(),
   revenue: rupeesSchema,
   commission: rupeesSchema,
   avgTicket: rupeesSchema,
   conversionPercent: z.number(),
-  vendors: z.number(),
+  vendors: z.number().int(),
 });
 
 export const adminTotalsSchema = z.object({
-  leads: z.number(),
-  activeLeads: z.number(),
-  vendors: z.number(),
-  pendingVerification: z.number(),
+  leads: z.number().int(),
+  activeLeads: z.number().int(),
+  vendors: z.number().int(),
+  pendingVerification: z.number().int(),
   revenue: rupeesSchema,
   commissionBilled: rupeesSchema,
   commissionPending: rupeesSchema,
   commissionOverdue: rupeesSchema,
-  openTickets: z.number(),
+  openTickets: z.number().int(),
 });
 
 export const citySliceSchema = z.object({
   cityName: z.string(),
-  leads: z.number(),
+  leads: z.number().int(),
   revenue: rupeesSchema,
 });
 
@@ -546,8 +546,8 @@ export const vendorRowSchema = z.object({
   summary: professionalSummarySchema,
   domainLinks: z.array(professionalDomainLinkSchema),
   serviceCities: z.array(z.string()),
-  liveJobs: z.number(),
-  pendingDomainRequests: z.number(),
+  liveJobs: z.number().int(),
+  pendingDomainRequests: z.number().int(),
   totalRevenue: rupeesSchema,
   outstandingCommission: rupeesSchema,
   /** Unsigned vendors are in no lead pool, however verified they are. */
@@ -560,7 +560,7 @@ export const invoiceRowSchema = z.object({
   agreementReference: z.string(),
   domains: z.array(z.string()),
   isCombined: z.boolean(),
-  daysOverdue: z.number(),
+  daysOverdue: z.number().int(),
 });
 
 export const adminTicketRowSchema = z.object({

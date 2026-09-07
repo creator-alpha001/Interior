@@ -22,7 +22,7 @@ export const productCategorySchema = baseRecordSchema.extend({
   slug: z.string(),
   description: z.string(),
   imageUrl: z.string().nullable(),
-  sortOrder: z.number(),
+  sortOrder: z.number().int(),
   isActive: z.boolean(),
 });
 
@@ -57,7 +57,7 @@ export const productSchema = baseRecordSchema.extend({
   /** Indicative starting price. Final price always comes from the vendor quote. */
   basePrice: rupeesSchema,
   priceUnit: priceUnitSchema,
-  leadTimeDays: z.number(),
+  leadTimeDays: z.number().int(),
   isCustomisable: z.boolean(),
   /** Key/value spec sheet, e.g. { Material: "Solid sheesham", Finish: "Matte PU" } */
   specs: z.record(z.string(), z.string()),
@@ -66,7 +66,7 @@ export const productSchema = baseRecordSchema.extend({
   isFeatured: z.boolean(),
   isActive: z.boolean(),
   rating: z.number(),
-  ratingCount: z.number(),
+  ratingCount: z.number().int(),
 });
 
 /** City-wise price overrides — labour and material rates are not uniform. */
@@ -92,7 +92,7 @@ export const servicePackageSchema = baseRecordSchema.extend({
   price: rupeesSchema,
   /** What the price is anchored to, e.g. "per 2BHK", "per 1000 sq.ft". */
   priceBasis: z.string(),
-  durationDays: z.number(),
+  durationDays: z.number().int(),
   inclusions: z.array(z.string()),
   exclusions: z.array(z.string()),
   isFeatured: z.boolean(),

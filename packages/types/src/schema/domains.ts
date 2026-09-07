@@ -30,7 +30,7 @@ export const domainSchema = baseRecordSchema.extend({
   bannerUrl: z.string().nullable(),
   defaultCommissionPercent: z.number(),
   isActive: z.boolean(),
-  sortOrder: z.number(),
+  sortOrder: z.number().int(),
   /** Labels that make one reusable quote/compare UI speak each trade's language. */
   labels: domainLabelsSchema,
 });
@@ -51,8 +51,8 @@ export const professionalDomainSchema = baseRecordSchema.extend({
   commissionPercentOverride: z.number().nullable(),
   /** Ratings are held per domain: the same vendor can be 5* at painting, 4* at carpentry. */
   avgRating: z.number(),
-  ratingCount: z.number(),
-  completedProjects: z.number(),
+  ratingCount: z.number().int(),
+  completedProjects: z.number().int(),
 });
 
 /** A vendor can serve several cities and localities, not just their own. */

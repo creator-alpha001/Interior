@@ -84,7 +84,7 @@ export const quoteSchema = baseRecordSchema.extend({
   id: idSchema,
   leadDomainId: idSchema,
   professionalId: idSchema,
-  version: z.number(),
+  version: z.number().int(),
   /** Points at the quote this one supersedes. */
   supersedesQuoteId: idSchema.nullable(),
   lineItems: z.array(quoteLineItemSchema),
@@ -92,8 +92,8 @@ export const quoteSchema = baseRecordSchema.extend({
   taxPercent: z.number(),
   taxAmount: rupeesSchema,
   total: rupeesSchema,
-  timelineDays: z.number(),
-  warrantyMonths: z.number(),
+  timelineDays: z.number().int(),
+  warrantyMonths: z.number().int(),
   warrantyDetails: z.string(),
   /** Free text describing brands/grades — captioned per domain in the UI. */
   materialsSummary: z.string(),
