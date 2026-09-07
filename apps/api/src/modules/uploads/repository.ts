@@ -10,16 +10,16 @@
  * references it is submitted. Anything left unconfirmed is a ticket that was
  * never used, which the orphan sweep removes.
  */
-import { createHash, randomUUID } from "node:crypto";
+import { randomUUID } from "node:crypto";
 import { and, eq, inArray, isNull, sql } from "drizzle-orm";
 import type { UploadPurpose } from "@repo/contract";
 import { db, type Tx } from "../../db/client";
 import * as t from "../../db/schema";
-import { config } from "../../lib/config";
 import { ForbiddenError, ValidationError } from "../../lib/errors";
+import { presignPut, publicUrlFor } from "../../lib/storage";
 
 /** Limits per purpose, enforced here as well as in the browser. */
-const RULES: Record<UploadPurpose, { maxBytes: number; accept: string[] }> = {
+export const RULES: Record<UploadPurpose, { maxBytes: number; accept: string[] }> = {
   requirement_photo: { maxBytes: 10_000_000, accept: ["image/"] },
   milestone_proof: { maxBytes: 10_000_000, accept: ["image/"] },
   portfolio_item: { maxBytes: 10_000_000, accept: ["image/"] },
@@ -92,7 +92,7 @@ export async function createUploadTicket(
   });
 
   return {
-    ...(await presign(storageKey, input.contentType)),
+    ...(await presignPut(storageKey, input.contentType)),
     assetId,
     publicUrl: publicUrlFor(storageKey),
   };
@@ -107,82 +107,6 @@ function extensionFor(contentType: string): string {
     "application/pdf": ".pdf",
   };
   return known[contentType] ?? "";
-}
-
-function publicUrlFor(storageKey: string): string {
-  const base = config.R2_PUBLIC_BASE_URL;
-  return base ? `${base.replace(/\/$/, "")}/${storageKey}` : `/media/${storageKey}`;
-}
-
-/**
- * A presigned PUT for Cloudflare R2, which speaks the S3 API.
- *
- * Signed here rather than with the AWS SDK because this is the only S3
- * operation the platform performs, and SigV4 for a single PUT is forty lines
- * against a dependency that pulls in several megabytes.
- */
-async function presign(
-  storageKey: string,
-  contentType: string,
-): Promise<{ uploadUrl: string; headers: Record<string, string> }> {
-  const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET } = config;
-
-  if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET) {
-    if (config.isProduction) {
-      throw new Error("Object storage is not configured");
-    }
-    // Local development has no bucket. The ticket is still issued and the row
-    // still written, so the whole flow can be exercised; only the PUT has
-    // nowhere to go.
-    return { uploadUrl: `${config.WEB_ORIGIN}/__no_storage_configured__`, headers: {} };
-  }
-
-  const host = `${R2_ACCOUNT_ID}.r2.cloudflarestorage.com`;
-  const now = new Date();
-  const amzDate = now.toISOString().replace(/[:-]|\.\d{3}/g, "");
-  const dateStamp = amzDate.slice(0, 8);
-  const scope = `${dateStamp}/auto/s3/aws4_request`;
-  const expires = 900;
-
-  const query = new URLSearchParams({
-    "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
-    "X-Amz-Credential": `${R2_ACCESS_KEY_ID}/${scope}`,
-    "X-Amz-Date": amzDate,
-    "X-Amz-Expires": String(expires),
-    "X-Amz-SignedHeaders": "host",
-  });
-
-  const canonicalRequest = [
-    "PUT",
-    `/${R2_BUCKET}/${storageKey}`,
-    query.toString(),
-    `host:${host}\n`,
-    "host",
-    "UNSIGNED-PAYLOAD",
-  ].join("\n");
-
-  const stringToSign = [
-    "AWS4-HMAC-SHA256",
-    amzDate,
-    scope,
-    createHash("sha256").update(canonicalRequest).digest("hex"),
-  ].join("\n");
-
-  const { createHmac } = await import("node:crypto");
-  const hmac = (key: Buffer | string, data: string) =>
-    createHmac("sha256", key).update(data).digest();
-
-  const signature = hmac(
-    hmac(hmac(hmac(hmac(`AWS4${R2_SECRET_ACCESS_KEY}`, dateStamp), "auto"), "s3"), "aws4_request"),
-    stringToSign,
-  ).toString("hex");
-
-  query.set("X-Amz-Signature", signature);
-
-  return {
-    uploadUrl: `https://${host}/${R2_BUCKET}/${storageKey}?${query.toString()}`,
-    headers: { "Content-Type": contentType },
-  };
 }
 
 /**

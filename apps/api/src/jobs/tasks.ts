@@ -10,6 +10,12 @@ import { and, asc, eq, isNull, lte, ne, sql } from "drizzle-orm";
 import { db } from "../db/client";
 import * as t from "../db/schema";
 import { sendTransactional } from "../lib/sms";
+import { sendPush } from "../lib/push";
+import {
+  recordDeliveryFailure,
+  recordDeliverySuccess,
+  tokensForUsers,
+} from "../modules/auth/devices";
 
 export interface JobResult {
   handled: number;
@@ -97,8 +103,11 @@ export async function dispatchNotifications(batchSize = 50): Promise<JobResult> 
   const pending = await db
     .select({
       id: t.notifications.id,
+      userId: t.notifications.userId,
       title: t.notifications.title,
       body: t.notifications.body,
+      entityType: t.notifications.entityType,
+      entityId: t.notifications.entityId,
       mobile: t.users.mobile,
       status: t.users.status,
     })
@@ -110,22 +119,88 @@ export async function dispatchNotifications(batchSize = 50): Promise<JobResult> 
 
   if (pending.length === 0) return { handled: 0 };
 
-  let sent = 0;
+  // One query for every device in the batch rather than one per notification:
+  // fifty notifications to the same busy vendor should not be fifty lookups.
+  const devices = await tokensForUsers([...new Set(pending.map((row) => row.userId))]);
+
+  let pushed = 0;
+  let texted = 0;
 
   for (const row of pending) {
-    // A blocked account still gets the in-app record; it does not get a text.
+    const channels: string[] = [];
+    const notes: string[] = [];
+
+    // A blocked account still gets the in-app record; it does not get told.
     if (row.status === "active") {
-      const result = await sendTransactional(row.mobile, `${row.title}. ${row.body}`);
-      if (result.sent) sent += 1;
+      /*
+       * Push first, SMS second, and both are attempted.
+       *
+       * Not either/or: a push that lands on a phone in a basement with no data
+       * has not arrived, and the vendor whose lead is going stale is exactly
+       * the person who needed it. SMS costs money and push does not, so this
+       * ordering is worth revisiting per notification type — but silently
+       * dropping the text the moment a handset is registered is the kind of
+       * saving that gets noticed as a missed job rather than as a lower bill.
+       */
+      for (const device of devices.get(row.userId) ?? []) {
+        const result = await sendPush({
+          token: device.token,
+          title: row.title,
+          body: row.body,
+          // What the app's deep-link router reads. Strings only — FCM rejects
+          // the whole message for a number.
+          data: {
+            notificationId: row.id,
+            ...(row.entityType ? { entityType: row.entityType } : {}),
+            ...(row.entityId ? { entityId: row.entityId } : {}),
+          },
+        });
+
+        if (result.sent) {
+          pushed += 1;
+          if (!channels.includes("push")) channels.push("push");
+          await recordDeliverySuccess(device.token);
+        } else {
+          if (result.permanentFailure !== undefined) {
+            await recordDeliveryFailure(device.token, result.permanentFailure);
+          }
+          if (result.skippedReason) notes.push(`push: ${result.skippedReason}`);
+        }
+      }
+
+      const sms = await sendTransactional(row.mobile, `${row.title}. ${row.body}`);
+      if (sms.sent) {
+        texted += 1;
+        channels.push("sms");
+      } else if (sms.skippedReason) {
+        notes.push(`sms: ${sms.skippedReason}`);
+      }
+    } else {
+      notes.push("account is not active");
     }
 
+    /*
+     * Claimed whether or not anything went out.
+     *
+     * Retrying until something succeeds would mean one dead handset or one
+     * rejected number blocking every notification queued behind it, forever.
+     * The outcome is recorded instead, so an undelivered notification is
+     * visible in the database rather than lost.
+     */
     await db
       .update(t.notifications)
-      .set({ dispatchedAt: new Date().toISOString() })
+      .set({
+        dispatchedAt: new Date().toISOString(),
+        deliveryChannel: channels.length > 0 ? channels.join("+") : "none",
+        deliveryNote: channels.length > 0 || notes.length === 0 ? null : notes.join("; ").slice(0, 500),
+      })
       .where(eq(t.notifications.id, row.id));
   }
 
-  return { handled: pending.length, detail: `${sent} sent by SMS` };
+  return {
+    handled: pending.length,
+    detail: `${pushed} pushed, ${texted} sent by SMS`,
+  };
 }
 
 /* ------------------------------------------------------------------ *

@@ -4,7 +4,7 @@ A marketplace connecting customers to verified professionals across four trades 
 
 Two frontends and an API, sharing one type contract. The frontends run on seed data until `NEXT_PUBLIC_API_URL` is set; with it set, every surface runs on PostgreSQL.
 
-**New to this?** `CONTEXT.md` has the project's state, the decisions behind it, and what is left.
+**New to this?** `CONTEXT.md` has the project's state, the decisions behind it, and what is left. `MOBILE.md` is the plan for the Flutter app.
 
 ---
 
@@ -91,9 +91,9 @@ These shape the whole system, so they are worth reading before changing anything
 
 ## Not built yet
 
-- Background jobs: nothing marks an invoice overdue yet, and notifications are written but never sent as SMS
-- Object storage: upload tickets are issued and rows written, but no bucket is configured
-- The two mobile apps (client and professional)
+- Background jobs and notifications are built. SMS and push need a provider account each; without one they fall back to a local driver and the outcome is recorded on the row
+- Object storage falls back to local disk, so uploads work with no bucket. Production refuses that fallback unless it is chosen explicitly
+- The two mobile surfaces (customer and professional). Planned in `MOBILE.md` — one Flutter app, two role shells, admin stays on the web
 - Paging **controls** in the UI — the data layer pages, but no screen yet renders a "next page" button; today's page sizes cover the seed data
 - Ops lists (`listOpsLeads`, `listVendors`) are unpaged, because the dashboards aggregate across every row. Those aggregates need their own endpoints before those lists can page
 - A month-grid calendar for site visits

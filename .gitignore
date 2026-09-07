@@ -18,3 +18,6 @@ backups/
 # today and will hold the MSG91 key, the R2 secret and the production database
 # passwords tomorrow. It must never become a tracked file.
 CREDENTIALS.md
+
+# Local storage and the SMS outbox, written by the local delivery drivers.
+.data/

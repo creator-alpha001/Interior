@@ -22,8 +22,10 @@ catalogue, authentication, the customer account, the professional portal and the
 ops panel. Set `NEXT_PUBLIC_API_URL` on both apps and nothing reads seed data
 any more.
 
-**Authentication** — session cookie forwarded by the frontend. The backend
-derives the caller from it. Endpoints below never take a `clientId` or
+**Authentication** — a session cookie forwarded by the frontends, or
+`Authorization: Bearer <token>` from the mobile apps. **Both resolve the same
+session row**; see *Sessions on two carriers* below. The backend derives the
+caller from whichever arrived. Endpoints below never take a `clientId` or
 `professionalId` for *the caller* — only for records being addressed. This
 matters: `GET /me/requirements` must return the signed-in customer's leads, not
 whichever id the client asked for.
@@ -208,8 +210,71 @@ been removed along with its dead UI — it let somebody declare themselves done.
 | POST | `/auth/otp/request` | `{ challengeId, expiresInSeconds }` — body `{ mobile }` |
 | POST | `/auth/otp/verify` | `Actor`, and sets the session cookie — body `{ challengeId, code, name?, cityId? }` |
 | POST | `/auth/staff/login` | `Actor`, and sets the session cookie — body `{ email, password, totp? }` |
-| POST | `/auth/logout` | `{ ok }` — revokes the session |
+| POST | `/auth/logout` | `{ ok }` — revokes the session and forgets this device's push token |
 | GET | `/me` | `SessionUser` — `{ actor, name, mobile, avatarUrl }`, or 401 |
+
+### Sessions on two carriers
+
+A native client cannot sensibly hold a cookie jar — it inherits `SameSite`,
+`Secure` and domain questions that mean nothing to it, and makes "am I signed
+in" a property of the jar rather than a value the app owns and can clear. So
+both sign-in endpoints accept a header:
+
+```
+POST /auth/otp/verify
+X-Client: mobile
+  -> { role, userId, clientId, sessionToken, expiresAt }
+```
+
+and every authenticated route accepts that value back:
+
+```
+GET /me/requirements
+Authorization: Bearer <sessionToken>
+```
+
+**Nothing behind that line changes.** The token is still 32 random bytes, the
+database still stores only its SHA-256, revocation is still a single UPDATE that
+takes effect on the next request, and the row-level-security identity comes from
+the same lookup. This is a second envelope, not a second scheme — in particular
+it is **not a JWT**, because suspending a vendor has to log them out of the
+portal they are looking at rather than at the next expiry.
+
+The cookie is set either way. The token is returned *only* to a caller that
+asked, so it never ends up sitting in a browser's JavaScript.
+
+One thing this quietly fixes: the write rate limiter used to read the cookie
+directly, so mobile writes would have been keyed by IP and charged the anonymous
+allowance — behind a carrier's NAT, one allowance shared across a great many
+customers. Everything now reads the token through `sessionTokenFrom`.
+
+### The mobile apps
+
+| Method | Path | Response |
+| --- | --- | --- |
+| POST | `/me/devices` | `{ ok }` — body `{ token, platform, appVersion? }` |
+| DELETE | `/me/devices/:token` | `{ ok }` |
+| POST | `/me/account/delete` | `{ closedAt, retained[] }` — body `{ confirm: "DELETE", reason? }` |
+| GET | `/app/version` | `{ minBuild, message }` — public, cheap, called on launch |
+
+**A device token is bound to the session, not just the user.** Signing out
+removes exactly that handset rather than every device the person owns, and
+registering re-points a token that belonged to somebody else — a phone changes
+hands, and the previous owner must stop receiving leads that are no longer
+theirs. That re-point is written on the unscoped pool deliberately: under
+row-level security the existing row is invisible to the new caller, but the
+unique index on `token` still refuses the insert.
+
+**Closing an account is not erasure.** Name, mobile, email and avatar are
+cleared and the row is soft-deleted, which frees the number immediately — every
+unique index on `users` is partial on `deleted_at IS NULL`, so the same person
+signs up tomorrow as somebody new. Agreements, projects, commission invoices and
+reviews stay: they are commercial records with a second party, and a customer
+cannot unilaterally erase a vendor's contract history. A professional with live
+projects is refused with a 409 rather than detached.
+
+**`minBuild` is the only lever that exists** once a broken build is on
+somebody's phone. It is worth having before the first release, not after.
 
 Codes are six digits, valid five minutes, three attempts, and stored as an
 argon2 hash — a six-digit code is only a million possibilities, so a leaked
@@ -241,6 +306,31 @@ site photos on mobile data would otherwise hold a request open for minutes.
 
 `purpose` is one of `requirement_photo`, `milestone_proof`, `portfolio_item`,
 `vendor_document`, and decides where the file is stored and who may read it back.
+
+**Uploads work with no bucket configured.** There are two storage drivers behind
+one interface. `r2` presigns a PUT straight at Cloudflare, which is the
+arrangement worth having in production. `local` presigns a PUT at *this* API —
+`PUT /media/*`, authorised by an HMAC signature in the URL rather than by a
+session, exactly as the R2 one is — and serves the files back from `GET
+/media/*`. `STORAGE_DRIVER=auto` picks R2 when it is configured and local when
+it is not.
+
+This matters more than it sounds. Before it, an unconfigured bucket meant
+tickets were issued against a URL that returned nothing, so requirement
+photographs, stage proof, portfolio items and vendor documents could all be
+clicked through and none of them worked — and stage proof is the mobile vendor
+app's central action. In production `auto` refuses to fall back: writing
+customer photographs to a container's ephemeral disk is a data loss with no
+error and no log line, so local storage there has to be chosen explicitly, with
+a mounted volume.
+
+The `/media` routes exist only under the local driver, and are exempt from the
+write limiter — with R2 the same upload never reaches this process, and a
+vendor's allowance must not depend on which backend ops configured.
+
+**Still open:** reads are public under both drivers, which is right for
+photographs behind an unguessable uuid and wrong for `vendor_document`. Making
+that genuinely private needs signed *read* URLs on both sides.
 The frontend enforces size and type limits before requesting a ticket
 (`packages/data/src/uploads.ts`); **the backend must enforce them again** — those
 checks are a courtesy to the user, not a control.

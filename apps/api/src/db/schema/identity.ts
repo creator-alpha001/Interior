@@ -268,6 +268,19 @@ export const auditLogs = pgTable(
   ],
 );
 
+/**
+ * Where a push notification goes.
+ *
+ * One row per signed-in installation. The token belongs to the *session* as
+ * well as the user, which is what makes sign-out able to remove exactly this
+ * handset rather than every device the person owns — and what stops the next
+ * person to hold a recycled phone receiving somebody else's leads.
+ *
+ * `failureCount` and `disabledAt` are how a token that the provider keeps
+ * rejecting stops being retried forever. Firebase answers `UNREGISTERED` for an
+ * app that has been uninstalled, and without this the dispatcher would ask
+ * again every two minutes for as long as the row exists.
+ */
 export const deviceTokens = pgTable(
   "device_tokens",
   {
@@ -275,11 +288,23 @@ export const deviceTokens = pgTable(
     userId: fk("user_id")
       .notNull()
       .references(() => users.id, { onDelete: "cascade" }),
+    /** Null for rows written before sessions were tracked, and after a revoke. */
+    sessionId: uuid("session_id").references(() => sessions.id, { onDelete: "set null" }),
     token: text("token").notNull(),
     platform: devicePlatform("platform").notNull(),
+    /** The build talking to us, for reading a crash report against a version. */
+    appVersion: text("app_version"),
+    lastSeenAt: ts("last_seen_at"),
+    failureCount: integer("failure_count").notNull().default(0),
+    /** Set when the provider says the token is dead. Excluded from every send. */
+    disabledAt: ts("disabled_at"),
     ...timestamps,
   },
-  (t) => [uniqueIndex("uq_device_token").on(t.token)],
+  (t) => [
+    uniqueIndex("uq_device_token").on(t.token),
+    index("ix_device_user").on(t.userId),
+    index("ix_device_session").on(t.sessionId),
+  ],
 );
 
 export const referrals = pgTable(

@@ -25,8 +25,22 @@ export const notifications = pgTable(
     entityType: notificationEntity("entity_type"),
     entityId: fk("entity_id"),
     isRead: boolean("is_read").notNull().default(false),
-    /** Set by the dispatch job once an SMS or push has actually gone out. */
+    /**
+     * Set by the dispatch job once it has *tried*, whether or not anything
+     * went. A row is claimed exactly once either way — retrying forever is how
+     * one bad phone number stops every other notification behind it.
+     */
     dispatchedAt: ts("dispatched_at"),
+    /**
+     * What actually happened, so somebody can answer "did they hear about
+     * this?" without reading logs.
+     *
+     * `deliveryChannel` is what got through — "push", "sms", "push+sms", or
+     * "none". `deliveryNote` is why, when the answer is none: an unconfigured
+     * provider, a dead handset, a rejected number.
+     */
+    deliveryChannel: text("delivery_channel"),
+    deliveryNote: text("delivery_note"),
     ...timestamps,
   },
   (t) => [

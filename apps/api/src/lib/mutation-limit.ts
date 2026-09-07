@@ -14,7 +14,7 @@
  */
 import { createHash } from "node:crypto";
 import type { FastifyReply, FastifyRequest } from "fastify";
-import { SESSION_COOKIE } from "../modules/auth/sessions";
+import { sessionTokenFrom } from "../modules/auth/sessions";
 import { consume, type Limit } from "./rate-limit";
 
 /**
@@ -39,7 +39,22 @@ const ANONYMOUS: Limit = { max: 40, windowSeconds: 300 };
  * Consuming two allowances for one request would make the tighter limit
  * unreachable — the broad one would refuse first, with the wrong message.
  */
-const HAS_ITS_OWN_LIMIT = ["/auth/", "/uploads/"];
+const HAS_ITS_OWN_LIMIT = [
+  "/auth/",
+  "/uploads/",
+  /*
+   * The media PUT is authorised by the signature in its own URL, and the ticket
+   * that produced that signature was already rate-limited when it was issued.
+   *
+   * More to the point, this route only exists under the local storage driver:
+   * with R2 configured the same upload goes straight to Cloudflare and never
+   * reaches this process at all. Charging it here would mean a vendor's write
+   * allowance depended on which storage backend ops happened to configure, and
+   * a stage submitted with eight photographs would spend nine writes on one
+   * driver and one on the other.
+   */
+  "/media/",
+];
 
 /** Writes only. A read costs the database far less and has no side effect. */
 const READ_ONLY = new Set(["GET", "HEAD", "OPTIONS"]);
@@ -51,8 +66,7 @@ const READ_ONLY = new Set(["GET", "HEAD", "OPTIONS"]);
  * table that gets read during incidents, and a table of live session tokens is
  * not something to leave lying in one.
  */
-function keyFor(request: FastifyRequest): string {
-  const token = request.cookies?.[SESSION_COOKIE];
+function keyFor(token: string | undefined, request: FastifyRequest): string {
   if (token) {
     return `write:session:${createHash("sha256").update(token).digest("hex").slice(0, 32)}`;
   }
@@ -63,6 +77,16 @@ export async function limitMutations(request: FastifyRequest, _reply: FastifyRep
   if (READ_ONLY.has(request.method)) return;
   if (HAS_ITS_OWN_LIMIT.some((prefix) => request.url.startsWith(prefix))) return;
 
-  const signedIn = Boolean(request.cookies?.[SESSION_COOKIE]);
-  await consume(keyFor(request), signedIn ? SIGNED_IN : ANONYMOUS);
+  /*
+   * Read through `sessionTokenFrom`, not the cookie.
+   *
+   * A mobile client carries its session in an `Authorization` header, so
+   * reading only the cookie would key every one of its writes by IP — and treat
+   * it as anonymous, on the 40-per-five-minutes allowance rather than 300.
+   * Behind a mobile carrier's NAT that is one shared allowance for a great many
+   * customers, which would surface as sporadic 429s that nobody could
+   * reproduce on a laptop.
+   */
+  const token = sessionTokenFrom(request);
+  await consume(keyFor(token, request), token ? SIGNED_IN : ANONYMOUS);
 }

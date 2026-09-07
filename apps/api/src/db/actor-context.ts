@@ -30,7 +30,7 @@ import { AsyncLocalStorage } from "node:async_hooks";
 import { drizzle } from "drizzle-orm/postgres-js";
 import { config } from "../lib/config";
 import * as schema from "./schema";
-import { registerScopeResolver, sql as pool, type Database } from "./client";
+import { RESERVED_CONNECTION, registerScopeResolver, sql as pool, type Database } from "./client";
 
 /** Who the current request belongs to, as the database needs to see it. */
 export interface DatabaseActor {
@@ -87,8 +87,23 @@ export async function openScope(actor: DatabaseActor): Promise<ActorScope> {
     Object.defineProperty(reserved, "options", { value: pool.options, configurable: true });
   }
 
+  const database = drizzle(reserved, {
+    schema,
+    logger: config.LOG_LEVEL === "trace",
+  }) as Database;
+
+  /**
+   * Tells `transaction` that this handle is one connection rather than a pool.
+   *
+   * A reservation has no `begin` — that lives on the pool object and is not
+   * carried onto one — so drizzle's own transaction cannot work here and BEGIN
+   * has to be issued by hand. Which is only safe *because* it is a single
+   * connection, hence the marker rather than a guess.
+   */
+  Object.defineProperty(database, RESERVED_CONNECTION, { value: true });
+
   return {
-    database: drizzle(reserved, { schema, logger: config.LOG_LEVEL === "trace" }) as Database,
+    database,
     release: async () => {
       try {
         await reserved`SELECT

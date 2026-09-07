@@ -9,10 +9,13 @@
 import type { FastifyRequest } from "fastify";
 import type { Actor } from "@repo/types";
 import { ForbiddenError, NotAuthenticatedError } from "./errors";
-import { SESSION_COOKIE, resolveSession } from "../modules/auth/sessions";
+import { resolveSession, sessionTokenFrom } from "../modules/auth/sessions";
 
 export async function currentActor(request: FastifyRequest): Promise<Actor | null> {
-  const session = await resolveSession(request.cookies[SESSION_COOKIE]);
+  // One place reads the token, so the mobile apps' bearer header reaches the
+  // route guards, the row-level-security scope hook and the audit trail without
+  // any of them knowing there are two carriers.
+  const session = await resolveSession(sessionTokenFrom(request));
   return session?.actor ?? null;
 }
 

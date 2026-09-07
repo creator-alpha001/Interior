@@ -7,7 +7,7 @@
  * key becomes a URL.
  */
 import type { MediaAsset } from "@repo/types";
-import { config } from "./config";
+import { publicUrlFor } from "./storage";
 
 export interface MediaRow {
   id: string;
@@ -22,19 +22,11 @@ export interface MediaRow {
 /**
  * Where a stored file is readable from.
  *
- * `ph:` keys are placeholder tokens, not files — the seed data uses them and the
- * `Media` component renders them as designed tiles rather than fetching
- * anything. They pass through untouched so the demo keeps its imagery; real
- * keys are resolved against the bucket's public base.
+ * One line now, because the driver knows: R2's public base when there is a
+ * bucket, this API's own `/media` route when files are on local disk. `ph:`
+ * placeholder tokens pass through either way.
  */
-export function toPublicUrl(storageKey: string): string {
-  if (storageKey.startsWith("ph:") || storageKey.startsWith("http")) return storageKey;
-
-  const base = config.R2_PUBLIC_BASE_URL;
-  if (!base) return storageKey;
-
-  return `${base.replace(/\/$/, "")}/${storageKey.replace(/^\//, "")}`;
-}
+export const toPublicUrl = publicUrlFor;
 
 export function toMediaAsset(row: MediaRow): MediaAsset {
   return {

@@ -14,10 +14,12 @@ import { HttpError, translateDatabaseError } from "./lib/errors";
 import { registerAuthRoutes } from "./routes/auth";
 import { registerCustomerRoutes } from "./routes/customer";
 import { registerHealthRoutes } from "./routes/health";
+import { registerMediaRoutes } from "./routes/media";
 import { registerOpsRoutes } from "./routes/ops";
 import { registerPublicRoutes } from "./routes/public";
 import { registerVendorRoutes } from "./routes/vendor";
 import { limitMutations } from "./lib/mutation-limit";
+import { prepareStorage, storageDescription } from "./lib/storage";
 import { reportError, startObservability } from "./lib/observability";
 // Imported for its side effect as well as its hooks: loading it is what makes
 // `db` resolve to a request's own connection.
@@ -29,6 +31,9 @@ import {
 
 export async function buildApp(): Promise<FastifyInstance> {
   startObservability();
+  // Creating the media directory here rather than on the first upload: a
+  // permissions problem should surface at boot, not on a vendor's stage proof.
+  await prepareStorage();
 
   const app = Fastify({
     logger: {
@@ -181,7 +186,21 @@ export async function buildApp(): Promise<FastifyInstance> {
   app.addHook("preHandler", enterActorScope);
   app.addHook("onResponse", releaseActorScope);
 
+  /**
+   * What this process is actually configured to do.
+   *
+   * Each of these has a working path with no third-party account, so "it works
+   * on my machine" and "it works in production" can differ silently. One line
+   * at boot is what makes that visible.
+   */
+  app.log.info(
+    { storage: storageDescription(), sms: config.smsDriver, push: config.pushDriver },
+    "delivery drivers",
+  );
+  for (const warning of config.warnings) app.log.warn(warning);
+
   await app.register(registerHealthRoutes);
+  await app.register(registerMediaRoutes);
   await app.register(registerAuthRoutes);
   await app.register(registerPublicRoutes);
   await app.register(registerCustomerRoutes);

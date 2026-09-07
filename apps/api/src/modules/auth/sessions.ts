@@ -8,6 +8,7 @@
  */
 import { createHash, randomBytes } from "node:crypto";
 import { and, eq, gt, isNull, sql } from "drizzle-orm";
+import type { FastifyRequest } from "fastify";
 import type { Actor, SessionUser } from "@repo/types";
 import { db } from "../../db/client";
 import * as t from "../../db/schema";
@@ -15,6 +16,54 @@ import { config } from "../../lib/config";
 
 /** The cookie name, shared with the frontends' session resolver. */
 export const SESSION_COOKIE = "aangan_session";
+
+/**
+ * Where the session token comes from.
+ *
+ * Two carriers, one session. The web frontends send a cookie, because they are
+ * browsers. The mobile apps send `Authorization: Bearer`, because they are not
+ * — and a native client holding a cookie jar inherits SameSite, Secure and
+ * domain questions that mean nothing to it, while making "am I signed in" a
+ * property of the jar rather than a value the app owns and can clear.
+ *
+ * What deliberately does **not** change is everything behind this line. The
+ * token is still 32 random bytes, the database still holds only its SHA-256,
+ * revocation is still a single UPDATE that takes effect on the next request,
+ * and the row-level-security identity is still derived from the same lookup.
+ * This is a second envelope, not a second scheme — in particular it is not a
+ * JWT, because suspending a vendor has to log them out of the portal they are
+ * looking at rather than at the next expiry.
+ *
+ * The header wins when both are present, which only happens in a test.
+ */
+export function sessionTokenFrom(request: FastifyRequest): string | undefined {
+  const header = request.headers.authorization;
+
+  if (header) {
+    const [scheme, ...rest] = header.split(" ");
+    if (scheme?.toLowerCase() === "bearer") {
+      const token = rest.join(" ").trim();
+      if (token) return token;
+    }
+  }
+
+  return request.cookies?.[SESSION_COOKIE];
+}
+
+/**
+ * Whether this caller wants the token in the response body.
+ *
+ * A cookie is still set either way — it costs nothing and keeps the web
+ * frontends working unchanged — but a client that asks gets the value it needs
+ * to put in a header next time. Asking is explicit so the token is never
+ * returned to a browser that did not want it and would only leave it lying in
+ * a JavaScript variable.
+ */
+export function wantsTokenInBody(request: FastifyRequest): boolean {
+  const client = request.headers["x-client"];
+  const value = Array.isArray(client) ? client[0] : client;
+  return value?.toLowerCase() === "mobile";
+}
 
 const SESSION_DAYS = 30;
 
