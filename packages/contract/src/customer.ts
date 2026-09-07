@@ -6,7 +6,24 @@
  * reach another customer's requirements by changing a parameter.
  */
 import { z } from "zod";
+import {
+  agreementSchema as agreementRecordSchema,
+  agreementViewSchema,
+  leadViewSchema,
+  meetingSchema as meetingRecordSchema,
+  messageSchema as messageRecordSchema,
+  notificationSchema,
+  projectViewSchema,
+  reviewSchema as reviewRecordSchema,
+  supportTicketSchema,
+  ticketReplySchema,
+} from "@repo/types/schema";
 import { idSchema, longText, mediaIdSchema, rupeesSchema, shortText } from "./common";
+import {
+  countSchema,
+  referralSummarySchema,
+  uploadTicketSchema as uploadTicketResponseSchema,
+} from "./responses";
 import { route } from "./http";
 
 /* ---------------- uploads ---------------- */
@@ -105,6 +122,7 @@ export const customerRoutes = {
     audience: "public",
     body: uploadTicketSchema,
     summary: "A short-lived URL to PUT one file straight at storage",
+    response: uploadTicketResponseSchema,
   }),
 
   listRequirements: route({
@@ -112,18 +130,22 @@ export const customerRoutes = {
     path: "/me/requirements",
     audience: "client",
     query: z.object({}),
+    response: z.array(leadViewSchema),
   }),
   getRequirement: route({
     method: "GET",
     path: "/me/requirements/:id",
     audience: "client",
     params: idParam,
+    response: leadViewSchema,
   }),
   createRequirement: route({
     method: "POST",
     path: "/me/requirements",
     audience: "client",
     body: requirementSchema,
+    response: leadViewSchema,
+    successStatus: 201,
   }),
 
   listServiceMessages: route({
@@ -131,6 +153,7 @@ export const customerRoutes = {
     path: "/me/services/:id/messages",
     audience: "client",
     params: idParam,
+    response: z.array(messageRecordSchema),
   }),
   sendServiceMessage: route({
     method: "POST",
@@ -138,6 +161,8 @@ export const customerRoutes = {
     audience: "client",
     params: idParam,
     body: messageSchema,
+    response: messageRecordSchema,
+    successStatus: 201,
   }),
   selectQuote: route({
     method: "POST",
@@ -145,6 +170,7 @@ export const customerRoutes = {
     audience: "client",
     params: idParam,
     body: z.object({ quoteId: idSchema }),
+    response: leadViewSchema,
   }),
 
   listAgreements: route({
@@ -152,6 +178,7 @@ export const customerRoutes = {
     path: "/me/agreements",
     audience: "client",
     query: z.object({}),
+    response: z.array(agreementViewSchema),
   }),
   generateAgreements: route({
     method: "POST",
@@ -159,6 +186,7 @@ export const customerRoutes = {
     audience: "client",
     params: idParam,
     body: z.object({}),
+    response: z.array(agreementViewSchema),
   }),
   signAgreement: route({
     method: "POST",
@@ -166,6 +194,7 @@ export const customerRoutes = {
     audience: "client",
     params: idParam,
     body: z.object({}),
+    response: agreementRecordSchema,
   }),
 
   listProjects: route({
@@ -173,12 +202,15 @@ export const customerRoutes = {
     path: "/me/projects",
     audience: "client",
     query: z.object({}),
+    response: z.array(projectViewSchema),
   }),
   submitReview: route({
     method: "POST",
     path: "/me/reviews",
     audience: "client",
     body: reviewSchema,
+    response: reviewRecordSchema,
+    successStatus: 201,
   }),
   requestReschedule: route({
     method: "POST",
@@ -186,6 +218,7 @@ export const customerRoutes = {
     audience: "client",
     params: idParam,
     body: rescheduleSchema,
+    response: meetingRecordSchema,
   }),
 
   listNotifications: route({
@@ -193,12 +226,14 @@ export const customerRoutes = {
     path: "/me/notifications",
     audience: "client",
     query: z.object({}),
+    response: z.array(notificationSchema),
   }),
   markNotificationsRead: route({
     method: "POST",
     path: "/me/notifications/read",
     audience: "client",
     body: z.object({}),
+    response: countSchema,
   }),
 
   listTickets: route({
@@ -206,12 +241,15 @@ export const customerRoutes = {
     path: "/me/tickets",
     audience: "client",
     query: z.object({}),
+    response: z.array(supportTicketSchema),
   }),
   createTicket: route({
     method: "POST",
     path: "/me/tickets",
     audience: "client",
     body: ticketSchema,
+    response: supportTicketSchema,
+    successStatus: 201,
   }),
   replyToTicket: route({
     method: "POST",
@@ -219,6 +257,8 @@ export const customerRoutes = {
     audience: "client",
     params: idParam,
     body: messageSchema,
+    response: ticketReplySchema,
+    successStatus: 201,
   }),
 
   referrals: route({
@@ -226,5 +266,6 @@ export const customerRoutes = {
     path: "/me/referrals",
     audience: "client",
     query: z.object({}),
+    response: referralSummarySchema,
   }),
 } as const;

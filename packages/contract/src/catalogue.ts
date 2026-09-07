@@ -6,7 +6,29 @@
  * frontend sends today. Changing one changes a live caller.
  */
 import { z } from "zod";
+import {
+  bannerSchema,
+  blogCategorySchema,
+  blogPostViewSchema,
+  blogTagSchema,
+  citySchema,
+  domainSchema,
+  packageViewSchema,
+  portfolioItemSchema,
+  productCategorySchema,
+  productViewSchema,
+  professionalProfileSchema,
+  professionalSummarySchema,
+  searchResultsSchema,
+  testimonialSchema,
+} from "@repo/types/schema";
 import { boolQuerySchema, csvSchema, paginationSchema, slugSchema } from "./common";
+import {
+  catalogueCountSchema,
+  paginatedSchema,
+  platformStatsSchema,
+  searchSuggestionSchema,
+} from "./responses";
 import { route } from "./http";
 
 export const productQuerySchema = paginationSchema.extend({
@@ -43,6 +65,7 @@ export const catalogueRoutes = {
     audience: "public",
     query: z.object({}),
     tags: ["domains"],
+    response: z.array(domainSchema),
   }),
   getDomain: route({
     method: "GET",
@@ -50,6 +73,7 @@ export const catalogueRoutes = {
     audience: "public",
     params: slugParam,
     tags: ["domains"],
+    response: domainSchema,
   }),
   listCities: route({
     method: "GET",
@@ -57,6 +81,7 @@ export const catalogueRoutes = {
     audience: "public",
     query: z.object({}),
     tags: ["cities"],
+    response: z.array(citySchema),
   }),
 
   listProducts: route({
@@ -65,6 +90,7 @@ export const catalogueRoutes = {
     audience: "public",
     query: productQuerySchema,
     tags: ["products"],
+    response: paginatedSchema(productViewSchema),
   }),
   getProduct: route({
     method: "GET",
@@ -73,6 +99,7 @@ export const catalogueRoutes = {
     params: slugParam,
     query: z.object({ city: z.string().uuid().optional() }),
     tags: ["products"],
+    response: productViewSchema,
   }),
   listRelatedProducts: route({
     method: "GET",
@@ -84,6 +111,7 @@ export const catalogueRoutes = {
       limit: z.coerce.number().int().min(1).max(24).default(4),
     }),
     tags: ["products"],
+    response: z.array(productViewSchema),
   }),
   listCategories: route({
     method: "GET",
@@ -91,6 +119,7 @@ export const catalogueRoutes = {
     audience: "public",
     query: z.object({ domain: slugSchema.optional() }),
     tags: ["categories"],
+    response: z.array(productCategorySchema),
   }),
 
   listPackages: route({
@@ -103,6 +132,7 @@ export const catalogueRoutes = {
       limit: z.coerce.number().int().min(1).max(50).optional(),
     }),
     tags: ["packages"],
+    response: z.array(packageViewSchema),
   }),
   getPackage: route({
     method: "GET",
@@ -110,6 +140,7 @@ export const catalogueRoutes = {
     audience: "public",
     params: slugParam,
     tags: ["packages"],
+    response: packageViewSchema,
   }),
   catalogueCounts: route({
     method: "GET",
@@ -117,6 +148,7 @@ export const catalogueRoutes = {
     audience: "public",
     query: z.object({}),
     tags: ["products", "packages"],
+    response: z.array(catalogueCountSchema),
   }),
 
   listProfessionals: route({
@@ -125,6 +157,7 @@ export const catalogueRoutes = {
     audience: "public",
     query: professionalQuerySchema,
     tags: ["professionals"],
+    response: paginatedSchema(professionalSummarySchema),
   }),
   getProfessional: route({
     method: "GET",
@@ -132,6 +165,7 @@ export const catalogueRoutes = {
     audience: "public",
     params: idParam,
     tags: ["professionals"],
+    response: professionalProfileSchema,
   }),
   listPortfolio: route({
     method: "GET",
@@ -142,6 +176,7 @@ export const catalogueRoutes = {
       limit: z.coerce.number().int().min(1).max(100).optional(),
     }),
     tags: ["portfolio"],
+    response: z.array(portfolioItemSchema),
   }),
   platformStats: route({
     method: "GET",
@@ -149,6 +184,7 @@ export const catalogueRoutes = {
     audience: "public",
     query: z.object({}),
     tags: ["stats"],
+    response: platformStatsSchema,
   }),
 
   listPosts: route({
@@ -157,6 +193,7 @@ export const catalogueRoutes = {
     audience: "public",
     query: postQuerySchema,
     tags: ["posts"],
+    response: paginatedSchema(blogPostViewSchema),
   }),
   getPost: route({
     method: "GET",
@@ -164,6 +201,7 @@ export const catalogueRoutes = {
     audience: "public",
     params: slugParam,
     tags: ["posts"],
+    response: blogPostViewSchema,
   }),
   listRelatedPosts: route({
     method: "GET",
@@ -172,6 +210,7 @@ export const catalogueRoutes = {
     params: idParam,
     query: z.object({ limit: z.coerce.number().int().min(1).max(12).default(3) }),
     tags: ["posts"],
+    response: z.array(blogPostViewSchema),
   }),
   listPostCategories: route({
     method: "GET",
@@ -179,6 +218,7 @@ export const catalogueRoutes = {
     audience: "public",
     query: z.object({}),
     tags: ["posts"],
+    response: z.array(blogCategorySchema),
   }),
   listPostTags: route({
     method: "GET",
@@ -186,6 +226,7 @@ export const catalogueRoutes = {
     audience: "public",
     query: z.object({}),
     tags: ["posts"],
+    response: z.array(blogTagSchema),
   }),
 
   listBanners: route({
@@ -194,6 +235,7 @@ export const catalogueRoutes = {
     audience: "public",
     query: z.object({}),
     tags: ["banners"],
+    response: z.array(bannerSchema),
   }),
   listTestimonials: route({
     method: "GET",
@@ -201,6 +243,7 @@ export const catalogueRoutes = {
     audience: "public",
     query: z.object({}),
     tags: ["testimonials"],
+    response: z.array(testimonialSchema),
   }),
 
   search: route({
@@ -211,11 +254,13 @@ export const catalogueRoutes = {
       q: z.string().trim().max(120),
       city: z.string().uuid().optional(),
     }),
+    response: searchResultsSchema,
   }),
   searchSuggest: route({
     method: "GET",
     path: "/search/suggest",
     audience: "public",
     query: z.object({ q: z.string().trim().max(120) }),
+    response: z.array(searchSuggestionSchema),
   }),
 } as const;

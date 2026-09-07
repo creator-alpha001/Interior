@@ -20,7 +20,7 @@ export interface RouteDefinition<
   Params extends z.ZodTypeAny = z.ZodTypeAny,
   Query extends z.ZodTypeAny = z.ZodTypeAny,
   Body extends z.ZodTypeAny = z.ZodTypeAny,
-  Response = unknown,
+  Response extends z.ZodTypeAny = z.ZodTypeAny,
 > {
   method: Method;
   /** Fastify-style, e.g. "/products/:slug". Params are filled by `pathFor`. */
@@ -29,8 +29,25 @@ export interface RouteDefinition<
   params?: Params;
   query?: Query;
   body?: Body;
-  /** Present only as a type. Responses are `@repo/types` view models. */
-  response?: () => Response;
+  /**
+   * What a successful call returns.
+   *
+   * This used to be `() => Response` — a phantom field carrying a type and no
+   * value, which meant nothing could validate a response, document it, or
+   * generate a client from it. It is now a real schema, built from
+   * `@repo/types/schema`, and it is the source three surfaces read:
+   *
+   *   - the OpenAPI document this manifest emits
+   *   - the Dart models the mobile app generates from that document
+   *   - `apps/api/src/routes/conformance.ts`, which fails the build if a
+   *     handler stops returning what its route claims
+   *
+   * Optional because the ops surface is still being backfilled; the mobile
+   * surface is covered, and a test asserts it stays covered.
+   */
+  response?: Response;
+  /** Success status, when it is not 200. Creates generally answer 201. */
+  successStatus?: number;
   /**
    * Next.js cache tags for this read, so a mutation can invalidate exactly what
    * it changed rather than the whole route.
@@ -44,7 +61,7 @@ export function route<
   Params extends z.ZodTypeAny,
   Query extends z.ZodTypeAny,
   Body extends z.ZodTypeAny,
-  Response,
+  Response extends z.ZodTypeAny,
 >(def: RouteDefinition<Params, Query, Body, Response>): RouteDefinition<Params, Query, Body, Response> {
   return def;
 }

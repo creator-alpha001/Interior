@@ -6,6 +6,20 @@
  * number or email; see `MaskedClientSummary` in `@repo/types`.
  */
 import { z } from "zod";
+import {
+  messageSchema as messageRecordSchema,
+  partnerAgreementSchema,
+  portfolioItemSchema,
+  quoteSchema,
+  vendorAgreementViewSchema,
+  vendorDashboardSchema,
+  vendorInvoiceViewSchema,
+  vendorLeadCardSchema,
+  vendorPerformanceSchema,
+  vendorProjectViewSchema,
+  vendorOnboardingSchema,
+  vendorVisitViewSchema,
+} from "@repo/types/schema";
 import { idSchema, mediaIdSchema, rupeesSchema, shortText } from "./common";
 import { messageSchema } from "./customer";
 import { route } from "./http";
@@ -58,12 +72,14 @@ export const vendorRoutes = {
     path: "/vendor/leads",
     audience: "professional",
     query: z.object({ filter: leadFilterSchema }),
+    response: z.array(vendorLeadCardSchema),
   }),
   vendorLead: route({
     method: "GET",
     path: "/vendor/leads/:id",
     audience: "professional",
     params: idParam,
+    response: vendorLeadCardSchema,
   }),
   respondToLead: route({
     method: "POST",
@@ -71,6 +87,7 @@ export const vendorRoutes = {
     audience: "professional",
     params: idParam,
     body: respondSchema,
+    response: vendorLeadCardSchema,
   }),
   submitQuote: route({
     method: "POST",
@@ -78,12 +95,15 @@ export const vendorRoutes = {
     audience: "professional",
     params: idParam,
     body: quoteDraftSchema,
+    response: quoteSchema,
+    successStatus: 201,
   }),
   vendorThread: route({
     method: "GET",
     path: "/vendor/leads/:id/messages",
     audience: "professional",
     params: idParam,
+    response: z.array(messageRecordSchema),
   }),
   sendVendorMessage: route({
     method: "POST",
@@ -91,6 +111,8 @@ export const vendorRoutes = {
     audience: "professional",
     params: idParam,
     body: messageSchema,
+    response: messageRecordSchema,
+    successStatus: 201,
   }),
 
   vendorDashboard: route({
@@ -98,18 +120,21 @@ export const vendorRoutes = {
     path: "/vendor/dashboard",
     audience: "professional",
     query: z.object({}),
+    response: vendorDashboardSchema,
   }),
   vendorAgreements: route({
     method: "GET",
     path: "/vendor/agreements",
     audience: "professional",
     query: z.object({}),
+    response: z.array(vendorAgreementViewSchema),
   }),
   vendorProjects: route({
     method: "GET",
     path: "/vendor/projects",
     audience: "professional",
     query: z.object({}),
+    response: z.array(vendorProjectViewSchema),
   }),
   submitMilestoneProof: route({
     method: "POST",
@@ -117,30 +142,35 @@ export const vendorRoutes = {
     audience: "professional",
     params: z.object({ id: idSchema, stageId: idSchema }),
     body: milestoneProofSchema,
+    response: z.array(vendorProjectViewSchema),
   }),
   vendorInvoices: route({
     method: "GET",
     path: "/vendor/invoices",
     audience: "professional",
     query: z.object({}),
+    response: z.array(vendorInvoiceViewSchema),
   }),
   vendorVisits: route({
     method: "GET",
     path: "/vendor/visits",
     audience: "professional",
     query: z.object({}),
+    response: z.array(vendorVisitViewSchema),
   }),
   vendorPerformance: route({
     method: "GET",
     path: "/vendor/performance",
     audience: "professional",
     query: z.object({}),
+    response: vendorPerformanceSchema,
   }),
   vendorPortfolio: route({
     method: "GET",
     path: "/vendor/portfolio",
     audience: "professional",
     query: z.object({}),
+    response: z.array(portfolioItemSchema),
   }),
 
   vendorOnboarding: route({
@@ -148,11 +178,14 @@ export const vendorRoutes = {
     path: "/vendor/onboarding",
     audience: "professional",
     query: z.object({}),
+    response: vendorOnboardingSchema,
   }),
   signPartnerAgreement: route({
     method: "POST",
     path: "/vendor/onboarding/agreement",
     audience: "professional",
     body: signPartnerAgreementSchema,
+    response: partnerAgreementSchema,
+    successStatus: 201,
   }),
 } as const;

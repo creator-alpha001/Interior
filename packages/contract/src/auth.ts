@@ -8,6 +8,14 @@
  */
 import { z } from "zod";
 import { mobileSchema } from "./common";
+import { sessionUserSchema } from "@repo/types/schema";
+import {
+  accountClosureSchema,
+  appVersionSchema,
+  authSessionSchema,
+  okSchema,
+  otpChallengeSchema,
+} from "./responses";
 import { route } from "./http";
 
 export const otpRequestSchema = z.object({
@@ -41,6 +49,39 @@ export const setPasswordSchema = z.object({
   password: z.string().min(12).max(200),
 });
 
+/* ---------------- the mobile apps ---------------- */
+
+/**
+ * Registering a handset for push.
+ *
+ * `token` is whatever the push provider issued for this installation. It is
+ * bound to the current session as well as the user, so signing out removes
+ * exactly this device — a recycled handset receiving the previous owner's
+ * leads is the failure that matters here.
+ */
+export const deviceRegistrationSchema = z.object({
+  token: z.string().trim().min(16).max(4096),
+  platform: z.enum(["android", "ios", "web"]),
+  /** The build talking to us, for reading a crash report against a version. */
+  appVersion: z.string().trim().max(40).optional(),
+});
+
+export const deviceTokenParam = z.object({
+  token: z.string().trim().min(16).max(4096),
+});
+
+/**
+ * Deleting an account.
+ *
+ * The typed confirmation is not ceremony: this is irreversible, it is reachable
+ * from a settings screen on a phone, and both app stores require it to exist.
+ * Requiring the word means a mis-tap cannot do it.
+ */
+export const accountDeletionSchema = z.object({
+  confirm: z.literal("DELETE"),
+  reason: z.string().trim().max(500).optional(),
+});
+
 export const authRoutes = {
   requestOtp: route({
     method: "POST",
@@ -48,6 +89,7 @@ export const authRoutes = {
     audience: "public",
     body: otpRequestSchema,
     summary: "Send a six-digit code to a mobile number",
+    response: otpChallengeSchema,
   }),
   verifyOtp: route({
     method: "POST",
@@ -55,6 +97,7 @@ export const authRoutes = {
     audience: "public",
     body: otpVerifySchema,
     summary: "Exchange a code for a session cookie, creating the account if new",
+    response: authSessionSchema,
   }),
   staffLogin: route({
     method: "POST",
@@ -62,6 +105,7 @@ export const authRoutes = {
     audience: "public",
     body: staffLoginSchema,
     summary: "Password and TOTP sign-in for ops and admin",
+    response: authSessionSchema,
   }),
   logout: route({
     method: "POST",
@@ -69,6 +113,7 @@ export const authRoutes = {
     audience: "public",
     body: z.object({}),
     summary: "Revoke the current session",
+    response: okSchema,
   }),
   me: route({
     method: "GET",
@@ -76,5 +121,48 @@ export const authRoutes = {
     audience: "public",
     query: z.object({}),
     summary: "The signed-in actor, or 401",
+    response: sessionUserSchema,
+  }),
+
+  registerDevice: route({
+    method: "POST",
+    path: "/me/devices",
+    audience: "public",
+    body: deviceRegistrationSchema,
+    summary: "Register this handset for push, against the current session",
+    response: okSchema,
+  }),
+  forgetDevice: route({
+    method: "DELETE",
+    path: "/me/devices/:token",
+    audience: "public",
+    params: deviceTokenParam,
+    summary: "Stop pushing to this handset",
+    response: okSchema,
+  }),
+
+  deleteAccount: route({
+    method: "POST",
+    path: "/me/account/delete",
+    audience: "public",
+    body: accountDeletionSchema,
+    summary: "Close the account and revoke every session",
+    response: accountClosureSchema,
+  }),
+
+  /**
+   * What the client needs to know before it does anything else.
+   *
+   * Unauthenticated and cheap, so a phone can ask on launch. It exists for one
+   * reason: once a broken build is on somebody's phone, raising the minimum is
+   * the only lever there is.
+   */
+  appVersion: route({
+    method: "GET",
+    path: "/app/version",
+    audience: "public",
+    query: z.object({}),
+    summary: "Minimum supported build, and where to get a newer one",
+    response: appVersionSchema,
   }),
 } as const;
