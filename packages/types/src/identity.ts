@@ -1,109 +1,56 @@
-import type { BaseRecord, ID, Rupees } from "./common";
+/**
+ * Identity: who is on the platform, and who is calling.
+ *
+ * Every shape here is inferred from `./schema/identity`. The import is
+ * `import type`, so zod is erased at build time.
+ */
+import type { z } from "zod";
+import type {
+  actorSchema,
+  adminRoleSchema,
+  adminUserSchema,
+  auditLogSchema,
+  clientSchema,
+  deviceTokenSchema,
+  permissionKeySchema,
+  professionalSchema,
+  referralSchema,
+  salesAgentSchema,
+  sessionUserSchema,
+  userRoleSchema,
+  userSchema,
+  userStatusSchema,
+  verificationStatusSchema,
+} from "./schema/identity";
 
-export type UserRole = "client" | "professional" | "sales_agent" | "admin";
-export type UserStatus = "active" | "inactive" | "blocked";
+export type UserRole = z.infer<typeof userRoleSchema>;
+export type UserStatus = z.infer<typeof userStatusSchema>;
 
 /** One row per person on the platform, whatever their role. */
-export interface User extends BaseRecord {
-  id: ID;
-  name: string;
-  mobile: string;
-  email: string | null;
-  role: UserRole;
-  cityId: ID;
-  status: UserStatus;
-  avatarUrl: string | null;
-}
+export type User = z.infer<typeof userSchema>;
 
-export interface Client extends BaseRecord {
-  id: ID;
-  userId: ID;
-  address: string | null;
-  referralCode: string;
-  referredByUserId: ID | null;
-}
+export type Client = z.infer<typeof clientSchema>;
 
-export type VerificationStatus =
-  | "pending"
-  | "verified"
-  | "suspended"
-  | "blacklisted";
+export type VerificationStatus = z.infer<typeof verificationStatusSchema>;
 
-export interface Professional extends BaseRecord {
-  id: ID;
-  userId: ID;
-  companyName: string;
-  gstNumber: string | null;
-  experienceYears: number;
-  bio: string;
-  /** Cached across all domains; per-domain ratings live on ProfessionalDomain. */
-  avgRating: number;
-  ratingCount: number;
-  completedProjects: number;
-  languages: string[];
-  verificationStatus: VerificationStatus;
-  /** Median hours to respond to a new lead. Surfaced on the Performance screen. */
-  avgResponseHours: number;
-}
+export type Professional = z.infer<typeof professionalSchema>;
 
-export interface SalesAgent extends BaseRecord {
-  id: ID;
-  userId: ID;
-  assignedCityIds: ID[];
-  dailyTarget: number;
-}
+export type SalesAgent = z.infer<typeof salesAgentSchema>;
 
 /* ---- Admin access control ---- */
 
-export type PermissionKey =
-  | "leads.view" | "leads.manage"
-  | "vendors.view" | "vendors.verify"
-  | "agreements.view" | "agreements.manage"
-  | "commission.view" | "commission.manage"
-  | "catalog.manage"
-  | "blog.manage"
-  | "reports.view"
-  | "settings.manage";
+export type PermissionKey = z.infer<typeof permissionKeySchema>;
 
-export interface AdminRole extends BaseRecord {
-  id: ID;
-  name: string;
-  description: string;
-  permissions: PermissionKey[];
-}
+export type AdminRole = z.infer<typeof adminRoleSchema>;
 
-export interface AdminUser extends BaseRecord {
-  id: ID;
-  userId: ID;
-  roleId: ID;
-}
+export type AdminUser = z.infer<typeof adminUserSchema>;
 
-export interface AuditLog {
-  id: ID;
-  actorUserId: ID;
-  action: string;
-  entityType: string;
-  entityId: ID;
-  /** Human-readable summary shown in the admin audit trail. */
-  summary: string;
-  createdAt: string;
-}
+export type AuditLog = z.infer<typeof auditLogSchema>;
 
 /** Push notification targets. One row per installed app instance. */
-export interface DeviceToken extends BaseRecord {
-  id: ID;
-  userId: ID;
-  token: string;
-  platform: "android" | "ios" | "web";
-}
+export type DeviceToken = z.infer<typeof deviceTokenSchema>;
 
-export interface Referral extends BaseRecord {
-  id: ID;
-  referrerUserId: ID;
-  referredUserId: ID;
-  rewardStatus: "pending" | "earned" | "paid" | "expired";
-  rewardAmount: Rupees;
-}
+export type Referral = z.infer<typeof referralSchema>;
 
 /* ---- Who is calling ---- */
 
@@ -115,11 +62,7 @@ export type ActorRole = UserRole;
  * A union rather than one shape with optional ids: a function needing a client
  * id should not compile against an actor that might be a vendor.
  */
-export type Actor =
-  | { role: "client"; userId: ID; clientId: ID }
-  | { role: "professional"; userId: ID; professionalId: ID }
-  | { role: "sales_agent"; userId: ID; salesAgentId: ID }
-  | { role: "admin"; userId: ID };
+export type Actor = z.infer<typeof actorSchema>;
 
 /**
  * The actor plus the bits of them a screen needs to render.
@@ -127,10 +70,4 @@ export type Actor =
  * Kept separate from `Actor` so authorisation code cannot accidentally branch
  * on a display name: `Actor` answers "may they", this answers "who is it".
  */
-export interface SessionUser {
-  actor: Actor;
-  name: string;
-  /** The signed-in person's own number — never another party's. */
-  mobile: string;
-  avatarUrl: string | null;
-}
+export type SessionUser = z.infer<typeof sessionUserSchema>;

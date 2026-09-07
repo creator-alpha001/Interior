@@ -1,12 +1,12 @@
-import type { BaseRecord, DateOnly, ID, Rupees, Timestamp } from "./common";
+/** Contracts, grouped by professional rather than by service. */
+import type { z } from "zod";
+import type {
+  agreementLeadDomainSchema,
+  agreementSchema,
+  agreementStatusSchema,
+} from "./schema/agreements";
 
-export type AgreementStatus =
-  | "draft"
-  | "sent"
-  | "signed"
-  | "active"
-  | "completed"
-  | "cancelled";
+export type AgreementStatus = z.infer<typeof agreementStatusSchema>;
 
 /**
  * Agreements group by PROFESSIONAL, not by domain.
@@ -17,33 +17,7 @@ export type AgreementStatus =
  * Business rule enforced in application logic (not a DB constraint): every
  * lead-domain linked to an agreement must have selected the same professional.
  */
-export interface Agreement extends BaseRecord {
-  id: ID;
-  reference: string;
-  leadId: ID;
-  clientId: ID;
-  professionalId: ID;
-  /** Sum of the accepted quote totals this agreement covers. */
-  totalValue: Rupees;
-  /**
-   * Money moves off-platform for now, so terms are recorded rather than
-   * enforced. An escrow/gateway module can later read from this shape.
-   */
-  paymentTerms: string;
-  status: AgreementStatus;
-  documentUrl: string | null;
-  sentAt: Timestamp | null;
-  signedAt: Timestamp | null;
-  startDate: DateOnly | null;
-  cancelledReason: string | null;
-}
+export type Agreement = z.infer<typeof agreementSchema>;
 
 /** Which lead-domains a given agreement covers. */
-export interface AgreementLeadDomain extends BaseRecord {
-  id: ID;
-  agreementId: ID;
-  leadDomainId: ID;
-  /** The accepted quote for this domain at signing time. */
-  quoteId: ID;
-  value: Rupees;
-}
+export type AgreementLeadDomain = z.infer<typeof agreementLeadDomainSchema>;

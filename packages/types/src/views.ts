@@ -3,75 +3,60 @@
  *
  * Screens never assemble joins themselves — the data layer returns these, so
  * when the mock adapter is swapped for real HTTP endpoints the components do
- * not change. Keep these aligned with what a single API response should carry.
+ * not change.
+ *
+ * Every type here is inferred from `./schema/views`, which is also what the
+ * API validates against and what the mobile app's Dart models are generated
+ * from. Three surfaces, one definition.
  */
-import type { City, ID, Rupees, Timestamp } from "./common";
-import type { Agreement, AgreementLeadDomain } from "./agreements";
+import type { z } from "zod";
 import type {
-  CommissionInvoice,
-  Project,
-  ProjectMilestone,
-  Review,
-  SupportTicket,
-} from "./execution";
-import type { Domain, PortfolioItem, ProfessionalDomain } from "./domains";
-import type {
-  Lead,
-  LeadDomain,
-  LeadDomainAssignment,
-  LeadDomainItem,
-  LeadSalesActivity,
-  Urgency,
-} from "./leads";
-import type { Meeting, Message, Quote } from "./flow";
-import type { Product, ProductCategory, ServicePackage } from "./catalog";
-import type { BlogCategory, BlogPost } from "./content";
-import type { Client, Professional, User } from "./identity";
+  adminDashboardSchema,
+  adminTicketRowSchema,
+  agreementViewSchema,
+  blogPostViewSchema,
+  clientRecordSchema,
+  clientSummarySchema,
+  commissionFocusRowSchema,
+  domainSliceSchema,
+  invoiceRowSchema,
+  leadDomainViewSchema,
+  leadProjectViewSchema,
+  leadViewSchema,
+  maskedClientSummarySchema,
+  myDayViewSchema,
+  opsLeadRowSchema,
+  packageViewSchema,
+  productViewSchema,
+  professionalProfileSchema,
+  professionalSummarySchema,
+  projectViewSchema,
+  quoteViewSchema,
+  relayThreadSchema,
+  relayViewSchema,
+  reviewViewSchema,
+  salesDashboardSchema,
+  searchResultsSchema,
+  timelineEventSchema,
+  timelineKindSchema,
+  vendorAgreementViewSchema,
+  vendorDashboardSchema,
+  vendorInvoiceViewSchema,
+  vendorLeadCardSchema,
+  vendorPerformanceSchema,
+  vendorPoolEntrySchema,
+  vendorProjectViewSchema,
+  vendorRowSchema,
+  vendorVisitViewSchema,
+} from "./schema/views";
 
-export interface ProfessionalSummary {
-  id: ID;
-  name: string;
-  companyName: string;
-  avatarUrl: string | null;
-  city: City;
-  experienceYears: number;
-  completedProjects: number;
-  avgRating: number;
-  ratingCount: number;
-  languages: string[];
-  isVerified: boolean;
-  avgResponseHours: number;
-  domains: Domain[];
-  /** Per-domain rating, when viewing this vendor in the context of one domain. */
-  domainRating?: { domainId: ID; avgRating: number; ratingCount: number };
-}
+export type ProfessionalSummary = z.infer<typeof professionalSummarySchema>;
 
-export interface ProfessionalProfile extends ProfessionalSummary {
-  professional: Professional;
-  user: User;
-  bio: string;
-  domainStats: ProfessionalDomain[];
-  serviceCities: City[];
-  portfolio: PortfolioItem[];
-  reviews: ReviewView[];
-}
+export type ProfessionalProfile = z.infer<typeof professionalProfileSchema>;
 
-export interface ReviewView {
-  review: Review;
-  clientName: string;
-  domain: Domain;
-  projectTitle: string;
-}
+export type ReviewView = z.infer<typeof reviewViewSchema>;
 
-export interface ClientSummary {
-  id: ID;
-  userId: ID;
-  name: string;
-  mobile: string;
-  email: string | null;
-  city: City;
-  address: string | null;
-}
+export type ClientSummary = z.infer<typeof clientSummarySchema>;
 
 /**
  * What a vendor is allowed to see about a client.
@@ -81,106 +66,29 @@ export interface ClientSummary {
  * released only for a confirmed site visit, and the mobile number is never
  * released at all — the platform coordinates every conversation.
  */
-export interface MaskedClientSummary {
-  /** First name plus initial, e.g. "Priya S." */
-  displayName: string;
-  city: City;
-  locality: string;
-  /** Full address, present only once a visit has been confirmed. */
-  address: string | null;
-  contactReleased: false;
-}
+export type MaskedClientSummary = z.infer<typeof maskedClientSummarySchema>;
 
 /** One service track inside a requirement, with everything hanging off it. */
-export interface LeadDomainView {
-  leadDomain: LeadDomain;
-  domain: Domain;
-  assignments: Array<{
-    assignment: LeadDomainAssignment;
-    professional: ProfessionalSummary;
-  }>;
-  quotes: QuoteView[];
-  meetings: Array<{ meeting: Meeting; professional: ProfessionalSummary }>;
-  items: LeadDomainItem[];
-  selectedProfessional: ProfessionalSummary | null;
-  /** Unread messages in the client's thread with the platform. */
-  unreadMessages: number;
-}
+export type LeadDomainView = z.infer<typeof leadDomainViewSchema>;
 
-export interface LeadView {
-  lead: Lead;
-  client: ClientSummary;
-  city: City;
-  domains: LeadDomainView[];
-  /** Convenience flags for list screens. */
-  domainNames: string[];
-  isMultiDomain: boolean;
-}
+export type LeadView = z.infer<typeof leadViewSchema>;
 
-export interface QuoteView {
-  quote: Quote;
-  professional: ProfessionalSummary;
-  domain: Domain;
-}
+export type QuoteView = z.infer<typeof quoteViewSchema>;
 
-export interface AgreementView {
-  agreement: Agreement;
-  professional: ProfessionalSummary;
-  client: ClientSummary;
-  lines: Array<{
-    link: AgreementLeadDomain;
-    domain: Domain;
-    quote: Quote;
-  }>;
-  /** True when one professional covers several domains under one contract. */
-  isCombined: boolean;
-  projects: ProjectView[];
-  invoice: CommissionInvoice | null;
-}
+export type AgreementView = z.infer<typeof agreementViewSchema>;
 
-export interface ProjectView {
-  project: Project;
-  domain: Domain;
-  professional: ProfessionalSummary;
-  client: ClientSummary;
-  review: Review | null;
-}
+export type ProjectView = z.infer<typeof projectViewSchema>;
 
-export interface ProductView {
-  product: Product;
-  domain: Domain;
-  category: ProductCategory;
-  /** Price after city override, when a city is in context. */
-  effectivePrice: Rupees;
-}
+export type ProductView = z.infer<typeof productViewSchema>;
 
-export interface PackageView {
-  servicePackage: ServicePackage;
-  domain: Domain;
-  items: Array<{ label: string; quantity: number; productId: ID | null }>;
-}
+export type PackageView = z.infer<typeof packageViewSchema>;
 
-export interface BlogPostView {
-  post: BlogPost;
-  category: BlogCategory;
-  tags: string[];
-  domain: Domain | null;
-}
+export type BlogPostView = z.infer<typeof blogPostViewSchema>;
 
 /** Everything one search box query can turn up, ranked by intent. */
-export interface SearchResults {
-  query: string;
-  total: number;
-  products: ProductView[];
-  packages: PackageView[];
-  professionals: ProfessionalSummary[];
-  posts: BlogPostView[];
-}
+export type SearchResults = z.infer<typeof searchResultsSchema>;
 
-export interface ClientRecord {
-  client: Client;
-  user: User;
-}
+export type ClientRecord = z.infer<typeof clientRecordSchema>;
 
 /* ------------------------------------------------------------------ *
  * The vendor portal
@@ -192,97 +100,19 @@ export interface ClientRecord {
  * ------------------------------------------------------------------ */
 
 /** One lead offered to one vendor. */
-export interface VendorLeadCard {
-  assignment: LeadDomainAssignment;
-  leadDomain: LeadDomain;
-  domain: Domain;
-  leadReference: string;
-  client: MaskedClientSummary;
-  /** The client's own description of the job. */
-  description: string;
-  urgency: string;
-  materialSource: LeadDomain["materialSource"];
-  items: LeadDomainItem[];
-  /** The brief our team captured on the call — the real scope. */
-  brief: string | null;
-  siteNotes: string[];
-  budgetMax: Rupees | null;
-  myQuote: Quote | null;
-  visits: Meeting[];
-  unreadMessages: number;
-  /**
-   * How many others are quoting. Stated plainly so nobody assumes the job is
-   * theirs.
-   */
-  competingQuotes: number;
-  /**
-   * Decided server-side. A screen comparing `selectedProfessionalId` against a
-   * hardcoded "who am I" is a bug waiting for the day that value is wrong.
-   */
-  won: boolean;
-  lost: boolean;
-}
+export type VendorLeadCard = z.infer<typeof vendorLeadCardSchema>;
 
-export interface VendorDashboard {
-  professional: Professional;
-  displayName: string;
-  domains: Array<{ link: ProfessionalDomain; domain: Domain }>;
-  newLeads: number;
-  awaitingQuote: number;
-  quotesOut: number;
-  wonThisPeriod: number;
-  liveProjects: number;
-  visitsToday: number;
-  commissionDue: Rupees;
-  commissionOverdue: Rupees;
-  unreadMessages: number;
-}
+export type VendorDashboard = z.infer<typeof vendorDashboardSchema>;
 
-export interface VendorAgreementView {
-  agreement: Agreement;
-  client: MaskedClientSummary;
-  lines: Array<{ link: AgreementLeadDomain; domain: Domain; quote: Quote }>;
-  isCombined: boolean;
-  projects: Array<{ project: Project; domain: Domain }>;
-  invoice: CommissionInvoice | null;
-}
+export type VendorAgreementView = z.infer<typeof vendorAgreementViewSchema>;
 
-export interface VendorProjectView {
-  project: Project;
-  domain: Domain;
-  client: MaskedClientSummary;
-  cityName: string;
-  review: Review | null;
-}
+export type VendorProjectView = z.infer<typeof vendorProjectViewSchema>;
 
-export interface VendorPerformance {
-  byDomain: Array<{
-    domain: Domain;
-    rating: number;
-    ratingCount: number;
-    completed: number;
-    won: number;
-    lost: number;
-    winRatePercent: number;
-    commissionPercent: number;
-  }>;
-  avgResponseHours: number;
-  totalRevenue: Rupees;
-  reviews: Array<{ review: Review; domain: Domain; clientName: string }>;
-}
+export type VendorPerformance = z.infer<typeof vendorPerformanceSchema>;
 
-export interface VendorInvoiceView {
-  invoice: CommissionInvoice;
-  agreementReference: string;
-  domains: string[];
-}
+export type VendorInvoiceView = z.infer<typeof vendorInvoiceViewSchema>;
 
-export interface VendorVisitView {
-  meeting: Meeting;
-  domain: Domain;
-  client: MaskedClientSummary;
-  leadReference: string;
-}
+export type VendorVisitView = z.infer<typeof vendorVisitViewSchema>;
 
 /* ------------------------------------------------------------------ *
  * The ops panel
@@ -292,24 +122,9 @@ export interface VendorVisitView {
  * vendor one above, and it is why the two apps deploy separately.
  * ------------------------------------------------------------------ */
 
-export interface OpsLeadRow {
-  lead: LeadView;
-  agentName: string | null;
-  lastActivity: LeadSalesActivity | null;
-  followUpDate: string | null;
-  /** Services still waiting on us to assign professionals. */
-  unassignedDomains: number;
-  /** Client questions with no reply from us yet. */
-  awaitingReply: number;
-  ageDays: number;
-}
+export type OpsLeadRow = z.infer<typeof opsLeadRowSchema>;
 
-export interface RelayThread {
-  professional: ProfessionalSummary;
-  messages: Message[];
-  /** True when their last message has had no reply from us. */
-  awaitingReply: boolean;
-}
+export type RelayThread = z.infer<typeof relayThreadSchema>;
 
 /**
  * Both sides of one service, side by side.
@@ -318,159 +133,28 @@ export interface RelayThread {
  * because a question asked once should go to all of them, not to whichever
  * vendor happened to ask.
  */
-export interface RelayView {
-  leadDomainId: ID;
-  domain: Domain;
-  clientName: string;
-  clientThread: Message[];
-  clientAwaitingReply: boolean;
-  vendorThreads: RelayThread[];
-}
+export type RelayView = z.infer<typeof relayViewSchema>;
 
-export interface VendorPoolEntry {
-  professional: ProfessionalSummary;
-  isAssigned: boolean;
-  /** The client asked for this one by name. */
-  isPreferred: boolean;
-  /** How many other live leads they are already quoting on. */
-  activeLoad: number;
-}
+export type VendorPoolEntry = z.infer<typeof vendorPoolEntrySchema>;
 
-export type TimelineKind =
-  | "created"
-  | "call"
-  | "assigned"
-  | "quote"
-  | "meeting"
-  | "message"
-  | "selected"
-  | "agreement"
-  | "project"
-  | "stage"
-  | "review";
+export type TimelineKind = z.infer<typeof timelineKindSchema>;
 
-export interface TimelineEvent {
-  id: ID;
-  kind: TimelineKind;
-  at: Timestamp;
-  title: string;
-  detail: string | null;
-  domainName: string | null;
-  actor: string | null;
-}
+export type TimelineEvent = z.infer<typeof timelineEventSchema>;
 
-export interface LeadProjectView {
-  projectId: ID;
-  reference: string;
-  leadDomainId: ID;
-  domainName: string;
-  professionalName: string;
-  professionalId: ID;
-  status: string;
-  completionPercent: number;
-  approvedStages: number;
-  totalStages: number;
-  awaitingReview: number;
-  currentStage: string | null;
-  milestones: ProjectMilestone[];
-}
+export type LeadProjectView = z.infer<typeof leadProjectViewSchema>;
 
-export interface CommissionFocusRow {
-  invoiceId: ID;
-  reference: string;
-  professionalId: ID;
-  professionalName: string;
-  amount: Rupees;
-  dueDate: string;
-  status: string;
-  daysOverdue: number;
-  domains: string[];
-}
+export type CommissionFocusRow = z.infer<typeof commissionFocusRowSchema>;
 
-export interface SalesDashboard {
-  agentName: string;
-  target: number;
-  newLeads: number;
-  needsAssignment: number;
-  awaitingReply: number;
-  followUpsDue: number;
-  visitsToday: number;
-  byUrgency: Array<{ urgency: Urgency; count: number }>;
-  byDomain: Array<{ domain: Domain; count: number }>;
-}
+export type SalesDashboard = z.infer<typeof salesDashboardSchema>;
 
-export interface MyDayView {
-  agentName: string;
-  target: number;
-  live: OpsLeadRow[];
-  awaitingReply: OpsLeadRow[];
-  needsAssignment: OpsLeadRow[];
-  followUpsDue: OpsLeadRow[];
-  neverCalled: OpsLeadRow[];
-  stalled: OpsLeadRow[];
-  visitsToday: number;
-  visitsNeedingOutcome: number;
-  commission: {
-    pending: Rupees;
-    overdue: Rupees;
-    overdueCount: number;
-    dueSoonCount: number;
-    rows: CommissionFocusRow[];
-  };
-}
+export type MyDayView = z.infer<typeof myDayViewSchema>;
 
-export interface DomainSlice {
-  domain: Domain;
-  leads: number;
-  quoted: number;
-  won: number;
-  revenue: Rupees;
-  commission: Rupees;
-  avgTicket: Rupees;
-  conversionPercent: number;
-  vendors: number;
-}
+export type DomainSlice = z.infer<typeof domainSliceSchema>;
 
-export interface AdminDashboard {
-  totals: {
-    leads: number;
-    activeLeads: number;
-    vendors: number;
-    pendingVerification: number;
-    revenue: Rupees;
-    commissionBilled: Rupees;
-    commissionPending: Rupees;
-    commissionOverdue: Rupees;
-    openTickets: number;
-  };
-  byDomain: DomainSlice[];
-  byCity: Array<{ cityName: string; leads: number; revenue: Rupees }>;
-}
+export type AdminDashboard = z.infer<typeof adminDashboardSchema>;
 
-export interface VendorRow {
-  professional: Professional;
-  summary: ProfessionalSummary;
-  domainLinks: Array<{ link: ProfessionalDomain; domain: Domain }>;
-  serviceCities: string[];
-  liveJobs: number;
-  pendingDomainRequests: number;
-  totalRevenue: Rupees;
-  outstandingCommission: Rupees;
-  /** Unsigned vendors are in no lead pool, however verified they are. */
-  hasSignedPartnerAgreement: boolean;
-}
+export type VendorRow = z.infer<typeof vendorRowSchema>;
 
-export interface InvoiceRow {
-  invoice: CommissionInvoice;
-  professional: ProfessionalSummary;
-  agreementReference: string;
-  domains: string[];
-  isCombined: boolean;
-  daysOverdue: number;
-}
+export type InvoiceRow = z.infer<typeof invoiceRowSchema>;
 
-export interface AdminTicketRow {
-  ticket: SupportTicket;
-  raisedByName: string;
-  raisedByRole: string;
-}
+export type AdminTicketRow = z.infer<typeof adminTicketRowSchema>;
