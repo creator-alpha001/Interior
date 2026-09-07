@@ -23,8 +23,20 @@ export const timestampSchema = z.string();
 /** ISO date without time, e.g. "2026-08-31" */
 export const dateOnlySchema = z.string();
 
-/** Amounts are whole rupees (INR). No paise anywhere on the platform. */
-export const rupeesSchema = z.number();
+/**
+ * Amounts are whole rupees (INR). No paise anywhere on the platform.
+ *
+ * `.int()` is load-bearing, and not for TypeScript — it infers `number` either
+ * way. It is what makes the JSON Schema say `"type": "integer"` rather than
+ * `"number"`, which is what makes the generated Dart say `int` rather than
+ * `num`. MOBILE.md §4.3: *"`Rupees` is an `int`. Make it a Dart `int`, never a
+ * `double`. Money in a floating-point type is how ₹1 goes missing."*
+ *
+ * Without it the mobile models typed every amount `num`, and the test meant to
+ * catch that passed anyway — `expect(rate, isA<int>())` inspects the runtime
+ * value, and `12500` parsed from JSON is an `int` whatever the static type says.
+ */
+export const rupeesSchema = z.number().int();
 
 /**
  * Every persisted record carries these. `deletedAt` is a soft delete:

@@ -278,16 +278,16 @@
             "type": "number"
           },
           "revenue": {
-            "type": "number"
+            "type": "integer"
           },
           "commissionBilled": {
-            "type": "number"
+            "type": "integer"
           },
           "commissionPending": {
-            "type": "number"
+            "type": "integer"
           },
           "commissionOverdue": {
-            "type": "number"
+            "type": "integer"
           },
           "openTickets": {
             "type": "number"
@@ -368,7 +368,7 @@
             "type": "string"
           },
           "totalValue": {
-            "type": "number"
+            "type": "integer"
           },
           "paymentTerms": {
             "type": "string"
@@ -443,7 +443,7 @@
             "type": "string"
           },
           "value": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -1167,7 +1167,7 @@
             "type": "number"
           },
           "revenue": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -1290,7 +1290,7 @@
             "type": "string"
           },
           "amount": {
-            "type": "number"
+            "type": "integer"
           },
           "dueDate": {
             "type": "string"
@@ -1347,7 +1347,7 @@
             "type": "string"
           },
           "amount": {
-            "type": "number"
+            "type": "integer"
           },
           "status": {
             "$ref": "#/components/schemas/InvoiceStatus"
@@ -1384,10 +1384,10 @@
         "type": "object",
         "properties": {
           "pending": {
-            "type": "number"
+            "type": "integer"
           },
           "overdue": {
-            "type": "number"
+            "type": "integer"
           },
           "overdueCount": {
             "type": "number"
@@ -1861,13 +1861,13 @@
             "type": "number"
           },
           "revenue": {
-            "type": "number"
+            "type": "integer"
           },
           "commission": {
-            "type": "number"
+            "type": "integer"
           },
           "avgTicket": {
-            "type": "number"
+            "type": "integer"
           },
           "conversionPercent": {
             "type": "number"
@@ -1966,11 +1966,11 @@
             "$ref": "#/components/schemas/Urgency"
           },
           "budgetMin": {
-            "type": "number",
+            "type": "integer",
             "nullable": true
           },
           "budgetMax": {
-            "type": "number",
+            "type": "integer",
             "nullable": true
           },
           "siteAccessibilityTags": {
@@ -2168,7 +2168,7 @@
             }
           },
           "indicativePrice": {
-            "type": "number",
+            "type": "integer",
             "nullable": true
           },
           "customerNotes": {
@@ -3759,7 +3759,7 @@
             }
           },
           "basePrice": {
-            "type": "number"
+            "type": "integer"
           },
           "priceUnit": {
             "$ref": "#/components/schemas/PriceUnit"
@@ -3909,7 +3909,7 @@
             "type": "string"
           },
           "price": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -3956,7 +3956,7 @@
             "type": "string"
           },
           "priceDelta": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -4033,7 +4033,7 @@
             "$ref": "#/components/schemas/ProductCategory"
           },
           "effectivePrice": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -4486,13 +4486,13 @@
             "type": "string"
           },
           "value": {
-            "type": "number"
+            "type": "integer"
           },
           "commissionPercent": {
             "type": "number"
           },
           "commissionAmount": {
-            "type": "number"
+            "type": "integer"
           },
           "startDate": {
             "type": "string",
@@ -4683,16 +4683,16 @@
             }
           },
           "subtotal": {
-            "type": "number"
+            "type": "integer"
           },
           "taxPercent": {
             "type": "number"
           },
           "taxAmount": {
-            "type": "number"
+            "type": "integer"
           },
           "total": {
-            "type": "number"
+            "type": "integer"
           },
           "timelineDays": {
             "type": "number"
@@ -4796,10 +4796,10 @@
             "type": "string"
           },
           "rate": {
-            "type": "number"
+            "type": "integer"
           },
           "amount": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -4875,7 +4875,7 @@
             ]
           },
           "rewardAmount": {
-            "type": "number"
+            "type": "integer"
           }
         },
         "required": [
@@ -4925,7 +4925,7 @@
             "type": "number"
           },
           "rewardPerReferral": {
-            "type": "number"
+            "type": "integer"
           },
           "referrals": {
             "type": "array",
@@ -4968,7 +4968,7 @@
             "type": "string"
           },
           "amount": {
-            "type": "number"
+            "type": "integer"
           },
           "reason": {
             "type": "string"
@@ -5514,7 +5514,7 @@
             }
           },
           "price": {
-            "type": "number"
+            "type": "integer"
           },
           "priceBasis": {
             "type": "string"
@@ -6229,10 +6229,10 @@
             "type": "number"
           },
           "commissionDue": {
-            "type": "number"
+            "type": "integer"
           },
           "commissionOverdue": {
-            "type": "number"
+            "type": "integer"
           },
           "unreadMessages": {
             "type": "number"
@@ -6321,7 +6321,7 @@
             }
           },
           "budgetMax": {
-            "type": "number",
+            "type": "integer",
             "nullable": true
           },
           "myQuote": {
@@ -6435,7 +6435,7 @@
             "type": "number"
           },
           "totalRevenue": {
-            "type": "number"
+            "type": "integer"
           },
           "reviews": {
             "type": "array",
@@ -6557,10 +6557,10 @@
             "type": "number"
           },
           "totalRevenue": {
-            "type": "number"
+            "type": "integer"
           },
           "outstandingCommission": {
-            "type": "number"
+            "type": "integer"
           },
           "hasSignedPartnerAgreement": {
             "type": "boolean"
