@@ -49,7 +49,86 @@ function expand(schema: z.ZodTypeAny): JsonSchema {
   }) as JsonSchema;
   delete out["$schema"];
   delete out["definitions"];
-  return describeBooleanLiterals(out) as JsonSchema;
+  return describeBooleanLiterals(collapseLiteralUnions(out)) as JsonSchema;
+}
+
+/**
+ * `z.union([z.literal(1), ... z.literal(5)])` becomes one enum, not five.
+ *
+ * zod-to-json-schema renders a union of literals as an `anyOf` of five
+ * single-value enums, which is technically the same set and is useless to a
+ * generator: `swagger_parser` cannot name a type for it, so `Review.rating`
+ * arrived in Dart as `dynamic`. A star rating typed `dynamic` compiles, reads
+ * fine at a call site — `'${review.rating} ★'` — and silently loses every
+ * arithmetic and comparison the type would have allowed.
+ *
+ * Same family as the `anyOf: [{not:{}}, ...]` unwrapping below, and the same
+ * cost: an `anyOf` a generator cannot name becomes `dynamic`, and `dynamic`
+ * fails somewhere far away from here.
+ */
+function collapseLiteralUnions(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(collapseLiteralUnions);
+  if (!node || typeof node !== "object") return node;
+
+  const { anyOf, ...siblings } = node as { anyOf?: unknown[] };
+  if (Array.isArray(anyOf) && anyOf.length > 1) {
+    const branches = anyOf.map((branch) =>
+      branch && typeof branch === "object"
+        ? (branch as { type?: unknown; enum?: unknown[] })
+        : null,
+    );
+    const literal =
+      branches.every(
+        (b) =>
+          b !== null &&
+          typeof b.type === "string" &&
+          Array.isArray(b.enum) &&
+          b.enum.length === 1 &&
+          Object.keys(b).length === 2,
+      ) && new Set(branches.map((b) => b!.type)).size === 1;
+
+    if (literal) {
+      const values = branches.map((b) => b!.enum![0]);
+      const type = branches[0]!.type as string;
+
+      /**
+       * A run of whole numbers becomes a bounded integer, not an enum.
+       *
+       * `swagger_parser` turns `{ type: "integer", enum: [1..5] }` into an
+       * enum *class* — `ReviewRating.value4`, whose only useful member is
+       * `.json`. Nobody switches on a star rating; they print it and compare
+       * it, and both want an `int`. `minimum`/`maximum` say the same thing to
+       * a reader of the document and generate the type the app actually uses.
+       *
+       * Same judgement as `describeBooleanLiterals` above: where a generator
+       * handles `enum` badly and the constraint is expressible another way,
+       * express it the other way. zod still enforces the exact set at runtime.
+       */
+      const whole =
+        type === "number" && values.every((v) => typeof v === "number" && Number.isInteger(v));
+      const sorted = whole ? [...(values as number[])].sort((a, b) => a - b) : [];
+      const contiguous =
+        whole && sorted.every((v, i) => i === 0 || v === (sorted[i - 1] as number) + 1);
+
+      if (contiguous) {
+        return {
+          ...siblings,
+          type: "integer",
+          minimum: sorted[0],
+          maximum: sorted[sorted.length - 1],
+        };
+      }
+
+      return { ...siblings, type: whole ? "integer" : type, enum: values };
+    }
+  }
+
+  return Object.fromEntries(
+    Object.entries(node as Record<string, unknown>).map(([k, v]) => [
+      k,
+      collapseLiteralUnions(v),
+    ]),
+  );
 }
 
 /**

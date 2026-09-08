@@ -5165,38 +5165,9 @@
             "type": "string"
           },
           "rating": {
-            "anyOf": [
-              {
-                "type": "number",
-                "enum": [
-                  1
-                ]
-              },
-              {
-                "type": "number",
-                "enum": [
-                  2
-                ]
-              },
-              {
-                "type": "number",
-                "enum": [
-                  3
-                ]
-              },
-              {
-                "type": "number",
-                "enum": [
-                  4
-                ]
-              },
-              {
-                "type": "number",
-                "enum": [
-                  5
-                ]
-              }
-            ]
+            "type": "integer",
+            "minimum": 1,
+            "maximum": 5
           },
           "comment": {
             "type": "string"
