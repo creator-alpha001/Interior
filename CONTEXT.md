@@ -595,3 +595,41 @@ design against.
 injected on the invoice insert left no project, no stage, no invoice and the
 agreement unsigned) and the six rendered portal pages in the masking check. The
 endpoint half of that masking check is automated; the rendered-page half is not.
+
+### Running against a Postgres that is not the Docker one
+
+`docker-compose.yml` puts Postgres on **55432**, and everything above assumes
+it. On a machine with a native PostgreSQL on 5432 and no Docker, four steps get
+the same result — recorded here because working it out from the errors takes a
+while, and one of the errors points at the wrong problem entirely.
+
+1. Repoint the three URLs in `apps/api/.env` from `localhost:55432` to
+   `localhost:5432`. Keep a copy: `.env.*.bak` is gitignored.
+2. Create the roles and the database. Migration 0005 creates `aangan_app` and
+   `aangan_ops` **without a login**, so they need a password granting after the
+   first migration — and the owner role and the database itself have to exist
+   before that migration can run at all:
+
+   ```sql
+   CREATE ROLE aangan LOGIN PASSWORD '...' CREATEDB CREATEROLE;
+   CREATE DATABASE aangan_dev OWNER aangan;
+   -- then, after `npm run db:migrate`:
+   ALTER ROLE aangan_app WITH LOGIN PASSWORD '...';
+   ALTER ROLE aangan_ops WITH LOGIN PASSWORD '...';
+   ```
+
+   The URLs in a Docker setup carry no password, because the container trusts
+   local connections. A native install almost certainly uses `scram-sha-256`,
+   so the three URLs need one.
+
+3. `npm run db:migrate && npm run db:seed`, from `apps/api`.
+4. The API test suite builds its own database and defaults it to 55432 too.
+   Point it with `TEST_DATABASE_URL`, `TEST_OWNER_DATABASE_URL` and
+   `TEST_OPS_DATABASE_URL` rather than editing `vitest.config.ts` — the Docker
+   port is the project's convention and should stay the default.
+
+The error worth knowing about: if the owner connection is not picked up,
+migrations run as the application role and fail with `permission denied for
+schema public` on `CREATE SCHEMA "drizzle"` — which reads like a grant problem
+and is actually a connection-string problem. `src/db/as-owner.ts` has the
+detail.
