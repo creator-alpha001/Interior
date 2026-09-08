@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { domainById, listDomains, listPortfolio, listProfessionals } from "@repo/data";
+import type { ProfessionalSummary } from "@repo/types";
 import {
   Badge,
   Breadcrumbs,
@@ -27,7 +28,21 @@ export default async function OurWorkPage({
 
   // Portfolio entries carry a professional id, so each piece of work links back
   // to the person who actually did it rather than floating free.
-  const pros = (await listProfessionals({ verifiedOnly: true, limit: 200 })).items;
+  //
+  // Paged rather than fetched in one go. This asked for `limit: 200` against a
+  // contract that caps the page at 100, so the API answered 422 and the whole
+  // page rendered "Something went wrong at our end" — a 500 on a public
+  // marketing surface, caused by a number nobody had checked against the
+  // schema. Paging is also the only version that stays correct: a single
+  // over-large fetch would silently lose attributions the day the pool passes
+  // whatever cap was hardcoded.
+  const pros: ProfessionalSummary[] = [];
+  let cursor: string | undefined;
+  do {
+    const page = await listProfessionals({ verifiedOnly: true, limit: 100, cursor });
+    pros.push(...page.items);
+    cursor = page.nextCursor ?? undefined;
+  } while (cursor);
   const proById = new Map(pros.map((p) => [p.id, p]));
 
   return (
