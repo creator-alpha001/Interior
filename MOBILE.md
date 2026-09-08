@@ -427,6 +427,16 @@ design system drifts within a month. Two suites:
   headline breaks its box, and without this it breaks on a customer's phone
   instead of in review.
 
+**Neither suite exists yet, and the reason is upstream of them.** The four font
+files are not bundled (§3.4), so every baseline taken today would bake in the
+`flutter_test` placeholder face and be thrown away the day real type lands.
+`packages/design/test/design_system_test.dart` says so in its own header and is
+the half that does not need pixels — no-shadow, the reserved pill radius, tap
+targets, `textScale` 1.3 reflow, contrast, semantics — which is real coverage of
+the same rules, and is not a substitute for the image diff. **Bundle the fonts,
+then take the baselines**, in that order and on the platform CI runs (Linux):
+goldens are not portable across operating systems.
+
 ---
 
 ## 4. Architecture
@@ -774,7 +784,13 @@ What is needed:
 - FCM (and APNs via FCM) dispatch in the existing job, beside SMS. Keep the
   idempotence property the other jobs have — a redelivered push is a bug.
 - Deep links per notification type, so a tap lands on the record, not the home
-  screen.
+  screen. **Half done, and the half that works is the one that matters now.**
+  The in-app notification list opens the record — `_recordFor` resolves the
+  entity id against what is already loaded and pushes onto the tab's own
+  `Navigator`. A *push* tap still reaches the shell and the tab but not the
+  record, because both shells are `IndexedStack`s rather than nested go_router
+  routes and a record has no URL. Closing that is a restructure; it is also
+  inert until Firebase exists.
 
 The notifications worth pushing, and to whom:
 
