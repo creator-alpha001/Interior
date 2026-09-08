@@ -7518,15 +7518,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "maxLength": 4096
-                }
-              ]
+              "type": "string",
+              "maxLength": 4096
             }
           },
           {
@@ -7534,17 +7527,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 200,
-                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
-                }
-              ]
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
             }
           },
           {
@@ -7552,17 +7538,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 200,
-                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
-                }
-              ]
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
             }
           },
           {
@@ -7570,15 +7549,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "maxLength": 120
-                }
-              ]
+              "type": "string",
+              "maxLength": 120
             }
           },
           {
@@ -7586,14 +7558,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string"
-                }
-              ]
+              "type": "string"
             }
           },
           {
@@ -7601,15 +7566,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "format": "uuid"
-                }
-              ]
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -7617,16 +7575,9 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "integer",
-                  "exclusiveMinimum": true,
-                  "minimum": 0
-                }
-              ]
+              "type": "integer",
+              "exclusiveMinimum": true,
+              "minimum": 0
             }
           },
           {
@@ -7745,15 +7696,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "format": "uuid"
-                }
-              ]
+              "type": "string",
+              "format": "uuid"
             }
           }
         ],
@@ -7834,15 +7778,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "format": "uuid"
-                }
-              ]
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -7928,17 +7865,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 200,
-                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
-                }
-              ]
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
             }
           }
         ],
@@ -8013,17 +7943,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 200,
-                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
-                }
-              ]
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
             }
           },
           {
@@ -8031,25 +7954,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "anyOf": [
-                    {
-                      "type": "boolean"
-                    },
-                    {
-                      "type": "string",
-                      "enum": [
-                        "true",
-                        "false"
-                      ]
-                    }
-                  ]
-                }
-              ]
+              "type": "boolean"
             }
           },
           {
@@ -8057,16 +7962,9 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 50
-                }
-              ]
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
             }
           }
         ],
@@ -8293,15 +8191,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "maxLength": 4096
-                }
-              ]
+              "type": "string",
+              "maxLength": 4096
             }
           },
           {
@@ -8309,17 +8200,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 200,
-                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
-                }
-              ]
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
             }
           },
           {
@@ -8327,15 +8211,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "format": "uuid"
-                }
-              ]
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -8343,15 +8220,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "maxLength": 120
-                }
-              ]
+              "type": "string",
+              "maxLength": 120
             }
           },
           {
@@ -8359,25 +8229,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "anyOf": [
-                    {
-                      "type": "boolean"
-                    },
-                    {
-                      "type": "string",
-                      "enum": [
-                        "true",
-                        "false"
-                      ]
-                    }
-                  ]
-                }
-              ]
+              "type": "boolean"
             }
           }
         ],
@@ -8543,17 +8395,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 200,
-                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
-                }
-              ]
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
             }
           },
           {
@@ -8561,16 +8406,9 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "integer",
-                  "minimum": 1,
-                  "maximum": 100
-                }
-              ]
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100
             }
           }
         ],
@@ -8719,15 +8557,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "maxLength": 4096
-                }
-              ]
+              "type": "string",
+              "maxLength": 4096
             }
           },
           {
@@ -8735,17 +8566,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 200,
-                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
-                }
-              ]
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
             }
           },
           {
@@ -8753,17 +8577,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 200,
-                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
-                }
-              ]
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
             }
           },
           {
@@ -8771,17 +8588,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 200,
-                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
-                }
-              ]
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
             }
           },
           {
@@ -8789,15 +8599,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "maxLength": 120
-                }
-              ]
+              "type": "string",
+              "maxLength": 120
             }
           }
         ],
@@ -9325,15 +9128,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "format": "uuid"
-                }
-              ]
+              "type": "string",
+              "format": "uuid"
             }
           }
         ],
@@ -12974,15 +12770,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "maxLength": 4096
-                }
-              ]
+              "type": "string",
+              "maxLength": 4096
             }
           },
           {
@@ -12990,21 +12779,14 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "enum": [
-                    "all",
-                    "new",
-                    "verified",
-                    "in_progress",
-                    "closed",
-                    "archived"
-                  ]
-                }
+              "type": "string",
+              "enum": [
+                "all",
+                "new",
+                "verified",
+                "in_progress",
+                "closed",
+                "archived"
               ]
             }
           },
@@ -13013,17 +12795,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 200,
-                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
-                }
-              ]
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
             }
           },
           {
@@ -13031,15 +12806,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "format": "uuid"
-                }
-              ]
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -13047,14 +12815,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "$ref": "#/components/schemas/Urgency"
-                }
-              ]
+              "$ref": "#/components/schemas/Urgency"
             }
           },
           {
@@ -13062,15 +12823,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "format": "uuid"
-                }
-              ]
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -13078,15 +12832,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "maxLength": 120
-                }
-              ]
+              "type": "string",
+              "maxLength": 120
             }
           },
           {
@@ -13094,25 +12841,7 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "anyOf": [
-                    {
-                      "type": "boolean"
-                    },
-                    {
-                      "type": "string",
-                      "enum": [
-                        "true",
-                        "false"
-                      ]
-                    }
-                  ]
-                }
-              ]
+              "type": "boolean"
             }
           }
         ],
@@ -14851,15 +14580,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "maxLength": 4096
-                }
-              ]
+              "type": "string",
+              "maxLength": 4096
             }
           },
           {
@@ -14867,15 +14589,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "maxLength": 30
-                }
-              ]
+              "type": "string",
+              "maxLength": 30
             }
           },
           {
@@ -14883,17 +14598,10 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "minLength": 1,
-                  "maxLength": 200,
-                  "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
-                }
-              ]
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "pattern": "^[a-z0-9]+(?:-[a-z0-9]+)*$"
             }
           },
           {
@@ -14901,15 +14609,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "format": "uuid"
-                }
-              ]
+              "type": "string",
+              "format": "uuid"
             }
           },
           {
@@ -14917,15 +14618,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "maxLength": 120
-                }
-              ]
+              "type": "string",
+              "maxLength": 120
             }
           }
         ],
@@ -15432,15 +15126,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "maxLength": 4096
-                }
-              ]
+              "type": "string",
+              "maxLength": 4096
             }
           }
         ],
@@ -15544,15 +15231,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "maxLength": 4096
-                }
-              ]
+              "type": "string",
+              "maxLength": 4096
             }
           },
           {
@@ -15560,15 +15240,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "maxLength": 20
-                }
-              ]
+              "type": "string",
+              "maxLength": 20
             }
           }
         ],
@@ -16150,15 +15823,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "maxLength": 4096
-                }
-              ]
+              "type": "string",
+              "maxLength": 4096
             }
           },
           {
@@ -16166,15 +15832,8 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "not": {}
-                },
-                {
-                  "type": "string",
-                  "maxLength": 20
-                }
-              ]
+              "type": "string",
+              "maxLength": 20
             }
           }
         ],

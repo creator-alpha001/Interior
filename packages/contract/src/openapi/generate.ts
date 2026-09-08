@@ -325,7 +325,7 @@ function parametersFrom(
 
   const shape = unwrapped.shape as Record<string, z.ZodTypeAny>;
   return Object.entries(shape).map(([name, field]) => {
-    const converted = toJsonSchema(field);
+    const converted = withoutUndefinedBranch(toJsonSchema(field));
     // A path parameter is required by definition; a query one is required only
     // when zod says the value cannot be absent.
     const required = location === "path" ? true : !field.isOptional();
@@ -338,6 +338,80 @@ function parametersFrom(
       schema: rest,
     };
   });
+}
+
+/**
+ * Strips the `undefined` arm that `.optional()` leaves on a parameter schema.
+ *
+ * `z.string().optional()` converts to
+ *
+ *     { anyOf: [ { not: {} }, { type: "string" } ] }
+ *
+ * where `{ not: {} }` is JSON Schema for "matches nothing" — the encoding of
+ * `undefined`. That is faithful to zod and useless in OpenAPI, which expresses
+ * optionality with `required: false` on the parameter and nowhere else.
+ *
+ * **It is also actively harmful, which is why this exists.** A generator cannot
+ * name a type for that union, so `swagger_parser` emits `dynamic`, and
+ * `retrofit_generator` emits `cursor.toJson()` for a `dynamic` query parameter
+ * — which throws `NoSuchMethodError: The method 'toJson' was called on null`
+ * the moment the filter is not supplied. Which is always, on the first load of
+ * every list screen. It took out the professionals directory and the blog with
+ * one error, and the app rendered both as "Something went wrong".
+ *
+ * So: unwrap it back to the type underneath, and let `required: false` carry
+ * the optionality. Only for parameters — a *body* field's optionality has to
+ * stay in the schema, because that is where a body says it.
+ */
+function withoutUndefinedBranch(schema: unknown): unknown {
+  if (typeof schema !== "object" || schema === null) return schema;
+
+  const { anyOf, ...siblings } = schema as { anyOf?: unknown[] };
+  if (!Array.isArray(anyOf)) return schema;
+
+  const real = anyOf.filter((branch) => !isNever(branch));
+
+  // The exact shape `.optional()` produces: one real branch, one `never`.
+  //
+  // Recursive, because the wrappers nest: `boolQuerySchema` is a union inside
+  // an `.optional()`, so unwrapping the outer one uncovers another `anyOf` that
+  // still needs collapsing. Doing this in one pass left three parameters as
+  // `dynamic` and looked like the rule had simply not matched.
+  if (real.length === 1 && real.length !== anyOf.length) {
+    return withoutUndefinedBranch({ ...(real[0] as object), ...siblings });
+  }
+
+  /**
+   * `boolQuerySchema` is `boolean | "true" | "false"`, because a query string
+   * arrives as text and the schema coerces it. Both branches describe the same
+   * parameter, and OpenAPI already says how a boolean is written in a query —
+   * so the union is an implementation detail of the parser, not of the
+   * contract, and leaving it in costs the same `dynamic`/`toJson()` crash the
+   * comment above describes.
+   */
+  if (real.length === 2 && real.some(isBooleanStrings)) {
+    const bool = real.find((branch) => !isBooleanStrings(branch));
+    if (bool) return { ...(bool as object), ...siblings };
+  }
+
+  return schema;
+}
+
+/** `{ type: "string", enum: ["true", "false"] }` — a boolean spelled out. */
+function isBooleanStrings(branch: unknown): boolean {
+  if (typeof branch !== "object" || branch === null) return false;
+  const { type, enum: values } = branch as { type?: string; enum?: unknown[] };
+  if (type !== "string" || !Array.isArray(values) || values.length !== 2) return false;
+  return values.includes("true") && values.includes("false");
+}
+
+/** JSON Schema for "nothing matches": `{ "not": {} }`. */
+function isNever(branch: unknown): boolean {
+  if (typeof branch !== "object" || branch === null) return false;
+  const keys = Object.keys(branch);
+  if (keys.length !== 1 || keys[0] !== "not") return false;
+  const not = (branch as { not: unknown }).not;
+  return typeof not === "object" && not !== null && Object.keys(not).length === 0;
 }
 
 /**

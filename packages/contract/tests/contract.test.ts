@@ -186,6 +186,100 @@ describe("no vendor-facing response can carry customer contact details", () => {
   });
 });
 
+describe("every parameter names a type a generator can use", () => {
+  /**
+   * This is not tidiness. It is the bug that took out two whole screens.
+   *
+   * `z.string().optional()` converts to `anyOf: [{ not: {} }, { type: string }]`
+   * — faithful to zod, and unusable by a code generator, which cannot name a
+   * type for it. `swagger_parser` emitted `dynamic`, `retrofit_generator` then
+   * emitted `cursor.toJson()` for a `dynamic` query parameter, and that threw
+   * `NoSuchMethodError: The method 'toJson' was called on null` the moment the
+   * filter was absent — which is every first load of every list screen.
+   *
+   * The mobile app rendered the professionals directory and the blog as
+   * "Something went wrong", with no request ever reaching the server.
+   *
+   * OpenAPI says optional with `required: false` on the parameter, so the
+   * schema must be the plain type underneath.
+   */
+  const parameters = (() => {
+    const document = buildOpenApiDocument() as {
+      paths: Record<string, Record<string, { parameters?: Array<{
+        name: string;
+        in: string;
+        required: boolean;
+        schema: Record<string, unknown>;
+      }> }>>;
+    };
+
+    return Object.entries(document.paths).flatMap(([path, methods]) =>
+      Object.entries(methods).flatMap(([method, operation]) =>
+        (operation.parameters ?? []).map((parameter) => ({
+          where: `${method.toUpperCase()} ${path} ?${parameter.name}`,
+          parameter,
+        })),
+      ),
+    );
+  })();
+
+  it("finds parameters at all", () => {
+    // So the two checks below cannot pass by looking at nothing.
+    expect(parameters.length).toBeGreaterThan(50);
+  });
+
+  it("has no anyOf or oneOf in any parameter schema", () => {
+    const unions = parameters
+      .filter(({ parameter }) => {
+        const json = JSON.stringify(parameter.schema);
+        return json.includes('"anyOf"') || json.includes('"oneOf"');
+      })
+      .map(({ where }) => where);
+
+    expect(
+      unions,
+      "A union in a parameter schema becomes `dynamic` in Dart, and retrofit " +
+        "calls .toJson() on it. See withoutUndefinedBranch in generate.ts.",
+    ).toEqual([]);
+  });
+
+  it("gives every parameter a type or a named component", () => {
+    // A `$ref` is fine and is how `?filter` becomes a Dart enum rather than a
+    // string. What is not fine is a schema with neither — that is the shape a
+    // generator has nothing to do with.
+    const untyped = parameters
+      .filter(
+        ({ parameter }) =>
+          typeof parameter.schema.type !== "string" && !("$ref" in parameter.schema),
+      )
+      .map(({ where }) => where);
+
+    expect(untyped).toEqual([]);
+  });
+
+  it("still marks optional parameters as not required", () => {
+    // The collapse must not accidentally make an optional filter mandatory —
+    // the schema loses the `undefined` arm, and `required` has to carry it.
+    const cursor = parameters.find(
+      ({ where }) => where === "GET /professionals ?cursor",
+    );
+
+    expect(cursor?.parameter.required).toBe(false);
+    expect(cursor?.parameter.schema.type).toBe("string");
+  });
+
+  it("keeps a boolean query parameter a boolean", () => {
+    // `boolQuerySchema` is `boolean | "true" | "false"` because a query string
+    // arrives as text. Both arms describe one parameter, and OpenAPI already
+    // says how a boolean is spelled in a query.
+    const verified = parameters.find(
+      ({ where }) => where === "GET /professionals ?verifiedOnly",
+    );
+
+    expect(verified?.parameter.schema).toEqual({ type: "boolean" });
+  });
+});
+
 describe("the committed document", () => {
   it("matches what the manifest generates", () => {
     let committed: string;
