@@ -58,29 +58,29 @@ customer's phone number.
 
 | Web page | Mobile | State |
 | --- | --- | --- |
-| `/` | Home tab | **Partial.** Domains and the "quotes ready" panel. Missing `/banners`, `/stats`, `/testimonials`, featured packages, featured products, latest posts |
-| `/catalogue` | — | **Missing.** Products across all trades, with categories |
-| `/catalogue/[domain]` | — | **Missing.** One trade: products, packages, professionals, posts, filters |
-| `/product/[slug]` | — | **Missing.** `effectivePrice` follows the selected city — show the city or the price reads as arbitrary |
-| `/packages` | — | **Missing** |
-| `/packages/[slug]` | — | **Missing** |
-| `/professionals` | Explore tab | **Partial.** The list is there; the web's city and trade filters are not |
-| `/professionals/[id]` | — | **Missing.** Profile, per-trade ratings, portfolio, "Request this professional" |
-| `/our-work` | — | **Missing.** The portfolio gallery |
-| `/search` | — | **Missing.** Including `searchSuggest` |
-| `/blog`, `/blog/[slug]` | Guides | **Done**, except cover images |
+| `/` | Home tab | **Done.** Banners, trades, testimonials and the platform figures |
+| `/catalogue` | Explore → Catalogue | **Done.** Grid, four sorts, filter sheet |
+| `/catalogue/[domain]` | Explore → Catalogue | **Done**, via the trade filter rather than as its own route |
+| `/product/[slug]` | Product detail | **Done.** Names the city beside every price |
+| `/packages` | Explore → Packages | **Done** |
+| `/packages/[slug]` | Package detail | **Done.** Exclusions given the same room as inclusions |
+| `/professionals` | Explore tab | **Partial.** The list and the profile behind it; the web's city and trade filters are not there yet |
+| `/professionals/[id]` | Professional profile | **Done.** Per-trade ratings, portfolio, "Request this professional" |
+| `/our-work` | Explore → Our work | **Done** |
+| `/search` | Explore → search | **Done.** Debounced, with stale responses discarded |
+| `/blog`, `/blog/[slug]` | Guides | **Done.** No cover images in the *list*, deliberately — see 6.3A |
 | `/estimate` | Rough cost | **Done** |
-| `/how-it-works` | — | **Missing** |
-| `/join-as-professional` | — | **Missing** |
+| `/how-it-works` | Account → How it works | **Done** |
+| `/join-as-professional` | Account → Work with us | **Done** |
 | `/submit-requirement` | Requirement flow | **Done** |
 | `/login` | Sign in | **Done** |
-| `/account` | Account tab | **Partial.** No links to notifications, referrals or support |
-| `/account/requirements`, `/[id]` | Jobs tab | **Done** |
+| `/account` | Account tab | **Done** |
+| `/account/requirements`, `/[id]` | Jobs tab | **Done.** Visits listed, with a reschedule request |
 | `/account/agreements` | Agreements | **Done** |
-| `/account/projects` | Progress | **Partial.** No proof photographs — see 6.4 |
-| `/account/notifications` | — | **Missing.** `notifications.dart` routes a *tap*; there is no list |
-| `/account/referrals` | — | **Missing** |
-| `/account/support` | — | **Missing.** Tickets, replies |
+| `/account/projects` | Progress | **Done.** Proof photographs, and a review when every stage is approved |
+| `/account/notifications` | Account → Notifications | **Done** |
+| `/account/referrals` | Account → Invite a friend | **Done** |
+| `/account/support` | Account → Help | **Done.** Tickets and replies |
 
 ### The professional's surfaces
 
@@ -90,25 +90,25 @@ customer's phone number.
 | `/partner/leads`, `/[id]` | Leads | **Done** |
 | `/partner/onboarding` | Onboarding gate | **Done** |
 | `/partner/projects` | Projects | **Done** |
-| `/partner/projects/[id]` | Stage proof | **Partial.** Upload works; submitted photographs are never shown back |
+| `/partner/projects/[id]` | Stage proof | **Done.** Submitted photographs are shown back on both sides |
 | `/partner/payments` | More → Commission | **Done** |
-| `/partner/profile` | More → Performance, Portfolio | **Partial.** No portfolio images, no profile editing |
+| `/partner/profile` | More → Performance, Portfolio, Your profile | **Partial.** The record is all there and so are the portfolio images; editing it is not |
 
 ### What the contract offers that nothing calls
 
-Thirteen of the generated client's sixty-seven methods are unreachable from any
-screen, and they are not a random thirteen — they are the browse half, entire:
+Two methods, down from twenty-one, and both are meant to be here:
 
-`listProducts` · `getProduct` · `listPackages` · `getPackage` · `getDomain` ·
-`getProfessional` · `listPortfolio` · `listCategories` · `search` ·
-`searchSuggest` · `listBanners` · `listTestimonials` · `platformStats` ·
-`submitReview` · `createTicket` · `replyToTicket` · `listTickets` ·
-`referrals` · `listNotifications` · `markNotificationsRead` ·
-`requestReschedule`
+`staffLogin` — staff have no mobile surface, by design, and the app refuses
+them on the sign-in path with somewhere to go.
 
-An unused client method is the cheapest possible signal that a surface is
-missing. `packages/core_api/test/` should assert this list shrinks and never
-grows.
+`getDomain` — one trade by slug. The catalogue filters by trade rather than
+routing to it, so nothing needs the single fetch. Worth revisiting only if a
+deep link ever has to open a trade cold.
+
+**An unused client method is the cheapest signal that a surface is missing**,
+and it found every one of the thirteen this list used to carry. Run
+`grep`-style coverage over the generated clients before declaring a phase
+finished, and treat a new entry as a screen somebody forgot.
 
 The app talks to `apps/api` and to nothing else. It reimplements no rule:
 assignment, masking, commission, agreement signing and stage approval are all
@@ -591,13 +591,13 @@ whole phase.
 
 | Screen | Endpoints | State | Notes |
 | --- | --- | --- | --- |
-| Home | `/domains`, `/catalogue/counts`, `/banners`, `/stats`, `/testimonials`, `/packages` | built, partial | The `discovery_matching` render, with the four trades as the entry. Editorial hero in Newsreader; do not turn it into a tile grid |
-| Explore — catalogue | `/products` (paged), `/categories`, `/cities` | **to build** | Domain tabs, filter sheet (category, city, price, tags, sort), infinite scroll on `nextCursor` |
-| Product detail | `/products/:slug`, `/products/:slug/related` | **to build** | `effectivePrice` follows the selected city — show the city, or the price looks arbitrary |
-| Packages, package detail | `/packages`, `/packages/:slug` | **to build** | |
+| Home | `/domains`, `/catalogue/counts`, `/banners`, `/stats`, `/testimonials`, `/packages` | built | The `discovery_matching` render, with the four trades as the entry. Editorial hero in Newsreader; do not turn it into a tile grid |
+| Explore — catalogue | `/products` (paged), `/categories`, `/cities` | built | Domain tabs, filter sheet (category, city, price, tags, sort), infinite scroll on `nextCursor` |
+| Product detail | `/products/:slug`, `/products/:slug/related` | built | `effectivePrice` follows the selected city — show the city, or the price looks arbitrary |
+| Packages, package detail | `/packages`, `/packages/:slug` | built | |
 | Professionals directory | `/professionals` (paged), filters incl. `verifiedOnly` | built | Ranked by rating **in the trade being browsed** — say which trade the rating is for, on the card |
-| Professional profile | `/professionals/:id`, `/portfolio` | **to build** | The `studio_profile_packages` render. CTA is "Request this professional" — a preference, not a booking |
-| Search | `/search`, `/search/suggest` | **to build** | Type-ahead must stay fast; debounce 250ms and cancel in flight |
+| Professional profile | `/professionals/:id`, `/portfolio` | built | The `studio_profile_packages` render. CTA is "Request this professional" — a preference, not a booking |
+| Search | `/search`, `/search/suggest` | built | Type-ahead must stay fast; debounce 250ms and cancel in flight |
 | Blog | `/posts` (paged), `/posts/:slug` | built | Native list, native reader. It exists to rank, so keep deep links working |
 | Estimator | client-side | built | Port from web |
 | **Submit requirement** | `/uploads/tickets`, `POST /me/requirements` | built | See 6.3 |
@@ -606,17 +606,17 @@ whole phase.
 | Agreements | `/me/agreements`, `POST /me/requirements/:id/agreements` | built | Explain combined agreements where they occur — one contract per professional, not per service, and customers will ask |
 | **Sign agreement** | `POST /me/agreements/:id/sign` | built | Level-2 overlay, pure chalk. See 7.5 — this is the one screen where a double tap is expensive |
 | Projects list | `/me/projects` | built | |
-| Project detail | `ProjectView.project.milestones` | built, partial | The `mediated_project_hub` roadmap, redrawn read-only. Four stages, proof photographs, ochre while submitted, sage on approval. **No approve button** |
-| Review | `POST /me/reviews` | **to build** | Offered on completion; ratings are per trade |
+| Project detail | `ProjectView.project.milestones` | built | The `mediated_project_hub` roadmap, redrawn read-only. Four stages, proof photographs, ochre while submitted, sage on approval. **No approve button** |
+| Review | `POST /me/reviews` | built | Offered on completion; ratings are per trade |
 | Messages | `/me/services/:id/messages` | built | One thread per service, **with Aangan**. Header names the coordinator and states the relay plainly |
-| Visits | `POST /me/visits/:id/reschedule` | **to build** | Confirming a visit is what releases the address to that vendor — worth a line of copy |
-| Notifications | `/me/notifications`, `POST /me/notifications/read` | **to build** | |
-| Support | `/me/tickets`, `POST /me/tickets`, `POST /me/tickets/:id/replies` | **to build** | |
-| Referrals | `/me/referrals` | **to build** | Share sheet |
+| Visits | `POST /me/visits/:id/reschedule` | built | Confirming a visit is what releases the address to that vendor — worth a line of copy |
+| Notifications | `/me/notifications`, `POST /me/notifications/read` | built | |
+| Support | `/me/tickets`, `POST /me/tickets`, `POST /me/tickets/:id/replies` | built | |
+| Referrals | `/me/referrals` | built | Share sheet |
 | Account | `GET /me`, `POST /auth/logout` | built | |
-| Our work | `/portfolio`, `/professionals` | **to build** | The portfolio gallery. The web's `/our-work` |
-| How it works | `/domains` | **to build** | |
-| Join as a professional | `/domains` | **to build** | The recruiting surface. A vendor who installs the customer app has to be able to find it |
+| Our work | `/portfolio`, `/professionals` | built | The portfolio gallery. The web's `/our-work` |
+| How it works | static | built | |
+| Join as a professional | static | built | The recruiting surface. A vendor who installs the customer app has to be able to find it |
 
 ### 6.2 Vendor shell
 
@@ -643,23 +643,26 @@ app can make; they must see what is missing and how to finish it.
 | Visits | `/vendor/visits` | built, partial | **The address-release state is a first-class UI state**: locality only until the visit for *that service* is confirmed, then the full address with a maps launcher. Two distinct designs, not one with an empty line |
 | Projects | `/vendor/projects` | built | |
 | **Stage proof** | `POST /vendor/projects/:id/stages/:stageId/proof` | built, partial | The core action. Camera or gallery, multi-photo, compress, upload tickets, note, submit. The CTA says **"Submit for approval"** — evidence is not completion, and the screen must not imply it is |
-| Agreements | `/vendor/agreements` | **to build** | Combined agreements collapse; execution stays per service |
+| Agreements | `/vendor/agreements` | built | Combined agreements collapse; execution stays per service. The card says so on itself — a vendor who reads one combined contract as two will invoice twice |
 | Commission | `/vendor/invoices` | built | Ochre when due, burnt iron when overdue. Vendor-side only — this figure never appears on a customer screen |
 | Performance | `/vendor/performance` | built | Per-trade rating, win rate, response time, reviews. Per-trade is the point: excellent at painting, average at carpentry, shown as exactly that |
 | Portfolio | `/vendor/portfolio`, upload purpose `portfolio_item` | built, partial | Approved items only are public |
-| Profile | `GET /me` | **to build** | The web's `/partner/profile` also edits. Read-only here is not parity |
+| Profile | `GET /me` | built, partial | Approved trades, the figures customers see. The web's `/partner/profile` also **edits**; this does not, and the screen says so rather than leaving somebody hunting for a pencil. The one remaining vendor gap |
 
-**Where "partial" is doing real work above.** Stage proof uploads photographs
-and never shows them back — not to the vendor who sent them, not to the customer
-whose progress depends on them. The platform's central claim is that work counts
-as done *when somebody has looked at the evidence*, and neither side of this app
-can look at it. Visits are listed but cannot be rescheduled, which the web can
-do. Portfolio lists titles with no pictures. See 6.3A.
+**Where "partial" is doing real work above.** Stage proof and portfolio are
+partial only in that neither can *delete* an item once sent — the photographs
+themselves now render on both sides, which is what the platform's central claim
+needs: work counts as done when somebody has looked at the evidence. Visits are
+partial because the address-release state is built and the maps launcher is not
+yet wired on every path. Profile is partial because it cannot be edited.
 
-### 6.3A Images, which this app currently has none of
+### 6.3A Images, and the honesty the web keeps about them
 
-There is not one `Image` widget in the application. `cached_network_image` is
-named in section 4.2 and was never added to a `pubspec.yaml`.
+*Built.* `AanganMedia` lives in `packages/design/lib/src/media.dart` and is a
+line-for-line port of `packages/ui/src/media.tsx`, `mediaHash` included — down
+to JavaScript's int32 narrowing, so the same seed produces the same colour on
+both platforms. `MediaStrip` and `showMediaViewer` carry the photograph sets.
+This section stays because the *rule* is what matters, not the widget.
 
 **Match the web's honesty about this.** `packages/ui/src/media.tsx` renders a
 real `<img>` when there is a photograph and a *generated gradient* when the
@@ -676,13 +679,13 @@ sentinel, and never a broken-image glyph or a grey box. The tint derives from
 the domain, so the same product is the same colour on both platforms.
 
 Three places carry **real** photographs rather than placeholders, and all three
-are blank on mobile today:
+render them now:
 
-| | Where | Why it matters |
+| | Where | State |
 | --- | --- | --- |
-| Stage proof | Vendor's submission, customer's progress | The evidence the whole platform rests on |
-| Portfolio | Professional profile, `/our-work`, the vendor's own portfolio | The only thing a customer can judge work by before quoting |
-| Blog covers | Post list and post header | The web renders both. Mobile omits them in the *list* on purpose — twenty covers is the most expensive screen here — and omits them in the header for no reason at all |
+| Stage proof | Vendor's submission, customer's progress | Built on both sides. The evidence the whole platform rests on, and for a while the one thing neither side could see |
+| Portfolio | Professional profile, `/our-work`, the vendor's own portfolio | Built. Approved items only, which is the moderation rule showing through |
+| Blog covers | Post header | Built on the post. Omitted from the *list* on purpose — twenty covers is the most expensive screen here, and a column of headlines reads better |
 
 Everything else — products, packages, banners, avatars — is a `ph:` placeholder
 until somebody photographs it, and should render as one rather than as nothing.
