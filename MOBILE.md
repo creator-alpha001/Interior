@@ -64,7 +64,7 @@ customer's phone number.
 | `/product/[slug]` | Product detail | **Done.** Names the city beside every price |
 | `/packages` | Explore → Packages | **Done** |
 | `/packages/[slug]` | Package detail | **Done.** Exclusions given the same room as inclusions |
-| `/professionals` | Explore tab | **Partial.** The list and the profile behind it; the web's city and trade filters are not there yet |
+| `/professionals` | Explore tab | **Done.** Trade and city filters, verified only, and the profile behind each card |
 | `/professionals/[id]` | Professional profile | **Done.** Per-trade ratings, portfolio, "Request this professional" |
 | `/our-work` | Explore → Our work | **Done** |
 | `/search` | Explore → search | **Done.** Debounced, with stale responses discarded |
@@ -595,7 +595,7 @@ whole phase.
 | Explore — catalogue | `/products` (paged), `/categories`, `/cities` | built | Domain tabs, filter sheet (category, city, price, tags, sort), infinite scroll on `nextCursor` |
 | Product detail | `/products/:slug`, `/products/:slug/related` | built | `effectivePrice` follows the selected city — show the city, or the price looks arbitrary |
 | Packages, package detail | `/packages`, `/packages/:slug` | built | |
-| Professionals directory | `/professionals` (paged), filters incl. `verifiedOnly` | built | Ranked by rating **in the trade being browsed** — say which trade the rating is for, on the card |
+| Professionals directory | `/professionals` (paged), filters incl. `verifiedOnly` | built | Ranked by rating **in the trade being browsed** — say which trade the rating is for, on the card. Setting the trade is what makes the API return `domainRating` at all, so the filter is the feature, not a convenience |
 | Professional profile | `/professionals/:id`, `/portfolio` | built | The `studio_profile_packages` render. CTA is "Request this professional" — a preference, not a booking |
 | Search | `/search`, `/search/suggest` | built | Type-ahead must stay fast; debounce 250ms and cancel in flight |
 | Blog | `/posts` (paged), `/posts/:slug` | built | Native list, native reader. It exists to rank, so keep deep links working |
