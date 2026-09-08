@@ -5,25 +5,110 @@ professional. Admin stays on the web, where it is, and stays a separate
 deployment for the reason it always was — it holds commission figures, vendor
 margins and customer phone numbers.
 
+## What this document is, and what it is not
+
+**`apps/web` is the specification for functionality.** Anything a customer or a
+professional can do in the web app must be doable in this one. That is the
+requirement, it is not negotiable per-screen, and it is not restated here
+feature by feature — the web app *is* the statement, and it is executable.
+
+**This document describes how those things should look and behave on a phone.**
+The palette, the type scale, the navigation shape, the mechanics that only exist
+on mobile — uploads from a camera, push, biometric resume, offline reads. Where
+it lists screens, it is describing a *design treatment for a surface the web
+already has*, never deciding which surfaces exist.
+
+That distinction is written this plainly because getting it wrong has already
+cost a rebuild — and the record should be accurate about how. Section 6 listed
+the catalogue, product detail, packages, the professional profile, search,
+notifications, support and referrals from the beginning. **They were specified
+and simply not built**, while every milestone in section 9 reported complete,
+because the milestones were treated as the definition of done and they do not
+cover section 6's table. Nobody was misled by this document; the yardstick was
+wrong.
+
+So section 1 is now the yardstick, it is derived from `apps/web/src/app`, and it
+carries a state column. A milestone cannot be complete while a row in it says
+missing.
+
 Read `CONTEXT.md` first for what the platform is and why. `API.md` is the
-contract this app consumes. This file is what has to be built, in what order,
-and what it should look like.
+contract this app consumes.
 
 The design language comes from the **Warm Architectural Minimalism** theme
 supplied as a Stitch prototype. It is adopted as a *look* — palette, type,
-layering, framing, the shape of a card and a status chip. Its screens are drawn
-around a different product's mechanics, so section 3.7 maps each of its
-treatments onto the Aangan screen that should wear it.
+layering, framing, the shape of a card and a status chip. **It carries no
+functional weight whatsoever**: its screens are drawn around a different
+product's mechanics, and section 3.7 maps each of its treatments onto an Aangan
+screen that exists for reasons the prototype knows nothing about.
 
 ---
 
-## 1. Scope
+## 1. Scope — measured against the web app
 
-| | In | Out |
+Every page under `apps/web/src/app`, and where it stands on mobile. **This table
+is the definition of done.** A surface is not out of scope because it is absent
+from this document; it is out of scope only if this table says so and gives a
+reason.
+
+Staff and admin are the one genuine exclusion: `apps/admin` is web only, now and
+planned, because it holds commission figures, vendor margins and every
+customer's phone number.
+
+### The customer's surfaces
+
+| Web page | Mobile | State |
 | --- | --- | --- |
-| Customer | Browse, requirement, quotes, agreement, project tracking, messages, support | — |
-| Professional | Onboarding, leads, quoting, visits, stage proof, commission, performance | — |
-| Staff / admin | | Web only (`apps/admin`). No mobile surface, now or planned |
+| `/` | Home tab | **Partial.** Domains and the "quotes ready" panel. Missing `/banners`, `/stats`, `/testimonials`, featured packages, featured products, latest posts |
+| `/catalogue` | — | **Missing.** Products across all trades, with categories |
+| `/catalogue/[domain]` | — | **Missing.** One trade: products, packages, professionals, posts, filters |
+| `/product/[slug]` | — | **Missing.** `effectivePrice` follows the selected city — show the city or the price reads as arbitrary |
+| `/packages` | — | **Missing** |
+| `/packages/[slug]` | — | **Missing** |
+| `/professionals` | Explore tab | **Partial.** The list is there; the web's city and trade filters are not |
+| `/professionals/[id]` | — | **Missing.** Profile, per-trade ratings, portfolio, "Request this professional" |
+| `/our-work` | — | **Missing.** The portfolio gallery |
+| `/search` | — | **Missing.** Including `searchSuggest` |
+| `/blog`, `/blog/[slug]` | Guides | **Done**, except cover images |
+| `/estimate` | Rough cost | **Done** |
+| `/how-it-works` | — | **Missing** |
+| `/join-as-professional` | — | **Missing** |
+| `/submit-requirement` | Requirement flow | **Done** |
+| `/login` | Sign in | **Done** |
+| `/account` | Account tab | **Partial.** No links to notifications, referrals or support |
+| `/account/requirements`, `/[id]` | Jobs tab | **Done** |
+| `/account/agreements` | Agreements | **Done** |
+| `/account/projects` | Progress | **Partial.** No proof photographs — see 6.4 |
+| `/account/notifications` | — | **Missing.** `notifications.dart` routes a *tap*; there is no list |
+| `/account/referrals` | — | **Missing** |
+| `/account/support` | — | **Missing.** Tickets, replies |
+
+### The professional's surfaces
+
+| Web page | Mobile | State |
+| --- | --- | --- |
+| `/partner` | Dashboard | **Done** |
+| `/partner/leads`, `/[id]` | Leads | **Done** |
+| `/partner/onboarding` | Onboarding gate | **Done** |
+| `/partner/projects` | Projects | **Done** |
+| `/partner/projects/[id]` | Stage proof | **Partial.** Upload works; submitted photographs are never shown back |
+| `/partner/payments` | More → Commission | **Done** |
+| `/partner/profile` | More → Performance, Portfolio | **Partial.** No portfolio images, no profile editing |
+
+### What the contract offers that nothing calls
+
+Thirteen of the generated client's sixty-seven methods are unreachable from any
+screen, and they are not a random thirteen — they are the browse half, entire:
+
+`listProducts` · `getProduct` · `listPackages` · `getPackage` · `getDomain` ·
+`getProfessional` · `listPortfolio` · `listCategories` · `search` ·
+`searchSuggest` · `listBanners` · `listTestimonials` · `platformStats` ·
+`submitReview` · `createTicket` · `replyToTicket` · `listTickets` ·
+`referrals` · `listNotifications` · `markNotificationsRead` ·
+`requestReschedule`
+
+An unused client method is the cheapest possible signal that a surface is
+missing. `packages/core_api/test/` should assert this list shrinks and never
+grows.
 
 The app talks to `apps/api` and to nothing else. It reimplements no rule:
 assignment, masking, commission, agreement signing and stage approval are all
@@ -497,33 +582,41 @@ biometrics only unlock the UI. Do not tie the session's lifetime to it.
 Five tabs. The prototype's bottom bar — thin outline glyphs, terracotta only on
 the active item, `labelSmall` uppercase — carries over directly.
 
-`Home · Explore · Requirements · Messages · Account`
+`Home · Explore · Jobs · Messages · Account`
 
-| Screen | Endpoints | Notes |
-| --- | --- | --- |
-| Home | `/domains`, `/catalogue/counts`, `/banners`, `/stats`, `/testimonials`, `/packages` | The `discovery_matching` render, with the four trades as the entry. Editorial hero in Newsreader; do not turn it into a tile grid |
-| Explore — catalogue | `/products` (paged), `/categories`, `/cities` | Domain tabs, filter sheet (category, city, price, tags, sort), infinite scroll on `nextCursor` |
-| Product detail | `/products/:slug`, `/products/:slug/related` | `effectivePrice` follows the selected city — show the city, or the price looks arbitrary |
-| Packages, package detail | `/packages`, `/packages/:slug` | |
-| Professionals directory | `/professionals` (paged), filters incl. `verifiedOnly` | Ranked by rating **in the trade being browsed** — say which trade the rating is for, on the card |
-| Professional profile | `/professionals/:id`, `/portfolio` | The `studio_profile_packages` render. CTA is "Request this professional" — a preference, not a booking |
-| Search | `/search`, `/search/suggest` | Type-ahead must stay fast; debounce 250ms and cancel in flight |
-| Blog | `/posts` (paged), `/posts/:slug` | Native list, native reader. It exists to rank, so keep deep links working |
-| Estimator | client-side | Port from web |
-| **Submit requirement** | `/uploads/tickets`, `POST /me/requirements` | See 6.3 |
-| Requirements list / detail | `/me/requirements`, `/me/requirements/:id` | A requirement is **N service tracks**, not one thing. The detail screen is a stack of per-domain cards, each with its own status, quotes, visits and unread count |
-| Quote comparison | `LeadDomainView.quotes`, `POST /me/services/:id/select-quote` | The `scope_escrow_builder` treatment minus the vault: numbered rows, tabular figures, the vendor's rating in that trade beside each price |
-| Agreements | `/me/agreements`, `POST /me/requirements/:id/agreements` | Explain combined agreements where they occur — one contract per professional, not per service, and customers will ask |
-| **Sign agreement** | `POST /me/agreements/:id/sign` | Level-2 overlay, pure chalk. See 7.5 — this is the one screen where a double tap is expensive |
-| Projects list | `/me/projects` | |
-| Project detail | `ProjectView.project.milestones` | The `mediated_project_hub` roadmap, redrawn read-only. Four stages, proof photographs, ochre while submitted, sage on approval. **No approve button** |
-| Review | `POST /me/reviews` | Offered on completion; ratings are per trade |
-| Messages | `/me/services/:id/messages` | One thread per service, **with Aangan**. Header names the coordinator and states the relay plainly |
-| Visits | `POST /me/visits/:id/reschedule` | Confirming a visit is what releases the address to that vendor — worth a line of copy |
-| Notifications | `/me/notifications`, `POST /me/notifications/read` | |
-| Support | `/me/tickets`, `POST /me/tickets`, `POST /me/tickets/:id/replies` | |
-| Referrals | `/me/referrals` | Share sheet |
-| Account | `GET /me`, `POST /auth/logout` | |
+Every row carries its state. **A row that says "to build" is work, not an
+idea** — this table was written before any of it existed and read afterwards as
+though it described what did, which is how the browse half went missing for a
+whole phase.
+
+| Screen | Endpoints | State | Notes |
+| --- | --- | --- | --- |
+| Home | `/domains`, `/catalogue/counts`, `/banners`, `/stats`, `/testimonials`, `/packages` | built, partial | The `discovery_matching` render, with the four trades as the entry. Editorial hero in Newsreader; do not turn it into a tile grid |
+| Explore — catalogue | `/products` (paged), `/categories`, `/cities` | **to build** | Domain tabs, filter sheet (category, city, price, tags, sort), infinite scroll on `nextCursor` |
+| Product detail | `/products/:slug`, `/products/:slug/related` | **to build** | `effectivePrice` follows the selected city — show the city, or the price looks arbitrary |
+| Packages, package detail | `/packages`, `/packages/:slug` | **to build** | |
+| Professionals directory | `/professionals` (paged), filters incl. `verifiedOnly` | built | Ranked by rating **in the trade being browsed** — say which trade the rating is for, on the card |
+| Professional profile | `/professionals/:id`, `/portfolio` | **to build** | The `studio_profile_packages` render. CTA is "Request this professional" — a preference, not a booking |
+| Search | `/search`, `/search/suggest` | **to build** | Type-ahead must stay fast; debounce 250ms and cancel in flight |
+| Blog | `/posts` (paged), `/posts/:slug` | built | Native list, native reader. It exists to rank, so keep deep links working |
+| Estimator | client-side | built | Port from web |
+| **Submit requirement** | `/uploads/tickets`, `POST /me/requirements` | built | See 6.3 |
+| Requirements list / detail | `/me/requirements`, `/me/requirements/:id` | built | A requirement is **N service tracks**, not one thing. The detail screen is a stack of per-domain cards, each with its own status, quotes, visits and unread count |
+| Quote comparison | `LeadDomainView.quotes`, `POST /me/services/:id/select-quote` | built | The `scope_escrow_builder` treatment minus the vault: numbered rows, tabular figures, the vendor's rating in that trade beside each price |
+| Agreements | `/me/agreements`, `POST /me/requirements/:id/agreements` | built | Explain combined agreements where they occur — one contract per professional, not per service, and customers will ask |
+| **Sign agreement** | `POST /me/agreements/:id/sign` | built | Level-2 overlay, pure chalk. See 7.5 — this is the one screen where a double tap is expensive |
+| Projects list | `/me/projects` | built | |
+| Project detail | `ProjectView.project.milestones` | built, partial | The `mediated_project_hub` roadmap, redrawn read-only. Four stages, proof photographs, ochre while submitted, sage on approval. **No approve button** |
+| Review | `POST /me/reviews` | **to build** | Offered on completion; ratings are per trade |
+| Messages | `/me/services/:id/messages` | built | One thread per service, **with Aangan**. Header names the coordinator and states the relay plainly |
+| Visits | `POST /me/visits/:id/reschedule` | **to build** | Confirming a visit is what releases the address to that vendor — worth a line of copy |
+| Notifications | `/me/notifications`, `POST /me/notifications/read` | **to build** | |
+| Support | `/me/tickets`, `POST /me/tickets`, `POST /me/tickets/:id/replies` | **to build** | |
+| Referrals | `/me/referrals` | **to build** | Share sheet |
+| Account | `GET /me`, `POST /auth/logout` | built | |
+| Our work | `/portfolio`, `/professionals` | **to build** | The portfolio gallery. The web's `/our-work` |
+| How it works | `/domains` | **to build** | |
+| Join as a professional | `/domains` | **to build** | The recruiting surface. A vendor who installs the customer app has to be able to find it |
 
 ### 6.2 Vendor shell
 
@@ -539,22 +632,62 @@ prototype's stepped ledger, with the partner agreement as the terminal step and
 An unsigned vendor seeing "0 leads" is the single worst first impression this
 app can make; they must see what is missing and how to finish it.
 
-| Screen | Endpoints | Notes |
+| Screen | Endpoints | State | Notes |
+| --- | --- | --- | --- |
+| Dashboard | `/vendor/dashboard` | built | Counters — new, awaiting quote, quotes out, won, live projects, visits today, commission due/overdue, unread. The prototype's figures block, dense, tabular |
+| Leads | `/vendor/leads?filter=new\|quoting\|won\|lost` | built | Tabs. Card shows the masked client, locality, trade, urgency, budget ceiling |
+| Lead detail | `/vendor/leads/:id` | built | The customer's own words *and* the brief ops captured on the call — the brief is the real scope, so give it the weight. `competingQuotes` shown plainly; do not soften it |
+| Respond | `POST /vendor/leads/:id/respond` | built | Accept or decline, with a reason |
+| Quote builder | `POST /vendor/leads/:id/quotes` | built | Versioned server-side; one live quote per vendor is a database constraint. Show "this replaces quote v2" before submitting, not after the 409 |
+| Lead messages | `/vendor/leads/:id/messages` | built | Their thread **with Aangan**. Never with the customer |
+| Visits | `/vendor/visits` | built, partial | **The address-release state is a first-class UI state**: locality only until the visit for *that service* is confirmed, then the full address with a maps launcher. Two distinct designs, not one with an empty line |
+| Projects | `/vendor/projects` | built | |
+| **Stage proof** | `POST /vendor/projects/:id/stages/:stageId/proof` | built, partial | The core action. Camera or gallery, multi-photo, compress, upload tickets, note, submit. The CTA says **"Submit for approval"** — evidence is not completion, and the screen must not imply it is |
+| Agreements | `/vendor/agreements` | **to build** | Combined agreements collapse; execution stays per service |
+| Commission | `/vendor/invoices` | built | Ochre when due, burnt iron when overdue. Vendor-side only — this figure never appears on a customer screen |
+| Performance | `/vendor/performance` | built | Per-trade rating, win rate, response time, reviews. Per-trade is the point: excellent at painting, average at carpentry, shown as exactly that |
+| Portfolio | `/vendor/portfolio`, upload purpose `portfolio_item` | built, partial | Approved items only are public |
+| Profile | `GET /me` | **to build** | The web's `/partner/profile` also edits. Read-only here is not parity |
+
+**Where "partial" is doing real work above.** Stage proof uploads photographs
+and never shows them back — not to the vendor who sent them, not to the customer
+whose progress depends on them. The platform's central claim is that work counts
+as done *when somebody has looked at the evidence*, and neither side of this app
+can look at it. Visits are listed but cannot be rescheduled, which the web can
+do. Portfolio lists titles with no pictures. See 6.3A.
+
+### 6.3A Images, which this app currently has none of
+
+There is not one `Image` widget in the application. `cached_network_image` is
+named in section 4.2 and was never added to a `pubspec.yaml`.
+
+**Match the web's honesty about this.** `packages/ui/src/media.tsx` renders a
+real `<img>` when there is a photograph and a *generated gradient* when the
+source begins with `ph:` — because most of the seed catalogue has no
+photographs, and the web's own home page says why in a comment worth repeating:
+
+> Ruled cells rather than four image cards. The images here were placeholders
+> standing in for photographs nobody has taken, and a trade is better identified
+> by its name and a colour than by a gradient pretending to be a room.
+
+So a mobile `AanganMedia` should behave exactly as `Media` does: a photograph
+when one exists, a deterministic tinted placeholder when the value is a `ph:`
+sentinel, and never a broken-image glyph or a grey box. The tint derives from
+the domain, so the same product is the same colour on both platforms.
+
+Three places carry **real** photographs rather than placeholders, and all three
+are blank on mobile today:
+
+| | Where | Why it matters |
 | --- | --- | --- |
-| Dashboard | `/vendor/dashboard` | Counters — new, awaiting quote, quotes out, won, live projects, visits today, commission due/overdue, unread. The prototype's figures block, dense, tabular |
-| Leads | `/vendor/leads?filter=new\|quoting\|won\|lost` | Tabs. Card shows the masked client, locality, trade, urgency, budget ceiling |
-| Lead detail | `/vendor/leads/:id` | The customer's own words *and* the brief ops captured on the call — the brief is the real scope, so give it the weight. `competingQuotes` shown plainly; do not soften it |
-| Respond | `POST /vendor/leads/:id/respond` | Accept or decline, with a reason |
-| Quote builder | `POST /vendor/leads/:id/quotes` | Versioned server-side; one live quote per vendor is a database constraint. Show "this replaces quote v2" before submitting, not after the 409 |
-| Lead messages | `/vendor/leads/:id/messages` | Their thread **with Aangan**. Never with the customer |
-| Visits | `/vendor/visits` | **The address-release state is a first-class UI state**: locality only until the visit for *that service* is confirmed, then the full address with a maps launcher. Two distinct designs, not one with an empty line |
-| Projects | `/vendor/projects` | |
-| **Stage proof** | `POST /vendor/projects/:id/stages/:stageId/proof` | The core action. Camera or gallery, multi-photo, compress, upload tickets, note, submit. The CTA says **"Submit for approval"** — evidence is not completion, and the screen must not imply it is |
-| Agreements | `/vendor/agreements` | Combined agreements collapse; execution stays per service |
-| Commission | `/vendor/invoices` | Ochre when due, burnt iron when overdue. Vendor-side only — this figure never appears on a customer screen |
-| Performance | `/vendor/performance` | Per-trade rating, win rate, response time, reviews. Per-trade is the point: excellent at painting, average at carpentry, shown as exactly that |
-| Portfolio | `/vendor/portfolio`, upload purpose `portfolio_item` | Approved items only are public |
-| Profile | `GET /me` | |
+| Stage proof | Vendor's submission, customer's progress | The evidence the whole platform rests on |
+| Portfolio | Professional profile, `/our-work`, the vendor's own portfolio | The only thing a customer can judge work by before quoting |
+| Blog covers | Post list and post header | The web renders both. Mobile omits them in the *list* on purpose — twenty covers is the most expensive screen here — and omits them in the header for no reason at all |
+
+Everything else — products, packages, banners, avatars — is a `ph:` placeholder
+until somebody photographs it, and should render as one rather than as nothing.
+
+---
 
 ### 6.3 The requirement flow, which is the app's most important screen
 
@@ -827,9 +960,17 @@ Continuing the milestone numbering in `CONTEXT.md`, which ends at M7.
 | **M8** | Foundation | Workspace, flavours, design package with tokens/theme/components, token goldens, generated `core_api`, dio + interceptors, go_router skeleton, CI (analyze, test, golden, build both platforms) | The component gallery renders every state, and goldens pass |
 | **M9** | Identity | Bearer session, OTP screens with whole-code paste, secure storage, role routing, 401 handling, biometric resume | All three sign-in paths work on device, including a new number creating a customer |
 | **M10** | Vendor app | Onboarding gate and partner agreement, dashboard, leads, quote builder, relay messages, visits with address release, **stage proof with the upload queue**, invoices, performance, portfolio | A vendor completes a real job end to end on a phone, and the masking sweep is green |
-| **M11** | Customer app | Home, catalogue, professionals, search, blog, the requirement flow, requirements and quote comparison, agreements and signing, projects, messages, notifications, support, referrals | One requirement runs from submission to a signed agreement on a phone |
+| **M11** | Customer app | Home, catalogue, professionals, search, blog, the requirement flow, requirements and quote comparison, agreements and signing, projects, messages, notifications, support, referrals | **Every customer row in section 1 reads "done"**, and one requirement runs from submission to a signed agreement on a phone |
 | **M12** | Notifications and polish | Push end to end, deep links, offline read cache, empty and error states, accessibility pass, `textScale` 1.3 goldens, Hindi decision from 3.4 | Every push in 7.2 lands on the right screen |
 | **M13** | Release | Store listings, screenshots in the design language, review demo accounts, privacy manifests, account deletion, forced upgrade, staged rollout, Sentry release tagging | Both stores approve; crash-free sessions measured |
+
+**Read the "Done when" column as a floor, never as the definition.** M11's used
+to say only *"one requirement runs from submission to a signed agreement on a
+phone"* — which a build can satisfy while skipping the catalogue, product
+detail, packages, the professional profile, search, notifications, support and
+referrals, all of which are named two columns to its left. That is exactly what
+happened: M11 was declared complete, and the browse half of the customer app did
+not exist. A phase is finished when section 1 says so.
 
 The API side of section 8 is done, so M8 starts against a backend that already
 speaks bearer sessions, stores uploads, and has somewhere to send a push. The
@@ -855,6 +996,13 @@ to everything done so far". Treat these as sizes, not as a commitment.
 Each of these changes what gets built, and each needs an answer from the client
 rather than a default.
 
+**"Should mobile have X?" is not an open question and does not belong here.** If
+the web app has X, mobile has X — that is section 1, and it is settled. Question
+3 below was asked in that shape, sat unanswered for a phase, and the browse half
+of the app was quietly deferred behind it. What belongs here is a genuine
+product decision: a platform behaviour, a regulatory boundary, an ownership
+question. Not a scope negotiation the web already won.
+
 1. ~~**Hindi at v1?**~~ **Answered: yes.** Both shells are fully translated —
    `packages/design/lib/src/l10n/` holds the tables, and `app/test/l10n_test.dart`
    fails the build on an untranslated string or an orphaned entry. The
@@ -864,11 +1012,13 @@ rather than a default.
    `blockedReason` — is still English, and translating it is a server change.
 2. **Dark mode at v1?** (3.8) Recommendation is no, deliberately.
 3. ~~**Does the customer app need the blog and the estimator?**~~ **Answered:
-   yes, both.** Built as `blog_screen.dart` and `estimator_screen.dart`, reached
-   from the Explore tab rather than from tabs of their own — five tabs is the
-   ceiling 6.1 sets. The estimator's rate table is compiled into the app so it
-   answers with no network at all, which is the point of it; the cost is that
-   the rates now live in two repositories, and `estimator.dart` says so.
+   yes, both — and the question should never have been asked.** The web has
+   `/blog` and `/estimate`, so the answer was determined before anybody asked
+   it. Built as `blog_screen.dart` and `estimator_screen.dart`, reached from the
+   Explore tab rather than from tabs of their own — five tabs is the ceiling 6.1
+   sets. The estimator's rate table is compiled into the app so it answers with
+   no network at all, which is the point of it; the cost is that the rates now
+   live in two repositories, and `estimator.dart` says so.
 4. **Payments.** The whole prototype is built on escrow, and the platform
    deliberately has none. If off-platform payments are ever revisited, it is its
    own phase with the most regulatory weight — and it changes several screens
