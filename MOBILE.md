@@ -92,7 +92,7 @@ customer's phone number.
 | `/partner/projects` | Projects | **Done** |
 | `/partner/projects/[id]` | Stage proof | **Done.** Submitted photographs are shown back on both sides |
 | `/partner/payments` | More → Commission | **Done** |
-| `/partner/profile` | More → Performance, Portfolio, Your profile | **Partial.** The record is all there and so are the portfolio images; editing it is not |
+| `/partner/profile` | More → Performance, Portfolio, Your profile | **Done.** The record, the per-trade figures, the reviews and the business details. Neither side edits — see below |
 
 ### What the contract offers that nothing calls
 
@@ -647,14 +647,28 @@ app can make; they must see what is missing and how to finish it.
 | Commission | `/vendor/invoices` | built | Ochre when due, burnt iron when overdue. Vendor-side only — this figure never appears on a customer screen |
 | Performance | `/vendor/performance` | built | Per-trade rating, win rate, response time, reviews. Per-trade is the point: excellent at painting, average at carpentry, shown as exactly that |
 | Portfolio | `/vendor/portfolio`, upload purpose `portfolio_item` | built, partial | Approved items only are public |
-| Profile | `GET /me` | built, partial | Approved trades, the figures customers see. The web's `/partner/profile` also **edits**; this does not, and the screen says so rather than leaving somebody hunting for a pencil. The one remaining vendor gap |
+| Profile | `GET /me` | built | Approved trades, the figures customers see, and the business details on file. **Read-only, and that is parity** — see the note under this table |
 
 **Where "partial" is doing real work above.** Stage proof and portfolio are
 partial only in that neither can *delete* an item once sent — the photographs
 themselves now render on both sides, which is what the platform's central claim
 needs: work counts as done when somebody has looked at the evidence. Visits are
 partial because the address-release state is built and the maps launcher is not
-yet wired on every path. Profile is partial because it cannot be edited.
+yet wired on every path.
+
+**The profile is not one of them, and this document was wrong about why.** An
+earlier draft of the row above read *"the web's `/partner/profile` also edits.
+Read-only here is not parity"*, and the mobile screen was built to apologise for
+a gap that does not exist: `apps/web/src/app/partner/profile/page.tsx` renders
+four read-only panels and no form, and the API has no vendor profile write —
+`/vendor/*` has fifteen paths and not one of them updates the professional.
+
+Editing is not self-service **anywhere**, on purpose, and it is the same rule as
+trade approval: what a customer sees about a professional is changed by a person
+at Aangan. The screen now says that, instead of "not built yet".
+
+The lesson is the one this document's own preamble states. A row asserting what
+another surface does is a claim about code, and it is checkable — check it.
 
 ### 6.3A Images, and the honesty the web keeps about them
 
