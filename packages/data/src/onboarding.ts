@@ -123,14 +123,6 @@ export async function getVendorOnboardingFor(
       blocking: false,
       hint: portfolio.length === 0 ? "Profiles with photos win noticeably more work." : null,
     },
-    {
-      key: "bank",
-      label: "Bank details",
-      description: "For commission invoicing. Added after approval.",
-      done: pro.gstNumber !== null,
-      blocking: false,
-      hint: null,
-    },
   ];
 
   const blocking = steps.filter((s) => s.blocking && !s.done);

@@ -21,3 +21,6 @@ CREDENTIALS.md
 
 # Local storage and the SMS outbox, written by the local delivery drivers.
 .data/
+
+# A local backup of .env, made when repointing at a non-Docker Postgres.
+.env.*.bak

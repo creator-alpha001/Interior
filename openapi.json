@@ -2997,8 +2997,7 @@
           "trades",
           "service_areas",
           "portfolio",
-          "agreement",
-          "bank"
+          "agreement"
         ]
       },
       "OpsAssignBody": {

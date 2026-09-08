@@ -140,14 +140,6 @@ export async function getOnboarding(professionalId: string): Promise<VendorOnboa
       blocking: true,
       hint: signed ? null : "You will receive no leads until this is signed.",
     },
-    {
-      key: "bank",
-      label: "Payment details",
-      description: "Where we send anything owed to you, and where commission is invoiced.",
-      done: Boolean(pro.professional.gstNumber),
-      blocking: false,
-      hint: null,
-    },
   ];
 
   const blocking = steps.filter((s) => s.blocking && !s.done);

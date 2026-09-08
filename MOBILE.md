@@ -211,11 +211,17 @@ static const financialNum = TextStyle(
 **Newsreader and Manrope have no Devanagari.** If Hindi is ever a target — and
 for home services in India it will be — Hindi headings fall back silently to the
 platform default serif, which is Noto on Android and Devanagari Sangam MN on
-iOS, and the editorial character of the design is gone in that locale. Decide
-now: pair Noto Serif Devanagari with Newsreader and Noto Sans Devanagari with
-Manrope in `fontFamilyFallback` and check the pairing optically at heading
-sizes, or ship English-only at v1 and record that as a decision rather than
-discovering it in a translation sprint.
+iOS, and the editorial character of the design is gone in that locale.
+
+**Decided: Hindi ships at v1.** Noto Serif Devanagari is paired with Newsreader
+and Noto Sans Devanagari with Manrope, in `AanganFonts.serifFallback` and
+`sansFallback`, and every role in the scale carries the right one. Naming a
+family that is not bundled costs nothing — Flutter falls through to the platform
+— so the code is complete and the four `.ttf` files are the outstanding half.
+The optical check at heading sizes is still owed, and is a check of the
+*pairing* rather than of whether the glyphs appear: Devanagari sits taller than
+Latin, and the शिरोरेखा with a vowel mark above it wants more line height than
+the same size in English.
 
 Bundle both families as assets rather than fetching through `google_fonts`. A
 vendor on a site with no signal should not get a fallback-font first paint.
@@ -525,8 +531,9 @@ the active item, `labelSmall` uppercase — carries over directly.
 
 **The onboarding gate comes before all of it.** An unsigned professional is in
 no pool, however verified — so the shell renders the gate, not an empty
-dashboard. `GET /vendor/onboarding` returns seven steps (`profile`, `identity`,
-`trades`, `service_areas`, `portfolio`, `agreement`, `bank`); render them as the
+dashboard. `GET /vendor/onboarding` returns six steps (`profile`, `identity`,
+`trades`, `service_areas`, `portfolio`, `agreement` — there is deliberately no
+`bank` step; see question 5); render them as the
 prototype's stepped ledger, with the partner agreement as the terminal step and
 `POST /vendor/onboarding/agreement` behind a clause-by-clause acknowledgement.
 An unsigned vendor seeing "0 leads" is the single worst first impression this
@@ -848,21 +855,32 @@ to everything done so far". Treat these as sizes, not as a commitment.
 Each of these changes what gets built, and each needs an answer from the client
 rather than a default.
 
-1. **Hindi at v1?** (3.4) It decides whether Devanagari fallbacks are bundled
-   and optically checked now, or the design quietly degrades in that locale
-   later.
+1. ~~**Hindi at v1?**~~ **Answered: yes.** Both shells are fully translated —
+   `packages/design/lib/src/l10n/` holds the tables, and `app/test/l10n_test.dart`
+   fails the build on an untranslated string or an orphaned entry. The
+   Devanagari fallbacks are named in `AanganFonts`; the `.ttf` files are still
+   outstanding alongside Newsreader and Manrope, and RELEASE.md tracks all four
+   together. Copy the *server* writes — error messages, onboarding step labels,
+   `blockedReason` — is still English, and translating it is a server change.
 2. **Dark mode at v1?** (3.8) Recommendation is no, deliberately.
-3. **Does the customer app need the blog and the estimator**, or are those
-   web-only acquisition surfaces? They are the two largest pieces of M11 with
-   the least in-app value; a native blog exists mainly for deep links from
-   search.
+3. ~~**Does the customer app need the blog and the estimator?**~~ **Answered:
+   yes, both.** Built as `blog_screen.dart` and `estimator_screen.dart`, reached
+   from the Explore tab rather than from tabs of their own — five tabs is the
+   ceiling 6.1 sets. The estimator's rate table is compiled into the app so it
+   answers with no network at all, which is the point of it; the cost is that
+   the rates now live in two repositories, and `estimator.dart` says so.
 4. **Payments.** The whole prototype is built on escrow, and the platform
    deliberately has none. If off-platform payments are ever revisited, it is its
    own phase with the most regulatory weight — and it changes several screens
    here. Confirm it stays out.
-5. **Vendor bank details** (`bank` onboarding step). What is collected, and does
-   it belong on mobile at all given what a store review asks about financial
-   data?
+5. ~~**Vendor bank details** (`bank` onboarding step).~~ **Answered: not
+   required, and the step is gone.** Aangan handles no money — a customer pays
+   their professional directly, and the platform's only invoice is for
+   commission — so there was nothing to send a vendor and no account number
+   worth the liability of storing. The step also asked for "payment details" and
+   then quietly checked whether a GST number was present, which no screen in the
+   product could set. Removed from `onboardingStepKeySchema`, from the API and
+   from the mock; there are six steps now, not seven.
 6. **Who owns the design system after M8?** These tokens will be asked to cover
    screens nobody has drawn yet. Someone has to decide what a new component
    looks like, or the second engineer invents a second system.

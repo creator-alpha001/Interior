@@ -66,6 +66,16 @@ export const partnerAgreementSchema = baseRecordSchema.extend({
   documentUrl: z.string().nullable(),
 });
 
+/**
+ * There is deliberately no `bank` step.
+ *
+ * Aangan does not handle money — a customer pays their professional directly,
+ * and the platform's only invoice is for commission. So there is nothing to
+ * send a vendor, and no account number worth the liability of storing. The step
+ * that used to sit here asked for "payment details" and then quietly checked
+ * whether a GST number was present, which is a different thing again, and one
+ * no screen in the product could actually set.
+ */
 export const onboardingStepKeySchema = z.enum([
   "profile",
   "identity",
@@ -73,7 +83,6 @@ export const onboardingStepKeySchema = z.enum([
   "service_areas",
   "portfolio",
   "agreement",
-  "bank",
 ]);
 
 export const onboardingStepSchema = z.object({
