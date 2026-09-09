@@ -318,9 +318,25 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public
 
 -- pg-boss builds and maintains its own schema on first run. Dynamic SQL because
 -- GRANT will not take a function in place of the database name.
+--
+-- On managed Postgres the role running this migration usually does not own the
+-- database — Supabase's `postgres` is not the owner of `postgres`, it is
+-- `supabase_admin` — and GRANT needs ownership or the grant option. Without the
+-- exception handler that raises `permission denied for database`, which aborts
+-- the whole migration on a statement that is a convenience rather than a
+-- requirement: pg-boss needs CREATE on the *database* only to create its schema,
+-- so pre-creating `pgboss` and handing it to the app role is an equally good
+-- answer, and it is what `supabase/bootstrap.sql` does.
+--
+-- So this is best-effort, and the schema is checked at boot rather than assumed.
 DO $$
 BEGIN
   EXECUTE format('GRANT CREATE ON DATABASE %I TO aangan_app', current_database());
+EXCEPTION
+  WHEN insufficient_privilege THEN
+    RAISE NOTICE
+      'Could not GRANT CREATE ON DATABASE to aangan_app (not the database owner). '
+      'Create the pgboss schema for it instead — see apps/api/supabase/bootstrap.sql.';
 END
 $$;
 

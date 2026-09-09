@@ -16,12 +16,15 @@ import * as schema from "./schema";
  */
 export const sql = postgres(config.DATABASE_URL, {
   /**
-   * Raised because a customer or vendor request reserves a connection for its
-   * whole life, so in-flight personal requests and pool size are now the same
-   * number. Ten was chosen against Railway's hundred-connection limit with
-   * several instances, migrations and a psql session in mind; that still holds.
+   * A customer or vendor request reserves a connection for its whole life, so
+   * in-flight personal requests and pool size are the same number.
+   *
+   * Configurable rather than fixed since the database moved off Railway: ten
+   * was chosen against a hundred-connection limit, and a Supabase pooler in
+   * session mode allows a fraction of that across the whole project. See
+   * DATABASE_POOL_MAX in `lib/config`.
    */
-  max: config.isTest ? 6 : 10,
+  max: config.isTest ? 6 : config.DATABASE_POOL_MAX,
   idle_timeout: 30,
   connect_timeout: 10,
   // Every timestamp on the wire is UTC; formatting for IST is the frontend's job.
@@ -85,7 +88,7 @@ export const unscopedDb = pooled;
  */
 const opsSql = config.OPS_DATABASE_URL
   ? postgres(config.OPS_DATABASE_URL, {
-      max: config.isTest ? 3 : 6,
+      max: config.isTest ? 3 : config.OPS_DATABASE_POOL_MAX,
       idle_timeout: 30,
       connect_timeout: 10,
       onnotice: config.isProduction ? () => {} : undefined,

@@ -72,7 +72,7 @@ export function OpsShell({ children }: { children: ReactNode }) {
             </svg>
           </span>
           <div>
-            <div className="text-[14px] font-semibold leading-none">Aangan</div>
+            <div className="text-[14px] font-semibold leading-none">InterioBee</div>
             <div className="mt-0.5 text-[10.5px] uppercase tracking-wider text-ink-4">
               Operations
             </div>
@@ -146,7 +146,7 @@ export function OpsShell({ children }: { children: ReactNode }) {
               <path d="M3 5h14v1.5H3V5zm0 4.25h14v1.5H3v-1.5zM3 13.5h14V15H3v-1.5z" />
             </svg>
           </button>
-          <span className="text-[14px] font-semibold">Aangan Operations</span>
+          <span className="text-[14px] font-semibold">InterioBee Operations</span>
         </header>
 
         <main className="min-w-0 flex-1">{children}</main>

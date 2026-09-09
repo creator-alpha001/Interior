@@ -1,7 +1,13 @@
 # Deploying the previews
 
-Two apps, two Vercel projects, one repository. Everything runs on seed data
-— there is no backend or database to provision.
+Two apps, two Vercel projects, one repository. The previews run on seed data,
+with no backend of their own.
+
+**This file is about the frontends only.** The API and its database are
+deployed separately, to Hostinger and Supabase — see [HOSTING.md](HOSTING.md).
+Until `NEXT_PUBLIC_API_URL` is set on these projects they keep using seed data
+and ignore that backend entirely, which is what makes the previews shareable
+without provisioning anything.
 
 **Setup happens twice. Deployment happens once.** Creating the projects is a
 one-off: a Vercel project maps to exactly one app and one URL, so there are two

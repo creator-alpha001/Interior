@@ -2,7 +2,7 @@ import type { MetadataRoute } from "next";
 import {
   collectAll, listDomains, listPackages, listPosts, listProducts, listProfessionals } from "@repo/data";
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://aangan.example.com";
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://interiobee.example.com";
 
 /**
  * The catalogue and blog are the reason the public site is server-rendered, so

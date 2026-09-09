@@ -1,4 +1,4 @@
-# Aangan — project context
+# InterioBee — project context
 
 Where this project stands, why it is built the way it is, and what is left.
 
@@ -405,6 +405,14 @@ refuses to boot with `OTP_DEV_ECHO=true` there.
 
 Password for all three: **`aangan-dev-password`** — override with
 `SEED_STAFF_PASSWORD` before seeding.
+
+That default is a literal in this repository, and this repository is public, so
+it is only ever safe on a database running on your own machine. The seed now
+enforces that rather than trusting it: pointed at any host other than
+`localhost` with `SEED_STAFF_PASSWORD` unset, it refuses before it truncates
+anything. `NODE_ENV` is not the check — it says `development` on the laptop from
+which somebody seeds a production database, which is exactly how three ops
+accounts once ended up in a managed Postgres with a published password.
 
 No TOTP is seeded, so the second factor is skipped. Once a staff account
 confirms an authenticator, login on that account requires the code and the

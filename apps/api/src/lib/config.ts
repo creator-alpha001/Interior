@@ -40,6 +40,22 @@ const schema = z.object({
    */
   OPS_DATABASE_URL: z.string().optional(),
 
+  /**
+   * Pool sizes, which stopped being a constant when the database moved.
+   *
+   * These were 10 and 6, chosen against Railway's 100-connection limit. A
+   * Supabase pooler in session mode allows far fewer — the default is 15 for
+   * the whole project, shared with migrations and any psql session — so the old
+   * numbers are no longer a safe hardcoded default anywhere but Railway.
+   *
+   * Worth knowing when raising them: a customer or vendor request reserves a
+   * connection for its entire life, so DATABASE_POOL_MAX is also the ceiling on
+   * concurrent personal requests. Too low shows up as requests queueing, too
+   * high as `remaining connection slots are reserved`.
+   */
+  DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
+  OPS_DATABASE_POOL_MAX: z.coerce.number().int().positive().default(6),
+
   WEB_ORIGIN: z.string().url().default("http://localhost:3001"),
   ADMIN_ORIGIN: z.string().url().default("http://localhost:3002"),
 
@@ -143,7 +159,7 @@ const schema = z.object({
   MOBILE_MIN_BUILD: z.coerce.number().int().nonnegative().default(0),
   MOBILE_UPGRADE_MESSAGE: z
     .string()
-    .default("A newer version of Aangan is required. Please update to continue."),
+    .default("A newer version of InterioBee is required. Please update to continue."),
 
   R2_ACCOUNT_ID: z.string().optional(),
   R2_ACCESS_KEY_ID: z.string().optional(),
@@ -153,7 +169,28 @@ const schema = z.object({
 });
 
 function load() {
-  const parsed = schema.safeParse(process.env);
+  /*
+   * An empty variable means "not set", which is not what Zod thinks.
+   *
+   * `.optional()` admits `undefined`, not `""`, so a template copied with its
+   * blank lines intact — `SENTRY_DSN=`, `R2_BUCKET=`, `FCM_PROJECT_ID=` — fails
+   * validation on a value nobody supplied, and the process refuses to boot with
+   * "SENTRY_DSN: Invalid url". That is exactly how `.env.production.example` is
+   * meant to be used: fill in what applies, leave the rest alone.
+   *
+   * Hosting panels do the same thing from the other direction — clearing a
+   * field in Hostinger's UI leaves an empty string rather than removing the
+   * variable — so this is not only about files.
+   *
+   * Stripping them here means an unset variable and a blank one behave
+   * identically, and every default and `.optional()` below reads the way it
+   * looks.
+   */
+  const supplied = Object.fromEntries(
+    Object.entries(process.env).filter(([, value]) => value !== ""),
+  );
+
+  const parsed = schema.safeParse(supplied);
 
   if (!parsed.success) {
     const lines = parsed.error.issues.map((i) => `  ${i.path.join(".")}: ${i.message}`);
@@ -190,6 +227,51 @@ function load() {
    * surprise.
    */
   const warnings: string[] = [];
+
+  /*
+   * Two ways a managed Postgres connection is wrong without ever saying so.
+   *
+   * **A transaction-mode pooler.** Supabase serves one on port 6543, and it is
+   * the port its dashboard offers first. It returns the connection to the pool
+   * after every transaction, which breaks two things here silently rather than
+   * loudly:
+   *
+   *   - `openScope` sets app.user_id and friends with `set_config(..., false)`
+   *     — session-scoped — and then runs the request's queries expecting them to
+   *     still be there. Through a transaction pooler they are not. The policies
+   *     in 0005 and 0007 treat absent settings as "no restriction", by design,
+   *     so row-level security does not fail closed. It stops applying. No error,
+   *     no log line, and the containment layer is simply gone.
+   *   - pg-boss keeps advisory locks and LISTEN/NOTIFY across statements, and
+   *     has neither through a transaction pooler.
+   *
+   * Session mode is port 5432 on the same pooler host. That is the one to use.
+   *
+   * **No TLS.** postgres.js and pg both default to an unencrypted connection,
+   * and Supabase is reached across the public internet. Neither driver needs
+   * code for this — both read `sslmode` from the URL — but both need it said.
+   */
+  const isPooler = /pooler\.supabase\.com/i.test(env.DATABASE_URL);
+  const transactionPooler = /:6543(\/|\?|$)/.test(env.DATABASE_URL);
+  const remote = isPooler || /supabase\.(co|com)/i.test(env.DATABASE_URL);
+  const hasSsl = /[?&]sslmode=/i.test(env.DATABASE_URL);
+
+  if (transactionPooler) {
+    const message =
+      "DATABASE_URL points at a transaction-mode pooler (port 6543). Row-level security " +
+      "would stop applying — the per-request settings it reads do not survive that pooler — " +
+      "and the job queue cannot run on one. Use session mode: the same host on port 5432.";
+    if (isProduction) throw new Error(message);
+    warnings.push(message);
+  }
+
+  if (remote && !hasSsl) {
+    const message =
+      "DATABASE_URL has no sslmode and points at a remote database. Both drivers default to " +
+      "an unencrypted connection. Append ?sslmode=require to the URL.";
+    if (isProduction) throw new Error(message);
+    warnings.push(message);
+  }
 
   if (isProduction) {
     // Echoing the code would turn "knows a phone number" into "can sign in as

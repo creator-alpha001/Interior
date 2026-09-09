@@ -198,9 +198,37 @@ export function localObjectPath(storageKey: string): string {
 }
 
 /** Removes a stored object. Best effort — a missing file is already the goal. */
+/**
+ * Removes a stored file.
+ *
+ * This used to return early for anything that was not the local driver, so on
+ * R2 it did nothing at all — no request, no error, no log line. Nothing calls it
+ * today, which is the only reason that has not already cost anything, but it is
+ * the wrong thing to leave behind: the first caller to arrive would be a feature
+ * that deletes a customer's photograph, and it would report success while the
+ * file stayed publicly readable at its URL for ever.
+ *
+ * Placeholder keys are not files. The seed uses them and the frontends render
+ * them as designed tiles, so there is nothing to delete.
+ */
 export async function deleteObject(storageKey: string): Promise<void> {
-  if (config.storageDriver !== "local") return;
-  await rm(localPathFor(storageKey), { force: true }).catch(() => {});
+  if (storageKey.startsWith("ph:")) return;
+
+  if (config.storageDriver === "local") {
+    await rm(localPathFor(storageKey), { force: true }).catch(() => {});
+    return;
+  }
+
+  const response = await fetch(signR2Url("DELETE", storageKey), { method: "DELETE" });
+
+  // S3 deletes are idempotent: 204 when it went, 404 when it was already gone.
+  // Anything else is a real failure and should not be swallowed — a caller
+  // deleting on somebody's behalf needs to know it did not happen.
+  if (!response.ok && response.status !== 404) {
+    throw new Error(
+      `Could not delete ${storageKey} from R2: ${response.status} ${response.statusText}`,
+    );
+  }
 }
 
 /* ------------------------------------------------------------------ *
@@ -215,6 +243,21 @@ export async function deleteObject(storageKey: string): Promise<void> {
  * against a dependency that pulls in several megabytes.
  */
 function presignR2(storageKey: string, contentType: string): PresignedPut {
+  return {
+    uploadUrl: signR2Url("PUT", storageKey),
+    headers: { "Content-Type": contentType },
+  };
+}
+
+/**
+ * A presigned URL for one S3 operation on one object.
+ *
+ * Takes the method because the signature covers it: a URL signed for PUT is
+ * rejected for DELETE, which is the point. Everything else — the canonical
+ * request, the scope, the derived key — is identical, so both callers share it
+ * rather than keeping two copies of SigV4 in step by hand.
+ */
+function signR2Url(method: "PUT" | "DELETE", storageKey: string): string {
   const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET } = config;
 
   if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET) {
@@ -239,7 +282,7 @@ function presignR2(storageKey: string, contentType: string): PresignedPut {
   });
 
   const canonicalRequest = [
-    "PUT",
+    method,
     `/${R2_BUCKET}/${storageKey}`,
     query.toString(),
     `host:${host}\n`,
@@ -264,10 +307,7 @@ function presignR2(storageKey: string, contentType: string): PresignedPut {
 
   query.set("X-Amz-Signature", signature);
 
-  return {
-    uploadUrl: `https://${host}/${R2_BUCKET}/${storageKey}?${query.toString()}`,
-    headers: { "Content-Type": contentType },
-  };
+  return `https://${host}/${R2_BUCKET}/${storageKey}?${query.toString()}`;
 }
 
 /** For the health endpoint and the startup log: what is actually in use. */

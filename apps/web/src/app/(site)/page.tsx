@@ -308,7 +308,7 @@ export default async function HomePage() {
           <SectionHeading
             eyebrow="What we cover"
             title="Four services, one platform"
-            description="Every professional on Aangan is approved per trade, not in general — so a fabricator only receives fabrication leads unless they are separately approved for painting."
+            description="Every professional on InterioBee is approved per trade, not in general — so a fabricator only receives fabrication leads unless they are separately approved for painting."
           />
           {/*
             Ruled cells rather than four image cards. The images here were

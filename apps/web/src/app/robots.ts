@@ -1,6 +1,6 @@
 import type { MetadataRoute } from "next";
 
-const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://aangan.example.com";
+const BASE_URL = process.env.NEXT_PUBLIC_SITE_URL ?? "https://interiobee.example.com";
 
 /** Only the real production site should ever be crawlable. */
 const IS_PRODUCTION = process.env.NEXT_PUBLIC_DEPLOY_ENV === "production";

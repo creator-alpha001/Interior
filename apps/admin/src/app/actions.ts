@@ -161,7 +161,7 @@ export async function updateDomainAction(
 /* ---------------- Support ---------------- */
 
 export async function replyToTicketAction(ticketId: string, body: string) {
-  await replyToTicketAsAdmin(ticketId, "Neha (Aangan support)", body);
+  await replyToTicketAsAdmin(ticketId, "Neha (InterioBee support)", body);
   revalidatePath("/support");
 }
 

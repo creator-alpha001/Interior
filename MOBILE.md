@@ -1,4 +1,4 @@
-# Aangan mobile — the plan
+# InterioBee mobile — the plan
 
 One Flutter application carrying **two audiences**: the customer and the
 professional. Admin stays on the web, where it is, and stays a separate
@@ -38,7 +38,7 @@ The design language comes from the **Warm Architectural Minimalism** theme
 supplied as a Stitch prototype. It is adopted as a *look* — palette, type,
 layering, framing, the shape of a card and a status chip. **It carries no
 functional weight whatsoever**: its screens are drawn around a different
-product's mechanics, and section 3.7 maps each of its treatments onto an Aangan
+product's mechanics, and section 3.7 maps each of its treatments onto an InterioBee
 screen that exists for reasons the prototype knows nothing about.
 
 ---
@@ -191,7 +191,7 @@ backwards for Flutter.
 land correctly, and espresso ink stays where it belongs — on text.
 
 ```dart
-const aanganLight = ColorScheme(
+const interioBeeLight = ColorScheme(
   brightness: Brightness.light,
 
   // Action. Terracotta — the human, artisanal touch.
@@ -238,7 +238,7 @@ const aanganLight = ColorScheme(
 ```
 
 Two values have no Material role: warm ochre `#D97706` and the input border
-`#D8D1C7`. Those go on an `AanganPalette extends ThemeExtension<AanganPalette>`
+`#D8D1C7`. Those go on an `InterioBeePalette extends ThemeExtension<InterioBeePalette>`
 alongside the semantic colours in 3.3 and `financialNum` in 3.4.
 
 ### 3.3 Colour carries meaning — write the rule down
@@ -248,7 +248,7 @@ greens and ambers are load-bearing.
 
 | Colour | Means | Appears on |
 | --- | --- | --- |
-| Sage `#2D6A4F` | **Verified, signed, or approved by a person at Aangan** | Verified-vendor seal, signed agreement, ops-approved stage, paid invoice, released address |
+| Sage `#2D6A4F` | **Verified, signed, or approved by a person at InterioBee** | Verified-vendor seal, signed agreement, ops-approved stage, paid invoice, released address |
 | Terracotta `#944927` | **Your turn** | Primary CTA, active step, the one thing on the screen to tap |
 | Ochre `#D97706` | **Waiting on somebody else** | Quote pending, stage submitted and awaiting ops, invoice due |
 | Burnt iron `#991B1B` | **Wrong** | Invoice overdue, lead lost, declined, suspended |
@@ -299,7 +299,7 @@ platform default serif, which is Noto on Android and Devanagari Sangam MN on
 iOS, and the editorial character of the design is gone in that locale.
 
 **Decided: Hindi ships at v1.** Noto Serif Devanagari is paired with Newsreader
-and Noto Sans Devanagari with Manrope, in `AanganFonts.serifFallback` and
+and Noto Sans Devanagari with Manrope, in `InterioBeeFonts.serifFallback` and
 `sansFallback`, and every role in the scale carries the right one. Naming a
 family that is not bundled costs nothing — Flutter falls through to the platform
 — so the code is complete and the four `.ttf` files are the outstanding half.
@@ -331,7 +331,7 @@ theme, not per widget:**
    `NavigationBarTheme` and `PopupMenuTheme`, several of which read their own
    property before the scheme's.
 2. `elevation: 0` and `shadowColor: Colors.transparent` on all of the above.
-3. `Card` paints its own margin and radius regardless. Define one `AanganCard`
+3. `Card` paints its own margin and radius regardless. Define one `InterioBeeCard`
    — a `Container` with `BoxDecoration(color: surfaceContainer, border:
    Border.all(color: outlineVariant), borderRadius: BorderRadius.circular(6))`
    — and forbid raw `Card` in review.
@@ -372,12 +372,12 @@ Two corrections the theme does not make, because it was drawn for the web:
 ### 3.7 Where each prototype treatment goes
 
 The five renders are drawn around an escrow service: money held in a vault,
-tranches released by the client, a mediator on call. Aangan's mechanics are
+tranches released by the client, a mediator on call. InterioBee's mechanics are
 different — payments are off-platform, and every message has the platform on one
 side of it — so the screens do not transfer one-for-one. The *design* does, and
 it transfers well: nearly every device in the prototype has a natural home here.
 
-This table is that mapping. It is about which Aangan screen wears which
+This table is that mapping. It is about which InterioBee screen wears which
 treatment, not about the prototype's features.
 
 | Prototype treatment | Wear it on | Note |
@@ -386,14 +386,14 @@ treatment, not about the prototype's features.
 | `deliverables_escrow_approval` — the photo carousel, the checklist, the weight given to a decision | **Twice.** The vendor's proof submission, and the customer's stage view | Same layout, different endings: the vendor's CTA reads "Submit for approval"; the customer's version is read-only, because ops approve stages, not the customer |
 | The stepped milestone roadmap with lock glyphs | **Project detail**, both sides | Four stages instead of four tranches. Ochre while a stage is submitted, sage once ops approve — see 3.3 |
 | The peach "action required" panel (`#FFDBCD`) | Anywhere the person is the blocker | The strongest device in the whole prototype and the one most worth keeping: a quote waiting to be chosen, an agreement ready to sign, a stage sent back for rework |
-| The contact card at the foot of the project screen | **The relay** | Redrawn around an Aangan coordinator rather than the vendor, with a line saying plainly that we carry messages both ways. One thread per service |
+| The contact card at the foot of the project screen | **The relay** | Redrawn around an InterioBee coordinator rather than the vendor, with a line saying plainly that we carry messages both ways. One thread per service |
 | The guarantee panel — icon, rule, two stacked promises | **The platform guarantee** | Keep the panel exactly; fill it with what is actually true: verified vendors, per-trade ratings, one person who answers, stages checked against photographs |
 | `studio_profile_packages` — the hero, the stats strip, the tiered cards, the case studies | **Professional profile**, nearly wholesale | The closest one-to-one in the set. The CTA becomes "Request this professional" — a preference ops try to honour — which means designing the **unmet-preference** state, the one screen here the prototype has no equivalent for |
 | `discovery_matching` — the vetted-directory rhythm, the badge row, the style questionnaire card | **Catalogue and the professional directory** | Badges become verified / rating in this trade / signed |
 | The escrow status pill in the app bar | **The service's stage** | Same geometry, same placement |
 | `$` figures | `₹` with Indian grouping | `₹4,50,000`, never `₹450,000`. Whole rupees, no paise, tabular figures |
 
-Two things in the renders have no Aangan equivalent and simply do not get drawn:
+Two things in the renders have no InterioBee equivalent and simply do not get drawn:
 the escrow vault itself, and any control that puts the customer in direct
 contact with a vendor. Everything else in the set has somewhere to go.
 
@@ -618,7 +618,7 @@ whole phase.
 | Projects list | `/me/projects` | built | |
 | Project detail | `ProjectView.project.milestones` | built | The `mediated_project_hub` roadmap, redrawn read-only. Four stages, proof photographs, ochre while submitted, sage on approval. **No approve button** |
 | Review | `POST /me/reviews` | built | Offered on completion; ratings are per trade |
-| Messages | `/me/services/:id/messages` | built | One thread per service, **with Aangan**. Header names the coordinator and states the relay plainly |
+| Messages | `/me/services/:id/messages` | built | One thread per service, **with InterioBee**. Header names the coordinator and states the relay plainly |
 | Visits | `POST /me/visits/:id/reschedule` | built | Confirming a visit is what releases the address to that vendor — worth a line of copy |
 | Notifications | `/me/notifications`, `POST /me/notifications/read` | built | |
 | Support | `/me/tickets`, `POST /me/tickets`, `POST /me/tickets/:id/replies` | built | |
@@ -649,7 +649,7 @@ app can make; they must see what is missing and how to finish it.
 | Lead detail | `/vendor/leads/:id` | built | The customer's own words *and* the brief ops captured on the call — the brief is the real scope, so give it the weight. `competingQuotes` shown plainly; do not soften it |
 | Respond | `POST /vendor/leads/:id/respond` | built | Accept or decline, with a reason |
 | Quote builder | `POST /vendor/leads/:id/quotes` | built | Versioned server-side; one live quote per vendor is a database constraint. Show "this replaces quote v2" before submitting, not after the 409 |
-| Lead messages | `/vendor/leads/:id/messages` | built | Their thread **with Aangan**. Never with the customer |
+| Lead messages | `/vendor/leads/:id/messages` | built | Their thread **with InterioBee**. Never with the customer |
 | Visits | `/vendor/visits` | built, partial | **The address-release state is a first-class UI state**: locality only until the visit for *that service* is confirmed, then the full address with a maps launcher. Two distinct designs, not one with an empty line |
 | Projects | `/vendor/projects` | built | |
 | **Stage proof** | `POST /vendor/projects/:id/stages/:stageId/proof` | built, partial | The core action. Camera or gallery, multi-photo, compress, upload tickets, note, submit. The CTA says **"Submit for approval"** — evidence is not completion, and the screen must not imply it is |
@@ -675,14 +675,14 @@ four read-only panels and no form, and the API has no vendor profile write —
 
 Editing is not self-service **anywhere**, on purpose, and it is the same rule as
 trade approval: what a customer sees about a professional is changed by a person
-at Aangan. The screen now says that, instead of "not built yet".
+at InterioBee. The screen now says that, instead of "not built yet".
 
 The lesson is the one this document's own preamble states. A row asserting what
 another surface does is a claim about code, and it is checkable — check it.
 
 ### 6.3A Images, and the honesty the web keeps about them
 
-*Built.* `AanganMedia` lives in `packages/design/lib/src/media.dart` and is a
+*Built.* `InterioBeeMedia` lives in `packages/design/lib/src/media.dart` and is a
 line-for-line port of `packages/ui/src/media.tsx`, `mediaHash` included — down
 to JavaScript's int32 narrowing, so the same seed produces the same colour on
 both platforms. `MediaStrip` and `showMediaViewer` carry the photograph sets.
@@ -697,7 +697,7 @@ photographs, and the web's own home page says why in a comment worth repeating:
 > standing in for photographs nobody has taken, and a trade is better identified
 > by its name and a colour than by a gradient pretending to be a room.
 
-So a mobile `AanganMedia` should behave exactly as `Media` does: a photograph
+So a mobile `InterioBeeMedia` should behave exactly as `Media` does: a photograph
 when one exists, a deterministic tinted placeholder when the value is a `ph:`
 sentinel, and never a broken-image glyph or a grey box. The tint derives from
 the domain, so the same product is the same colour on both platforms.
@@ -1039,7 +1039,7 @@ question. Not a scope negotiation the web already won.
 1. ~~**Hindi at v1?**~~ **Answered: yes.** Both shells are fully translated —
    `packages/design/lib/src/l10n/` holds the tables, and `app/test/l10n_test.dart`
    fails the build on an untranslated string or an orphaned entry. The
-   Devanagari fallbacks are named in `AanganFonts`; the `.ttf` files are still
+   Devanagari fallbacks are named in `InterioBeeFonts`; the `.ttf` files are still
    outstanding alongside Newsreader and Manrope, and RELEASE.md tracks all four
    together. Copy the *server* writes — error messages, onboarding step labels,
    `blockedReason` — is still English, and translating it is a server change.
@@ -1057,7 +1057,7 @@ question. Not a scope negotiation the web already won.
    own phase with the most regulatory weight — and it changes several screens
    here. Confirm it stays out.
 5. ~~**Vendor bank details** (`bank` onboarding step).~~ **Answered: not
-   required, and the step is gone.** Aangan handles no money — a customer pays
+   required, and the step is gone.** InterioBee handles no money — a customer pays
    their professional directly, and the platform's only invoice is for
    commission — so there was nothing to send a vendor and no account number
    worth the liability of storing. The step also asked for "payment details" and

@@ -54,7 +54,7 @@ export function proxy(request: NextRequest) {
   return new NextResponse("Authentication required", {
     status: 401,
     headers: {
-      "WWW-Authenticate": 'Basic realm="Aangan preview", charset="UTF-8"',
+      "WWW-Authenticate": 'Basic realm="InterioBee preview", charset="UTF-8"',
       // Belt and braces: a 401 should never be cached or indexed.
       "Cache-Control": "no-store",
       "X-Robots-Tag": "noindex, nofollow",

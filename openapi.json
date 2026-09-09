@@ -1,7 +1,7 @@
 {
   "openapi": "3.0.3",
   "info": {
-    "title": "Aangan API",
+    "title": "InterioBee API",
     "version": "1.0.0",
     "description": "Generated from the route manifest in `@repo/contract`. Do not edit by hand — run `npm run openapi` in apps/api. The mobile client's models are generated from this file."
   },

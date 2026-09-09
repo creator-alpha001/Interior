@@ -5,9 +5,13 @@ dist/
 build/
 *.tsbuildinfo
 next-env.d.ts
+# Every env file, then the committed templates back. This repository is public,
+# and `.env.production` — the obvious name for the Supabase and Hostinger
+# credentials — was matched by none of the three patterns that used to be here.
 .env
-.env.local
-.env*.local
+.env.*
+!.env.example
+!.env.production.example
 .DS_Store
 Thumbs.db
 .vercel
@@ -24,3 +28,6 @@ CREDENTIALS.md
 
 # A local backup of .env, made when repointing at a non-Docker Postgres.
 .env.*.bak
+
+# Filled-in copies of the Supabase bootstrap, holding real role passwords.
+*.local.sql

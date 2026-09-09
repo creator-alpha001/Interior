@@ -32,7 +32,7 @@ export function VendorShell({ children }: { children: ReactNode }) {
               </svg>
             </span>
             <div>
-              <div className="text-[14px] font-semibold leading-none">Aangan</div>
+              <div className="text-[14px] font-semibold leading-none">InterioBee</div>
               <div className="mt-0.5 text-[10.5px] uppercase tracking-wider text-ink-4">
                 For professionals
               </div>

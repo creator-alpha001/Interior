@@ -69,7 +69,7 @@ export const partnerAgreementSchema = baseRecordSchema.extend({
 /**
  * There is deliberately no `bank` step.
  *
- * Aangan does not handle money — a customer pays their professional directly,
+ * InterioBee does not handle money — a customer pays their professional directly,
  * and the platform's only invoice is for commission. So there is nothing to
  * send a vendor, and no account number worth the liability of storing. The step
  * that used to sit here asked for "payment details" and then quietly checked

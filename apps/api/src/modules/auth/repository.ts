@@ -72,8 +72,8 @@ export async function actorForMobile(
  * in practice, and the unique index catches the rest.
  */
 function buildReferralCode(name: string | undefined, mobile: string): string {
-  const first = (name?.trim().split(" ")[0] ?? "AANGAN").toUpperCase().replace(/[^A-Z]/g, "");
-  return `${first.slice(0, 8) || "AANGAN"}${mobile.slice(-4)}`;
+  const first = (name?.trim().split(" ")[0] ?? "INTERIOBEE").toUpperCase().replace(/[^A-Z]/g, "");
+  return `${first.slice(0, 8) || "INTERIOBEE"}${mobile.slice(-4)}`;
 }
 
 export async function findActorByMobile(mobile: string): Promise<Actor | null> {

@@ -24,7 +24,7 @@ export function ReferralShare({
     }
   }
 
-  const message = `I used Aangan to get three quotes for work on my home — interiors, furniture, fabrication and painting. Use my code ${code} and we both get ₹${reward}. ${shareUrl}`;
+  const message = `I used InterioBee to get three quotes for work on my home — interiors, furniture, fabrication and painting. Use my code ${code} and we both get ₹${reward}. ${shareUrl}`;
 
   return (
     <div className="overflow-hidden rounded-xl border border-brand-line bg-brand-soft">

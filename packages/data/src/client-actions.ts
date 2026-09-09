@@ -352,7 +352,7 @@ export async function getReferralSummary(): Promise<ReferralSummary> {
 
   return delay({
     code: client.referralCode,
-    shareUrl: `https://aangan.example.com/join?ref=${client.referralCode}`,
+    shareUrl: `https://interiobee.example.com/join?ref=${client.referralCode}`,
     invited: rows.length,
     earned: rows
       .filter((r) => r.rewardStatus === "paid" || r.rewardStatus === "earned")

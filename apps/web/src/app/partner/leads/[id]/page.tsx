@@ -211,7 +211,7 @@ export default async function VendorLeadPage({ params }: { params: Promise<Param
                           fromMe ? "text-right" : "text-left",
                         )}
                       >
-                        {fromMe ? "You" : "Aangan team"} · {formatDateTime(message.createdAt)}
+                        {fromMe ? "You" : "InterioBee team"} · {formatDateTime(message.createdAt)}
                         {message.relayedFromMessageId ? " · from the customer" : ""}
                       </div>
                     </div>

@@ -12,19 +12,19 @@ export const partnerTerms: PartnerTerms = {
   effectiveFrom: "2026-01-01",
   title: "Professional Partner Agreement",
   summary:
-    "What you can expect from Aangan, what we expect from you, and how commission is calculated. Version 2026.1, effective 1 January 2026.",
+    "What you can expect from InterioBee, what we expect from you, and how commission is calculated. Version 2026.1, effective 1 January 2026.",
   sections: [
     {
       heading: "1. What this agreement covers",
-      body: "This agreement governs your use of the Aangan platform to receive customer enquiries, submit quotations, and carry out work for customers introduced to you by Aangan. It does not make you an employee, agent or partner of Aangan. You remain an independent business, responsible for your own crew, materials, tools, insurance and taxes.",
+      body: "This agreement governs your use of the InterioBee platform to receive customer enquiries, submit quotations, and carry out work for customers introduced to you by InterioBee. It does not make you an employee, agent or partner of InterioBee. You remain an independent business, responsible for your own crew, materials, tools, insurance and taxes.",
     },
     {
       heading: "2. Approval is per trade",
       body: "You are approved to receive leads only in the trades listed on your profile and only in the cities and localities you have registered. Approval in one trade does not extend to another: taking on work in a trade you are not approved for, or in an area you do not service, is a breach of this agreement. You may apply for additional trades at any time and we will assess each one separately.",
     },
     {
-      heading: "3. Customer contact is coordinated by Aangan",
-      body: "Aangan does not share customer telephone numbers or email addresses with you. You receive the locality of the job when it is assigned, and the full site address once a visit has been confirmed. All questions to a customer, and all answers back, go through the Aangan coordinator. You agree not to solicit a customer's direct contact details, not to contact them outside the platform, and not to offer to carry out the introduced work off-platform. This clause is what allows us to keep the enquiry free for customers.",
+      heading: "3. Customer contact is coordinated by InterioBee",
+      body: "InterioBee does not share customer telephone numbers or email addresses with you. You receive the locality of the job when it is assigned, and the full site address once a visit has been confirmed. All questions to a customer, and all answers back, go through the InterioBee coordinator. You agree not to solicit a customer's direct contact details, not to contact them outside the platform, and not to offer to carry out the introduced work off-platform. This clause is what allows us to keep the enquiry free for customers.",
     },
     {
       heading: "4. Quoting",
@@ -36,11 +36,11 @@ export const partnerTerms: PartnerTerms = {
     },
     {
       heading: "6. Cancellation",
-      body: "If a project is cancelled before work has started, commission on it is waived. If work has started, commission stands at the agreed amount unless Aangan adjusts it, which we may do at our discretion where the cancellation was not your fault. Any adjustment and its reason is recorded against the invoice.",
+      body: "If a project is cancelled before work has started, commission on it is waived. If work has started, commission stands at the agreed amount unless InterioBee adjusts it, which we may do at our discretion where the cancellation was not your fault. Any adjustment and its reason is recorded against the invoice.",
     },
     {
       heading: "7. Standards of work",
-      body: "You will carry out work to the specification and timeline in your accepted quote, using the materials you specified. You will honour the warranty you offered. Where a customer raises a complaint through Aangan, you will respond within two working days and work with our team in good faith to resolve it.",
+      body: "You will carry out work to the specification and timeline in your accepted quote, using the materials you specified. You will honour the warranty you offered. Where a customer raises a complaint through InterioBee, you will respond within two working days and work with our team in good faith to resolve it.",
     },
     {
       heading: "8. Ratings and reviews",
@@ -52,7 +52,7 @@ export const partnerTerms: PartnerTerms = {
     },
     {
       heading: "10. Suspension and termination",
-      body: "Either party may end this agreement with 30 days' written notice. Aangan may suspend your account immediately for a breach of the contact clause, for repeated failure to honour quoted terms, or where there is a credible safety or fraud concern. Work already under agreement with a customer must be completed, or handed over in an orderly way, notwithstanding suspension.",
+      body: "Either party may end this agreement with 30 days' written notice. InterioBee may suspend your account immediately for a breach of the contact clause, for repeated failure to honour quoted terms, or where there is a credible safety or fraud concern. Work already under agreement with a customer must be completed, or handed over in an orderly way, notwithstanding suspension.",
     },
     {
       heading: "11. Data and confidentiality",
@@ -67,7 +67,7 @@ export const partnerTerms: PartnerTerms = {
     {
       key: "contact",
       label:
-        "I will not ask customers for their direct contact details, contact them off-platform, or offer to do the introduced work outside Aangan.",
+        "I will not ask customers for their direct contact details, contact them off-platform, or offer to do the introduced work outside InterioBee.",
     },
     {
       key: "commission",

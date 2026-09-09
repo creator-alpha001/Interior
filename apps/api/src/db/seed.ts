@@ -31,8 +31,78 @@ const x10 = (rating: number): number => Math.round(rating * 10);
 let staffEmails: string[] = [];
 let staffPassword = "";
 
+/**
+ * The password the seeded ops accounts get on a developer's own machine.
+ *
+ * Deliberately a constant rather than a secret: the test harness signs in with
+ * this exact string, and a laptop database that anyone can recreate in ten
+ * seconds gains nothing from a generated one. It is safe *only* because
+ * `targetIsLocal` keeps it there.
+ */
+const DEV_STAFF_PASSWORD = "aangan-dev-password";
+
+/**
+ * Whether the database being seeded lives on this machine.
+ *
+ * Read from DATABASE_URL after `as-owner` has had its say, so it reflects the
+ * connection this script will actually write through. Anything it cannot parse
+ * counts as remote — the failure mode of being too cautious is a message asking
+ * for an environment variable, and the failure mode of the reverse is a
+ * published password on a production admin account.
+ */
+function targetIsLocal(): boolean {
+  try {
+    const { hostname } = new URL(process.env.DATABASE_URL ?? "");
+    return hostname === "localhost" || hostname === "127.0.0.1" || hostname === "::1";
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Decides the staff password before anything is written.
+ *
+ * Deliberately called first, ahead of the TRUNCATE. Refusing halfway through
+ * the transaction would also be safe — the rollback puts every table back — but
+ * "safe because of a rollback" is a worse property than "never started", and
+ * the message arrives before the operator has watched the whole seed run.
+ *
+ * Returns null when staff credentials should be skipped entirely.
+ */
+function resolveStaffPassword(): { password: string; printable: boolean } | null {
+  if (process.env.NODE_ENV === "production") return null;
+
+  const explicit = process.env.SEED_STAFF_PASSWORD;
+  if (explicit) return { password: explicit, printable: false };
+
+  /*
+   * `NODE_ENV` describes this *process*, not the database it is about to write
+   * to. On a laptop it is `development` — always — so seeding a managed
+   * database from one walks straight past the check above and installs
+   * DEV_STAFF_PASSWORD, a literal in this public repository, on three accounts
+   * that can read every customer's phone number.
+   *
+   * That is not hypothetical; it is what happened to the Supabase database this
+   * file was first pointed at. So the question is not what mode the process is
+   * in, but where the rows are about to land.
+   */
+  if (!targetIsLocal()) {
+    throw new Error(
+      "Refusing to seed staff credentials into a remote database using the development " +
+        "password — it is a literal in this repository, which is public.\n" +
+        "Set SEED_STAFF_PASSWORD to something generated, e.g.\n" +
+        `  node -e "console.log(require('crypto').randomBytes(18).toString('base64url'))"`,
+    );
+  }
+
+  return { password: DEV_STAFF_PASSWORD, printable: true };
+}
+
 async function main() {
   const started = Date.now();
+
+  // Before the TRUNCATE, so a refusal costs nothing.
+  const staffPlan = resolveStaffPassword();
 
   await db.transaction(async (tx) => {
     // Order matters: a child cannot be inserted before its parent exists.
@@ -788,14 +858,13 @@ async function main() {
     /* ---------------- staff sign-in ---------------- */
 
     // Ops and admin accounts need a password to sign in with, and the seed is
-    // the only place that knows one. Refused outside development: a known
-    // password on an account that can read every customer's phone number is
-    // not something to leave lying in a deployed database.
-    if (process.env.NODE_ENV === "production") {
+    // the only place that knows one. A known password on an account that can
+    // read every customer's phone number is not something to leave lying in a
+    // deployed database.
+    if (!staffPlan) {
       console.log("  (skipping staff passwords — not development)");
     } else {
-      const devPassword = process.env.SEED_STAFF_PASSWORD ?? "aangan-dev-password";
-      const passwordHash = await argon2.hash(devPassword, { type: argon2.argon2id });
+      const passwordHash = await argon2.hash(staffPlan.password, { type: argon2.argon2id });
 
       const staff = seed.users.filter((u) => u.role === "admin" || u.role === "sales_agent");
       if (staff.length > 0) {
@@ -804,7 +873,13 @@ async function main() {
         );
       }
       staffEmails = staff.map((u) => u.email).filter((e): e is string => Boolean(e));
-      staffPassword = devPassword;
+      /*
+       * Only ever echo the shared development constant, which this repository
+       * publishes anyway. A password supplied through SEED_STAFF_PASSWORD is
+       * the operator's, and printing it puts it into terminal scrollback, CI
+       * logs and deploy consoles — none of which are places for it.
+       */
+      staffPassword = staffPlan.printable ? staffPlan.password : "";
     }
 
     // Reference sequences must start above the highest seeded number, or the
@@ -833,7 +908,11 @@ async function main() {
   if (staffEmails.length > 0) {
     console.log(`
   Staff sign-in (development only): ${staffEmails.join(", ")}`);
-    console.log(`  Password: ${staffPassword}`);
+    console.log(
+      staffPassword
+        ? `  Password: ${staffPassword}`
+        : "  Password: the SEED_STAFF_PASSWORD you supplied (not printed)",
+    );
     console.log(`  Customers and vendors sign in by mobile — OTP_DEV_ECHO returns the code.`);
   }
 }

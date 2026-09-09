@@ -4,7 +4,7 @@ import { authenticationRequired, getActor } from "@repo/data";
 import { VendorShell } from "@/components/partner/vendor-shell";
 
 export const metadata: Metadata = {
-  title: { default: "Aangan for Professionals", template: "%s · Aangan Pro" },
+  title: { default: "InterioBee for Professionals", template: "%s · InterioBee Pro" },
   description: "Qualified leads, quoting, agreements and payments for verified professionals.",
   // The portal sits on the customer domain but is never a landing page.
   robots: { index: false, follow: false },

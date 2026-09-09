@@ -1,4 +1,4 @@
-# Aangan — multi-domain home services platform
+# InterioBee — multi-domain home services platform
 
 A marketplace connecting customers to verified professionals across four trades — **Interior Design, Furniture Work, Fabrication and Painting** — with the platform coordinating every conversation between the two sides.
 

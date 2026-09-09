@@ -15,6 +15,7 @@
     "build:web": "npm run build --workspace=web",
     "build:admin": "npm run build --workspace=admin",
     "build:api": "npm run build --workspace=api",
+    "start": "npm run start --workspace=api",
     "start:web": "npm run start --workspace=web",
     "start:admin": "npm run start --workspace=admin",
     "start:api": "npm run start --workspace=api",
