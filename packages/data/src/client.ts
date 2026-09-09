@@ -159,9 +159,11 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
 
   const { method = "GET", body, query, headers, tags, revalidate, signal } = options;
 
-  // The browser never talks to the API directly — every call is made by the
-  // Next server on the user's behalf — so the cookie has to be carried across
-  // explicitly rather than travelling with the request.
+  // Almost every call is made by the Next server on the user's behalf, so the
+  // cookie has to be carried across explicitly rather than travelling with the
+  // request. `uploadFile` is the exception — it runs in the browser, because it
+  // streams the file — and there `currentSessionCookie()` returns undefined by
+  // design: a page cannot read an httpOnly cookie. See `credentials` below.
   const cookie = headers?.cookie ?? (await currentSessionCookie());
   const requestId = headers?.["x-request-id"] ?? (await currentRequestId());
 
@@ -178,6 +180,20 @@ export async function api<T>(path: string, options: ApiOptions = {}): Promise<T>
       },
       body: body ? JSON.stringify(body) : undefined,
       signal,
+      /**
+       * So the browser attaches the session cookie itself.
+       *
+       * The default is `same-origin`, which on `interiobee.com` calling
+       * `api.interiobee.com` means no cookie at all — and the header above
+       * cannot supply one, since the session is httpOnly. A partner uploading
+       * stage proof would have been rejected as a stranger. Anonymous
+       * requirement photographs would have worked, which is the sort of gap
+       * that reaches production looking fine.
+       *
+       * Ignored on the server, where fetch has no cookie jar and the explicit
+       * header is what carries the session.
+       */
+      credentials: "include",
       // Mutations must never be cached; reads opt in explicitly. A read
       // carrying a session is never cached either — a shared cache holding one
       // person's data and serving it to the next visitor is the worst failure

@@ -7,6 +7,7 @@
 import { randomUUID } from "node:crypto";
 import Fastify, { type FastifyError, type FastifyInstance } from "fastify";
 import cookie from "@fastify/cookie";
+import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import { ZodError } from "zod";
 import { config } from "./lib/config";
@@ -81,6 +82,34 @@ export async function buildApp(): Promise<FastifyInstance> {
     // The API returns JSON, never HTML, so the browser-facing directives that
     // matter for a page are not the ones that matter here.
     contentSecurityPolicy: false,
+  });
+
+  /**
+   * Cross-origin access, for the one caller that needs it.
+   *
+   * The comment above says the frontends call this API server-to-server, and
+   * that is true of every route but one. `uploadFile` in @repo/data runs in the
+   * browser — it has to, because it streams the file itself — so the ticket
+   * request that precedes it is a real cross-origin `POST` from
+   * `https://interiobee.com` to `https://api.interiobee.com`. Without this the
+   * preflight 404s and the requirement form silently loses every photograph.
+   *
+   * That failure is invisible today only because `NEXT_PUBLIC_API_URL` is
+   * unset, which sends uploads down the `URL.createObjectURL` branch instead.
+   * It would have appeared the moment the frontends were pointed at the API.
+   *
+   * An allowlist, not a reflector: `credentials` below makes the session cookie
+   * travel, and `origin: true` with credentials means any site that asks gets
+   * to make authenticated requests as whoever is signed in.
+   */
+  await app.register(cors, {
+    origin: [config.WEB_ORIGIN, config.ADMIN_ORIGIN],
+    credentials: true,
+    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    // `x-request-id` is sent by the browser upload path so one file's journey
+    // is a single log query on both sides.
+    allowedHeaders: ["Content-Type", "Accept", "x-request-id"],
+    maxAge: 86_400,
   });
 
   await app.register(cookie, {
