@@ -33,6 +33,6 @@
     "openapi:check": "npm run openapi:check --workspace=@repo/contract"
   },
   "engines": {
-    "node": ">=20"
+    "node": ">=22"
   }
 }
