@@ -108,6 +108,26 @@ export function configureCookieForwarding(reader: CookieReader): void {
   cookieReader = reader;
 }
 
+/**
+ * Whether an error is Next saying "this page cannot be static".
+ *
+ * `cookies()` and `headers()` throw during static generation, and Next catches
+ * that to switch the route to dynamic rendering. The catches below used to
+ * swallow it as "outside a request" — the same shape, an entirely different
+ * meaning. The signal never reached Next, so the page was prerendered with no
+ * session and the personal read inside it failed the build. That is what broke
+ * `/my-day` in the ops app.
+ *
+ * Identified by digest because the error class is not on Next's public API.
+ */
+function isDynamicUsage(error: unknown): boolean {
+  return (
+    typeof error === "object" &&
+    error !== null &&
+    (error as { digest?: unknown }).digest === "DYNAMIC_SERVER_USAGE"
+  );
+}
+
 export async function currentSessionCookie(): Promise<string | undefined> {
   if (cookieReader) return cookieReader();
   if (typeof window !== "undefined") return undefined;
@@ -116,9 +136,9 @@ export async function currentSessionCookie(): Promise<string | undefined> {
     const { cookies } = await import("next/headers");
     const token = (await cookies()).get(SESSION_COOKIE)?.value;
     return token ? `${SESSION_COOKIE}=${token}` : undefined;
-  } catch {
-    // Outside a request — a build-time render, or a non-Next caller. Neither
-    // has a session, and neither is an error.
+  } catch (error) {
+    if (isDynamicUsage(error)) throw error;
+    // A non-Next caller, which has no session and is not an error.
     return undefined;
   }
 }
@@ -138,8 +158,8 @@ async function currentRequestId(): Promise<string | undefined> {
     const { headers } = await import("next/headers");
     const inbound = await headers();
     return inbound.get("x-request-id") ?? undefined;
-  } catch {
-    // Outside a request — a build-time render, or a non-Next caller.
+  } catch (error) {
+    if (isDynamicUsage(error)) throw error;
     return undefined;
   }
 }
