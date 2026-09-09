@@ -248,8 +248,24 @@ function load() {
    * Session mode is port 5432 on the same pooler host. That is the one to use.
    *
    * **No TLS.** postgres.js and pg both default to an unencrypted connection,
-   * and Supabase is reached across the public internet. Neither driver needs
-   * code for this — both read `sslmode` from the URL — but both need it said.
+   * and Supabase is reached across the public internet, so `sslmode` has to be
+   * in the URL.
+   *
+   * But the two drivers do not agree on what `sslmode=require` means, and this
+   * comment used to claim they did — "neither driver needs code for this".
+   * They do:
+   *
+   *   * **postgres.js** encrypts and does not verify the chain. The API's own
+   *     pool has always connected this way.
+   *   * **node-postgres**, which pg-boss uses, encrypts *and* verifies against
+   *     the system trust store. Supabase's pooler presents a chain that is not
+   *     in it, so pg-boss died on `self-signed certificate in certificate
+   *     chain` while the API beside it worked perfectly.
+   *
+   * That asymmetry cost a deploy: the server listened, `/health` answered, and
+   * every database route hung because the process was crashing behind it.
+   * `databaseTls` below is what the job queue passes to node-postgres so both
+   * drivers end up doing the same thing.
    */
   const isPooler = /pooler\.supabase\.com/i.test(env.DATABASE_URL);
   const transactionPooler = /:6543(\/|\?|$)/.test(env.DATABASE_URL);
@@ -338,6 +354,32 @@ function load() {
     smsDriver,
     storageDriver,
     pushDriver,
+
+    /**
+     * What node-postgres should be told about TLS.
+     *
+     * `false` locally, where the database has no certificate at all and
+     * forcing one fails. Remote, it matches postgres.js: encrypt, do not
+     * verify the chain — the alternative is shipping Supabase's CA and
+     * pinning ourselves to their rotation schedule, for a connection that
+     * only ever goes to a host we named ourselves.
+     */
+    databaseTls: remote && hasSsl ? ({ rejectUnauthorized: false } as const) : false,
+
+    /**
+     * The same URL with `sslmode` removed, for node-postgres only.
+     *
+     * Passing `ssl` beside a connection string that carries `sslmode` does
+     * nothing: node-postgres reads the string last and the string wins, so the
+     * explicit setting above is silently discarded and the chain is verified
+     * anyway. Proved by trying both against the live pooler — with `sslmode`
+     * present it fails on `SELF_SIGNED_CERT_IN_CHAIN`, with it stripped and
+     * `ssl` supplied it connects.
+     *
+     * postgres.js is untouched by any of this and keeps the full URL.
+     */
+    databaseUrlForPg: env.DATABASE_URL.replace(/[?&]sslmode=[^&]*/i, ""),
+
     warnings,
   };
 }

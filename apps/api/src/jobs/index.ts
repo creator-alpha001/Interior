@@ -97,11 +97,23 @@ export async function startJobs(log: FastifyBaseLogger): Promise<void> {
   }
 
   boss = new PgBoss({
-    connectionString: config.DATABASE_URL,
+    // Without `sslmode`, because node-postgres would let it override the
+    // `ssl` below. See `databaseUrlForPg` in lib/config.
+    connectionString: config.databaseUrlForPg,
     // Its own schema, so `\dt` on the application still shows the application.
     schema: "pgboss",
     // Small: these jobs are minutes apart and mostly do nothing.
     max: 2,
+
+    /**
+     * pg-boss runs on node-postgres, which reads `sslmode=require` as "verify
+     * the chain" — unlike postgres.js, which the rest of the app uses and
+     * which only encrypts. Supabase's pooler is not in the system trust
+     * store, so without this the queue throws `self-signed certificate in
+     * certificate chain` and takes the process with it, after the server has
+     * already started listening. See `databaseTls` in lib/config.
+     */
+    ssl: config.databaseTls,
   });
 
   boss.on("error", (error) => log.error({ err: error }, "job queue error"));
