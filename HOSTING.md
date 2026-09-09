@@ -144,7 +144,9 @@ it is annotated per variable. The ones with no safe default:
 | `WEB_ORIGIN`, `ADMIN_ORIGIN` | the real frontend URLs |
 | `PUBLIC_BASE_URL` | this API's public URL; mobile builds upload URLs on it |
 | `R2_*` | see below — the server will not start without them |
-| `DATABASE_POOL_MAX` | `8`. Supabase allows far fewer connections than Railway did |
+| `DATABASE_POOL_MAX` | `5`. Supabase allows far fewer connections than Railway did |
+| `OPS_DATABASE_POOL_MAX` | `2` |
+| `DATABASE_POOLER_MAX_CLIENTS` | `15`, matching the pool size in the Supabase dashboard |
 
 Do **not** set `OWNER_DATABASE_URL` here. The running API has no business
 holding a credential that can drop tables; it lives in your local `.env` only.
@@ -177,7 +179,12 @@ configure R2.
 **Connection limits are much tighter than Railway's.** The session pooler
 defaults to about 15 connections for the whole project, shared with your
 migrations and any `psql` session. `DATABASE_POOL_MAX` + `OPS_DATABASE_POOL_MAX`
-must stay under it with headroom, hence 8 and 4. And because each customer or
+must stay under it with headroom — together with the job queue's own 2, which
+is easy to forget and is what made 8 and 4 look safe when it totalled 14 of 15.
+The server now refuses to start when the three exceed the budget, because the
+alternative is finding out under concurrency: a Vercel build generating static
+pages opened enough at once to fail `/sitemap.xml` and abort the deploy. And
+because each customer or
 vendor request reserves a connection for its whole life, `DATABASE_POOL_MAX` is
 also the ceiling on concurrent personal requests — raise the pooler's size in
 Supabase before raising it here.

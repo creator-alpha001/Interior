@@ -8,6 +8,22 @@
 import "dotenv/config";
 import { z } from "zod";
 
+/**
+ * What `jobs/index.ts` gives pg-boss. Named here because the budget check has to
+ * count it: it is a third pool against the same pooler allowance, and leaving it
+ * out is how the sum came to look safe when it was not.
+ */
+export const JOB_QUEUE_CONNECTIONS = 2;
+
+/**
+ * Connections deliberately left unused.
+ *
+ * `db:migrate` opens one, and somebody reading production with psql or the
+ * Supabase SQL editor opens another. Without this the app is entitled to every
+ * slot, and the first person to look at the database takes the site down.
+ */
+const POOLER_HEADROOM = 4;
+
 const schema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().default(4000),
@@ -53,8 +69,17 @@ const schema = z.object({
    * concurrent personal requests. Too low shows up as requests queueing, too
    * high as `remaining connection slots are reserved`.
    */
-  DATABASE_POOL_MAX: z.coerce.number().int().positive().default(10),
-  OPS_DATABASE_POOL_MAX: z.coerce.number().int().positive().default(6),
+  DATABASE_POOL_MAX: z.coerce.number().int().positive().default(5),
+  OPS_DATABASE_POOL_MAX: z.coerce.number().int().positive().default(2),
+
+  /**
+   * How many clients the pooler will accept for the whole project.
+   *
+   * Supabase's session-mode default, and the number the check below measures
+   * the pools against. Raise it here only after raising it in the Supabase
+   * dashboard, under Database -> Connection pooling.
+   */
+  DATABASE_POOLER_MAX_CLIENTS: z.coerce.number().int().positive().default(15),
 
   WEB_ORIGIN: z.string().url().default("http://localhost:3001"),
   ADMIN_ORIGIN: z.string().url().default("http://localhost:3002"),
@@ -285,6 +310,39 @@ function load() {
     const message =
       "DATABASE_URL has no sslmode and points at a remote database. Both drivers default to " +
       "an unencrypted connection. Append ?sslmode=require to the URL.";
+    if (isProduction) throw new Error(message);
+    warnings.push(message);
+  }
+
+  /**
+   * The connection budget, checked rather than described.
+   *
+   * The comment on DATABASE_POOL_MAX has always said a session-mode pooler
+   * allows about fifteen clients for the entire project. The defaults summed to
+   * eighteen, and production was configured to fourteen — one below the line,
+   * with nothing left for a migration, a psql session, or the Supabase SQL
+   * editor. It held for single requests and broke the moment anything arrived
+   * concurrently, as `(EMAXCONNSESSION) max clients reached in session mode`,
+   * surfacing as a 500 on a different endpoint each time. A Vercel build
+   * generating static pages does exactly that, so the first deploy pointed at
+   * the real API failed on /sitemap.xml.
+   *
+   * Being under the limit is not enough — exceeding our own pool merely queues,
+   * which is slow, while exceeding the pooler's is an immediate error. So the
+   * budget keeps real headroom rather than fitting exactly.
+   */
+  const poolTotal = env.DATABASE_POOL_MAX + env.OPS_DATABASE_POOL_MAX + JOB_QUEUE_CONNECTIONS;
+  const poolCeiling = env.DATABASE_POOLER_MAX_CLIENTS - POOLER_HEADROOM;
+
+  if (remote && poolTotal > poolCeiling) {
+    const message =
+      `The database pools ask for ${poolTotal} connections ` +
+      `(DATABASE_POOL_MAX ${env.DATABASE_POOL_MAX} + OPS_DATABASE_POOL_MAX ` +
+      `${env.OPS_DATABASE_POOL_MAX} + ${JOB_QUEUE_CONNECTIONS} for the job queue), ` +
+      `but the pooler accepts ${env.DATABASE_POOLER_MAX_CLIENTS} for the whole project ` +
+      `and ${POOLER_HEADROOM} are kept free for migrations and a psql session. ` +
+      `Lower the pool sizes to total ${poolCeiling} or fewer, or raise the pool size in ` +
+      `the Supabase dashboard and set DATABASE_POOLER_MAX_CLIENTS to match.`;
     if (isProduction) throw new Error(message);
     warnings.push(message);
   }

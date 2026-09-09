@@ -13,7 +13,7 @@
  */
 import PgBoss from "pg-boss";
 import type { FastifyBaseLogger } from "fastify";
-import { config } from "../lib/config";
+import { JOB_QUEUE_CONNECTIONS, config } from "../lib/config";
 import * as tasks from "./tasks";
 
 /** Times are IST, which is where the business and everybody using it are. */
@@ -102,8 +102,9 @@ export async function startJobs(log: FastifyBaseLogger): Promise<void> {
     connectionString: config.databaseUrlForPg,
     // Its own schema, so `\dt` on the application still shows the application.
     schema: "pgboss",
-    // Small: these jobs are minutes apart and mostly do nothing.
-    max: 2,
+    // Small: these jobs are minutes apart and mostly do nothing. Taken from the
+    // constant the pooler budget check counts, so the two cannot drift.
+    max: JOB_QUEUE_CONNECTIONS,
 
     /**
      * pg-boss runs on node-postgres, which reads `sslmode=require` as "verify
