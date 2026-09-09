@@ -145,10 +145,51 @@ async function currentRequestId(): Promise<string | undefined> {
 }
 
 /**
+ * Failures worth trying again.
+ *
+ * A 503 is the one that prompted this: it arrives as a LiteSpeed HTML page,
+ * from the proxy in front of the app rather than the app, while shared hosting
+ * restarts the process. Nothing is wrong with the request and sending it again
+ * a moment later works.
+ *
+ * 500 is deliberately absent. That is the application saying it failed, and
+ * repeating it turns one bad request into three.
+ */
+function retryable(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false;
+  // 0 is the network failure below — DNS, reset, timeout.
+  return error.status === 0 || error.status === 502 || error.status === 503 || error.status === 504;
+}
+
+/**
  * One place where every request is shaped, so authentication, error mapping and
  * caching are decided once rather than at 115 call sites.
+ *
+ * Reads retry; writes do not. A `POST` that fails after the server accepted it
+ * would be submitted twice, and a duplicate requirement is worse than an error
+ * the caller can see. `status: 0 marks it retryable` was written on the network
+ * branch below from the beginning, and until now nothing acted on it — which is
+ * why a single blip from the host aborted an entire Vercel build partway
+ * through generating static pages.
  */
 export async function api<T>(path: string, options: ApiOptions = {}): Promise<T> {
+  const attempts = (options.method ?? "GET") === "GET" ? 3 : 1;
+
+  for (let attempt = 1; ; attempt += 1) {
+    try {
+      return await request<T>(path, options);
+    } catch (error) {
+      if (attempt >= attempts || !retryable(error)) throw error;
+      // Backing off rather than hammering: the host is busy, and arriving again
+      // immediately is what it is shedding load to avoid. Jittered so a build
+      // rendering many pages does not line every retry up on the same instant.
+      const wait = 250 * 2 ** (attempt - 1) + Math.random() * 250;
+      await new Promise((resolve) => setTimeout(resolve, wait));
+    }
+  }
+}
+
+async function request<T>(path: string, options: ApiOptions): Promise<T> {
   if (!USING_API) {
     throw new ApiError(
       0,
