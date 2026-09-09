@@ -1,5 +1,20 @@
 @import "tailwindcss";
 
+/*
+ * Tailwind has to be told about the UI package.
+ *
+ * v4 finds its own sources, but skips `node_modules` — and a workspace package
+ * is a symlink inside it, so `@repo/ui` was never scanned. Classes it shares
+ * with an app survived, because the app's own copy generated them; classes only
+ * it used were dropped. The hero buttons carried `px-7` and `h-[3.25rem]` and
+ * rendered with no padding at 24px tall, while the header button beside them
+ * looked right for the sole reason that it also passed `px-4` from here.
+ *
+ * That is the failure mode to remember: not a component that breaks, but one
+ * that renders correctly wherever an app happens to use the same utility.
+ */
+@source "../../../../packages/ui/src";
+
 /* ------------------------------------------------------------------ *
  * Internal ops panel.
  *
