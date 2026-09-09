@@ -71,6 +71,13 @@
       "when": 1788614716132,
       "tag": "0009_scoped_writes",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1788618316132,
+      "tag": "0010_function_search_path",
+      "breakpoints": true
     }
   ]
 }
