@@ -16,6 +16,7 @@ import {
   ButtonLink,
   Container,
   EmptyState,
+  Media,
   Section,
   SectionHeading,
 } from "@repo/ui";
@@ -119,6 +120,20 @@ export default async function DomainCataloguePage({
               Get 3 quotes for {domain.name.toLowerCase()}
             </ButtonLink>
           </div>
+
+          {/* Only when there is one. `domains.banner_url` was unwritable until
+              the ops panel could set it, so most trades have none and an empty
+              placeholder band would be worse than no band at all. */}
+          {domain.bannerUrl ? (
+            <div className="mt-8 overflow-hidden rounded-xl border border-line">
+              <Media
+                src={domain.bannerUrl}
+                alt=""
+                rounded={false}
+                className="aspect-[21/9] w-full"
+              />
+            </div>
+          ) : null}
         </Container>
       </div>
 

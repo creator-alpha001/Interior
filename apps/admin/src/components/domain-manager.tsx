@@ -4,6 +4,7 @@ import { useState, useTransition } from "react";
 import type { Domain } from "@repo/types";
 import { Badge, cn } from "@repo/ui";
 import { createDomainAction, updateDomainAction } from "@/app/actions";
+import { SingleImagePicker } from "./image-picker";
 
 export interface DomainUsage {
   vendors: number;
@@ -168,6 +169,8 @@ function DomainForm({ domain, onDone }: { domain?: Domain; onDone: () => void })
   const [materials, setMaterials] = useState(domain?.labels.materials ?? "");
   const [warranty, setWarranty] = useState(domain?.labels.warranty ?? "Warranty");
   const [basis, setBasis] = useState(domain?.labels.pricingBasis ?? "");
+  /** Undefined until the picker is touched, so an untouched edit clears nothing. */
+  const [bannerMediaId, setBannerMediaId] = useState<string | null | undefined>(undefined);
   const [pending, startTransition] = useTransition();
 
   const field =
@@ -245,6 +248,22 @@ function DomainForm({ domain, onDone }: { domain?: Domain; onDone: () => void })
         </div>
       </div>
 
+      <div className="mt-5">
+        <span className="text-[12.5px] font-medium text-ink">Banner image</span>
+        <span className="ml-1.5 text-[12px] text-ink-4">
+          shown on this trade&rsquo;s page and card
+        </span>
+        <div className="mt-2">
+          {/* Undefined means untouched, so an edit that does not open this
+              leaves the existing banner alone rather than clearing it. */}
+          <SingleImagePicker
+            existingUrl={domain?.bannerUrl ?? null}
+            onChange={setBannerMediaId}
+            disabled={pending}
+          />
+        </div>
+      </div>
+
       <div className="mt-4 flex items-center justify-end gap-2">
         <button type="button" onClick={onDone} className="rounded-md px-3 py-1.5 text-[12.5px] text-ink-3">
           Cancel
@@ -262,6 +281,7 @@ function DomainForm({ domain, onDone }: { domain?: Domain; onDone: () => void })
                 materialsLabel: materials.trim() || "Materials",
                 warrantyLabel: warranty.trim() || "Warranty",
                 pricingBasis: basis.trim(),
+                ...(bannerMediaId !== undefined ? { bannerMediaId } : {}),
               };
               if (domain) await updateDomainAction(domain.id, payload);
               else await createDomainAction(payload);
