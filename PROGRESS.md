@@ -192,8 +192,8 @@ whole project. Now `DATABASE_POOL_MAX` / `OPS_DATABASE_POOL_MAX`, set to 8 and 4
    since OTP is the only customer and vendor login path. The server boots and
    warns rather than failing.
 2. `WEB_ORIGIN`, `ADMIN_ORIGIN`, `PUBLIC_BASE_URL` are still `example.com`.
-   The domain `interiobee.com` is owned, at Namecheap; DNS needs moving to
-   Cloudflare before the R2 custom domain can be attached.
+   The domain is `decorashine.com`, registered at Cloudflare, so DNS is
+   already there and the R2 custom domain can be attached directly.
 
 **Security**
 
@@ -206,7 +206,7 @@ whole project. Now `DATABASE_POOL_MAX` / `OPS_DATABASE_POOL_MAX`, set to 8 and 4
 
 **Should be done before launch**
 
-5. **R2 custom domain** (`media.interiobee.com`). The `pub-….r2.dev` URL is
+5. **R2 custom domain** (`media.decorashine.com`). The `pub-….r2.dev` URL is
    rate-limited and not for production, and these URLs get written into
    `media_assets` rows — changing it later means rewriting them.
 6. **`sweepOrphanMedia` never deletes files.** It removes the database rows and

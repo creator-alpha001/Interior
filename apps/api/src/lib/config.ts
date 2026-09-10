@@ -460,7 +460,7 @@ function load() {
      * `WEB_ORIGIN`, so an allowlist built from that value alone rejects half
      * the site — and CORS failures do not appear in the server log at all,
      * which is a bad way to find out. Production is configured as
-     * `https://www.interiobee.com` while the site answers on the apex, so this
+     * `https://www.decorashine.com` while the site answers on the apex, so this
      * was already wrong for every visitor who typed the short address.
      */
     corsOrigins: [env.WEB_ORIGIN, env.ADMIN_ORIGIN].flatMap((origin) => {

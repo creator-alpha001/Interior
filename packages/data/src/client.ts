@@ -244,8 +244,8 @@ async function request<T>(path: string, options: ApiOptions): Promise<T> {
       /**
        * So the browser attaches the session cookie itself.
        *
-       * The default is `same-origin`, which on `interiobee.com` calling
-       * `api.interiobee.com` means no cookie at all — and the header above
+       * The default is `same-origin`, which on `decorashine.com` calling
+       * `api.decorashine.com` means no cookie at all — and the header above
        * cannot supply one, since the session is httpOnly. A partner uploading
        * stage proof would have been rejected as a stranger. Anonymous
        * requirement photographs would have worked, which is the sort of gap

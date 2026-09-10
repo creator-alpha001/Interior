@@ -91,7 +91,7 @@ export async function buildApp(): Promise<FastifyInstance> {
    * that is true of every route but one. `uploadFile` in @repo/data runs in the
    * browser — it has to, because it streams the file itself — so the ticket
    * request that precedes it is a real cross-origin `POST` from
-   * `https://interiobee.com` to `https://api.interiobee.com`. Without this the
+   * `https://decorashine.com` to `https://api.decorashine.com`. Without this the
    * preflight 404s and the requirement form silently loses every photograph.
    *
    * That failure is invisible today only because `NEXT_PUBLIC_API_URL` is
