@@ -20,10 +20,17 @@ import { cn } from "@repo/ui";
  */
 export function AccountMenu({
   signedInAsClient,
+  accountName,
+  completingSignIn,
   demoMode,
 }: {
   /** Somebody is actually signed in as a customer — not the seeded stand-in. */
   signedInAsClient: boolean;
+  /** Their name, so the header says who rather than the word "Account". */
+  accountName?: string | null;
+  /** A Google sign-in is waiting on a mobile number: no session, but do not
+   *  offer to start another one. */
+  completingSignIn?: boolean;
   /** No backend configured, so both portals render seed data without signing in. */
   demoMode: boolean;
 }) {
@@ -63,7 +70,15 @@ export function AccountMenu({
         <svg viewBox="0 0 20 20" className="h-4 w-4 fill-ink-4" aria-hidden="true">
           <path d="M10 10a3 3 0 100-6 3 3 0 000 6zm0 2c-3 0-6 1.5-6 4v1h12v-1c0-2.5-3-4-6-4z" />
         </svg>
-        <span className="hidden lg:inline">{signedInAsClient ? "Account" : "Sign in"}</span>
+        <span className="hidden lg:inline">
+          {signedInAsClient
+            ? // The first name, because a header is not the place for "Priya
+              // Sharma Kulkarni" and the full name is on the account page.
+              (accountName?.trim().split(/\s+/)[0] ?? "Account")
+            : completingSignIn
+              ? "Finishing…"
+              : "Sign in"}
+        </span>
       </button>
 
       {open ? (
@@ -74,6 +89,17 @@ export function AccountMenu({
               <Item href="/account/agreements" label="Agreements" />
               <Item href="/account/notifications" label="Notifications" />
               <Item href="/account/support" label="Support" />
+            </Group>
+          ) : completingSignIn ? (
+            // Half-finished: the only useful thing to offer is the way back to
+            // the step that is waiting.
+            <Group>
+              <Item
+                href="/welcome"
+                label="Finish setting up"
+                hint="One number and your account is ready"
+                emphasis
+              />
             </Group>
           ) : (
             <Group>

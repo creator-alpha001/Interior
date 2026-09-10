@@ -223,13 +223,17 @@ export async function googleSignInAction(
     const result = await signInWithGoogle(idToken);
 
     if (result.status === "mobile_required") {
-      const state: GoogleState = {
+      await rememberGoogleLink({
         linkToken: result.linkToken,
         email: result.email,
         name: result.name,
-      };
-      await rememberGoogleLink(state);
-      return state;
+      });
+      // Off the sign-in page entirely. Staying there left somebody who had just
+      // authenticated looking at a heading telling them to sign in, beside a
+      // header still offering a Sign in link — a state with no way to tell
+      // whether Google had worked.
+      destination = "/welcome";
+      return redirect(destination);
     }
 
     await adoptSession(result.setCookie);

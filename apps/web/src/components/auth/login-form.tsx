@@ -29,30 +29,20 @@ import { GoogleSignInButton } from "./google-button";
  * everyone else, carrying a link token; after that one code, it is one tap.
  */
 export function LoginForm({
-  pendingGoogle: resumed,
   cities = [],
   defaultCityId,
 }: {
-  pendingGoogle?: GoogleState | null;
   cities?: City[];
   defaultCityId?: string;
 }) {
   const nextPath = useSearchParams().get("next") ?? undefined;
   const [stage, setStage] = useState<"mobile" | "otp">("mobile");
   const [mobile, setMobile] = useState("");
-  // Prefilled from a resumed Google sign-in, and still editable.
-  const [name, setName] = useState(resumed?.name ?? "");
+  const [name, setName] = useState("");
   const [cityId, setCityId] = useState(defaultCityId ?? cities[0]?.id ?? "");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [seconds, setSeconds] = useState(0);
   const [challenge, setChallenge] = useState<OtpState>({});
-  /**
-   * A Google account waiting for its first mobile number.
-   *
-   * Seeded from the cookie the server read, so a reload resumes the step rather
-   * than losing the link token and sending somebody back to the beginning.
-   */
-  const [pendingGoogle, setPendingGoogle] = useState<GoogleState | null>(resumed ?? null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
@@ -122,12 +112,11 @@ export function LoginForm({
         code,
         // What they typed wins over the Google profile name: somebody
         // correcting it on this screen means it.
-        name: name.trim() || pendingGoogle?.name || undefined,
+        name: name.trim() || undefined,
         // Ignored by the server for an account that already exists, so sending
         // it always is simpler than deciding here whether this is a first
         // sign-in — the server is the only place that actually knows.
         cityId: cityId || undefined,
-        linkToken: pendingGoogle?.linkToken,
         next: nextPath,
       });
       if (result?.error) {
@@ -143,12 +132,10 @@ export function LoginForm({
       {stage === "mobile" ? (
         <>
           <h2 className="font-display text-[24px]">
-            {pendingGoogle ? "One last thing" : "Enter your mobile number"}
+            Enter your mobile number
           </h2>
           <p className="mt-2 text-[14.5px] sm:text-[13.5px] text-ink-3">
-            {pendingGoogle
-              ? `Signed in as ${pendingGoogle.email}. We need a number so we can ring you about your quotes — just this once.`
-              : "We will send a 6-digit code to verify it is you."}
+            We will send a 6-digit code to verify it is you.
           </p>
 
           <div className="mt-6">
@@ -220,38 +207,8 @@ export function LoginForm({
             {pending ? "Sending…" : "Send code"}
           </Button>
 
-          {pendingGoogle ? (
-            <button
-              type="button"
-              onClick={() =>
-                startTransition(async () => {
-                  await clearGoogleLinkAction();
-                  setPendingGoogle(null);
-                  setName("");
-                  setError(null);
-                })
-              }
-              className="mt-4 text-[13.5px] text-ink-3 underline hover:text-ink"
-            >
-              Not {pendingGoogle.email}? Start again
-            </button>
-          ) : null}
 
-          {/* Hidden once a Google sign-in is already waiting on this number:
-              offering the same button again is an invitation to go round in a
-              circle rather than finish the one step that is left. */}
-          {pendingGoogle ? null : (
-            <GoogleSignInButton
-              next={nextPath}
-              onError={setError}
-              onMobileRequired={(state) => {
-                setError(null);
-                setPendingGoogle(state);
-                // Prefilled, not imposed — the field stays editable.
-                if (state.name) setName(state.name);
-              }}
-            />
-          )}
+          <GoogleSignInButton next={nextPath} onError={setError} />
 
           <p className="mt-6 text-center text-[12.5px] sm:text-[11.5px] leading-relaxed text-ink-4">
             By continuing you agree to our terms and privacy policy. We never share your number with

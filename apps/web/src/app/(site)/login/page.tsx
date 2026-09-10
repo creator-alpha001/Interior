@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { redirect } from "next/navigation";
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/login-form";
 import { pendingGoogleLink } from "./actions";
@@ -14,7 +15,10 @@ export const metadata: Metadata = {
 export default async function LoginPage() {
   // Reading a cookie makes this dynamic, which is correct: a half-finished
   // sign-in is per-person and must never be cached into somebody else's page.
-  const pendingGoogle = await pendingGoogleLink();
+  // A Google sign-in mid-flight belongs on /welcome, not here. Someone landing
+  // back on the sign-in page with one pending would otherwise be offered a
+  // fresh sign-in while a half-finished one was still waiting.
+  if (await pendingGoogleLink()) redirect("/welcome");
 
   /**
    * The city is asked for here rather than guessed.
@@ -65,7 +69,6 @@ export default async function LoginPage() {
 
           <div>
             <LoginForm
-              pendingGoogle={pendingGoogle}
               cities={cities}
               defaultCityId={selectedCity?.id}
             />

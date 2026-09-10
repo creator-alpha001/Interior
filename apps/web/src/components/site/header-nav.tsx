@@ -28,11 +28,17 @@ export function HeaderNav({
   cities,
   selectedCity,
   signedInAsClient,
+  accountName,
+  completingSignIn,
   demoMode,
 }: {
   cities: City[];
   selectedCity: City;
   signedInAsClient: boolean;
+  /** Shown in place of "Account" once there is a real session. */
+  accountName?: string | null;
+  /** A Google sign-in is mid-flight: no session yet, but do not invite another. */
+  completingSignIn?: boolean;
   demoMode: boolean;
 }) {
   const pathname = usePathname();
@@ -126,7 +132,12 @@ export function HeaderNav({
             <CitySwitcher cities={cities} selected={selectedCity} />
           </span>
           <span className="hidden sm:block">
-            <AccountMenu signedInAsClient={signedInAsClient} demoMode={demoMode} />
+            <AccountMenu
+              signedInAsClient={signedInAsClient}
+              accountName={accountName}
+              completingSignIn={completingSignIn}
+              demoMode={demoMode}
+            />
           </span>
           <ButtonLink
             href="/submit-requirement"
@@ -196,7 +207,10 @@ export function HeaderNav({
             <div className="grid gap-1">
               {(signedInAsClient
                 ? [{ name: "My requirements", href: "/account" }]
-                : [{ name: "Sign in", href: "/login" }]
+                : completingSignIn
+                  ? // No account yet, so "My requirements" would lead nowhere.
+                    [{ name: "Finish setting up", href: "/welcome" }]
+                  : [{ name: "Sign in", href: "/login" }]
               ).map((l) => (
                 <Link key={l.href} href={l.href} className="rounded-lg px-2 py-2 text-[15px] hover:bg-surface-2">
                   {l.name}

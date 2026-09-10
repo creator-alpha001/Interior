@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { googleSignInAction, type GoogleState } from "@/app/(site)/login/actions";
+import { googleSignInAction } from "@/app/(site)/login/actions";
 
 const GSI_SRC = "https://accounts.google.com/gsi/client";
 
@@ -89,17 +89,10 @@ declare global {
 interface Props {
   /** Where they were headed before being asked to sign in. */
   next?: string;
-  /**
-   * Called when this Google account has no mobile number against it yet.
-   *
-   * The parent owns the OTP stage, so it takes over from here rather than this
-   * component growing a second form of its own.
-   */
-  onMobileRequired: (state: GoogleState) => void;
   onError: (message: string) => void;
 }
 
-export function GoogleSignInButton({ next, onMobileRequired, onError }: Props) {
+export function GoogleSignInButton({ next, onError }: Props) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const container = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
@@ -115,16 +108,15 @@ export function GoogleSignInButton({ next, onMobileRequired, onError }: Props) {
       setBusy(true);
       void googleSignInAction(response.credential, next)
         .then((result) => {
-          // A completed sign-in redirects inside the action and never resolves,
-          // so anything arriving here is either the mobile step or a failure.
-          if (!result) return;
-          if (result.error) onError(result.error);
-          else if (result.linkToken) onMobileRequired(result);
+          // Both outcomes redirect inside the action — to /account when the
+          // account exists, to /welcome when it still needs a number — so
+          // anything that resolves here is a failure.
+          if (result?.error) onError(result.error);
         })
         .catch(() => onError("That Google sign-in did not work. Please try again."))
         .finally(() => setBusy(false));
     },
-    [next, onError, onMobileRequired],
+    [next, onError],
   );
 
   useEffect(() => {
