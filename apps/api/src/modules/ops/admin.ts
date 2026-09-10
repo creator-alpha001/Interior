@@ -12,8 +12,10 @@ import type {
   DomainSlice,
   InvoiceRow,
   Paginated,
+  ProductOption,
   VendorRow,
 } from "@repo/types";
+import { attachMedia, replaceOwnedMedia } from "../uploads/repository";
 import { db, transaction } from "../../db/client";
 import * as t from "../../db/schema";
 import { ConflictError, NotFoundError, ValidationError } from "../../lib/errors";
@@ -500,6 +502,9 @@ export interface DomainInput {
   description: string;
   defaultCommissionPercent: number;
   labels: { materials: string; warranty: string; pricingBasis: string };
+  /** Public URL of a `catalogue_image`. Null clears it; undefined leaves it. */
+  bannerUrl?: string | null;
+  iconKey?: string;
 }
 
 export async function createDomain(input: DomainInput) {
@@ -519,7 +524,8 @@ export async function createDomain(input: DomainInput) {
       slug,
       tagline: input.tagline,
       description: input.description,
-      iconKey: slug,
+      iconKey: input.iconKey ?? slug,
+      bannerUrl: input.bannerUrl ?? null,
       defaultCommissionPercent: input.defaultCommissionPercent,
       sortOrder: (maxOrder?.value ?? 0) + 1,
       labels: input.labels,
@@ -540,6 +546,11 @@ export async function updateDomain(domainId: string, patch: Partial<DomainInput>
         ? { defaultCommissionPercent: patch.defaultCommissionPercent }
         : {}),
       ...(patch.labels !== undefined ? { labels: patch.labels } : {}),
+      // `?? null` rather than a truthiness check: clearing the banner is a
+      // thing somebody will want to do, and `undefined` is the only value that
+      // should mean "leave it alone".
+      ...(patch.bannerUrl !== undefined ? { bannerUrl: patch.bannerUrl ?? null } : {}),
+      ...(patch.iconKey !== undefined ? { iconKey: patch.iconKey } : {}),
       ...(patch.isActive !== undefined ? { isActive: patch.isActive } : {}),
       updatedAt: new Date().toISOString(),
     })
@@ -714,4 +725,375 @@ export async function listAllAgreements(limit: number, cursor?: string) {
   const { buildAgreementViews } = await import("../customer/views");
   const items = await buildAgreementViews(rows.map((r) => r.id));
   return page(items, totals?.value ?? 0, offset, limit);
+}
+
+/* ------------------------------------------------------------------ *
+ * The catalogue
+ *
+ * Nothing here existed. Trades could be created and edited; the products,
+ * packages and categories customers actually browse could only be seeded, so
+ * every change to the shop front was a database migration and a deploy.
+ *
+ * Three things are true of all of it and are worth saying once:
+ *
+ *   **Slugs are derived from the name and never change afterwards.** They are
+ *   in URLs customers bookmark and search engines index, so a rename edits the
+ *   heading and leaves the address alone.
+ *
+ *   **Nothing is hard-deleted.** `isActive: false` takes an item off the shop
+ *   front and leaves every lead, quote and agreement that referenced it intact.
+ *   A DELETE endpoint would break records that describe work already done.
+ *
+ *   **Images are attached by asset id inside the same transaction as the row.**
+ *   A picture uploaded but never bound to an owner is what the orphan sweep
+ *   deletes, so binding it anywhere but here means it disappears a day later.
+ * ------------------------------------------------------------------ */
+
+/**
+ * A URL-safe slug, unique across the table it is going into.
+ *
+ * The suffix loop matters more than it looks: "Modular Kitchen" is a plausible
+ * name in more than one trade, and the slug indexes are unique across the whole
+ * table rather than per domain. Without this the second one fails on a
+ * constraint and the person filling in the form is told nothing useful.
+ */
+async function uniqueSlug(
+  base: string,
+  exists: (candidate: string) => Promise<boolean>,
+): Promise<string> {
+  const root =
+    base
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-|-$/g, "")
+      .slice(0, 120) || "item";
+
+  let candidate = root;
+  for (let suffix = 2; await exists(candidate); suffix += 1) {
+    candidate = `${root}-${suffix}`;
+    if (suffix > 50) throw new ConflictError("Could not find a free web address for that name");
+  }
+  return candidate;
+}
+
+/* ---- categories ---- */
+
+export interface CategoryInput {
+  domainId: string;
+  name: string;
+  description: string;
+  imageUrl?: string | null;
+  parentId?: string | null;
+  sortOrder?: number;
+}
+
+export async function listCategoriesForOps(domainId?: string) {
+  return db
+    .select({
+      category: t.productCategories,
+      domain: t.domains,
+      products: sql<number>`(
+        SELECT count(*) FROM ${t.products}
+        WHERE ${t.products.categoryId} = ${t.productCategories.id} AND ${t.products.isActive}
+      )::int`,
+    })
+    .from(t.productCategories)
+    .innerJoin(t.domains, eq(t.domains.id, t.productCategories.domainId))
+    .where(domainId ? eq(t.productCategories.domainId, domainId) : undefined)
+    .orderBy(asc(t.domains.sortOrder), asc(t.productCategories.sortOrder));
+}
+
+export async function createCategory(input: CategoryInput) {
+  const slug = await uniqueSlug(input.name, async (candidate) => {
+    const [row] = await db
+      .select({ id: t.productCategories.id })
+      .from(t.productCategories)
+      .where(eq(t.productCategories.slug, candidate))
+      .limit(1);
+    return Boolean(row);
+  });
+
+  const [maxOrder] = await db
+    .select({ value: sql<number>`COALESCE(max(${t.productCategories.sortOrder}), 0)::int` })
+    .from(t.productCategories)
+    .where(eq(t.productCategories.domainId, input.domainId));
+
+  const [row] = await db
+    .insert(t.productCategories)
+    .values({
+      domainId: input.domainId,
+      parentId: input.parentId ?? null,
+      name: input.name,
+      slug,
+      description: input.description,
+      imageUrl: input.imageUrl ?? null,
+      sortOrder: input.sortOrder ?? (maxOrder?.value ?? 0) + 1,
+    })
+    .returning();
+
+  return row!;
+}
+
+export async function updateCategory(
+  categoryId: string,
+  patch: Partial<CategoryInput> & { isActive?: boolean },
+) {
+  const rows = await db
+    .update(t.productCategories)
+    .set({
+      ...(patch.name !== undefined ? { name: patch.name } : {}),
+      ...(patch.description !== undefined ? { description: patch.description } : {}),
+      ...(patch.imageUrl !== undefined ? { imageUrl: patch.imageUrl ?? null } : {}),
+      ...(patch.parentId !== undefined ? { parentId: patch.parentId ?? null } : {}),
+      ...(patch.sortOrder !== undefined ? { sortOrder: patch.sortOrder } : {}),
+      ...(patch.isActive !== undefined ? { isActive: patch.isActive } : {}),
+      updatedAt: new Date().toISOString(),
+    })
+    .where(eq(t.productCategories.id, categoryId))
+    .returning();
+
+  if (rows.length === 0) throw new NotFoundError("That category");
+  return rows[0]!;
+}
+
+/* ---- packages ---- */
+
+export interface PackageInput {
+  domainId: string;
+  name: string;
+  shortDescription: string;
+  description: string;
+  price: number;
+  priceBasis: string;
+  durationDays: number;
+  inclusions: string[];
+  exclusions: string[];
+  badge?: string | null;
+  isFeatured: boolean;
+  mediaIds: string[];
+}
+
+export async function listPackagesForOps(domainId?: string) {
+  return db
+    .select({
+      servicePackage: t.servicePackages,
+      domain: t.domains,
+      images: sql<number>`(
+        SELECT count(*) FROM ${t.mediaAssets}
+        WHERE ${t.mediaAssets.ownerType} = 'service_package'
+          AND ${t.mediaAssets.ownerId} = ${t.servicePackages.id}
+          AND ${t.mediaAssets.deletedAt} IS NULL
+      )::int`,
+    })
+    .from(t.servicePackages)
+    .innerJoin(t.domains, eq(t.domains.id, t.servicePackages.domainId))
+    .where(domainId ? eq(t.servicePackages.domainId, domainId) : undefined)
+    .orderBy(asc(t.domains.sortOrder), asc(t.servicePackages.name));
+}
+
+export async function createPackage(input: PackageInput, staffUserId: string) {
+  const slug = await uniqueSlug(input.name, async (candidate) => {
+    const [row] = await db
+      .select({ id: t.servicePackages.id })
+      .from(t.servicePackages)
+      .where(eq(t.servicePackages.slug, candidate))
+      .limit(1);
+    return Boolean(row);
+  });
+
+  return transaction(async (tx) => {
+    const [row] = await tx
+      .insert(t.servicePackages)
+      .values({
+        domainId: input.domainId,
+        name: input.name,
+        slug,
+        shortDescription: input.shortDescription,
+        description: input.description,
+        price: input.price,
+        priceBasis: input.priceBasis,
+        durationDays: input.durationDays,
+        inclusions: input.inclusions,
+        exclusions: input.exclusions,
+        badge: input.badge ?? null,
+        isFeatured: input.isFeatured,
+      })
+      .returning();
+
+    await attachMedia(tx, input.mediaIds, "service_package", row!.id, "catalogue_image", staffUserId);
+    return row!;
+  });
+}
+
+export async function updatePackage(
+  packageId: string,
+  patch: Partial<PackageInput> & { isActive?: boolean },
+  staffUserId: string,
+) {
+  return transaction(async (tx) => {
+    const rows = await tx
+      .update(t.servicePackages)
+      .set({
+        ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.shortDescription !== undefined ? { shortDescription: patch.shortDescription } : {}),
+        ...(patch.description !== undefined ? { description: patch.description } : {}),
+        ...(patch.price !== undefined ? { price: patch.price } : {}),
+        ...(patch.priceBasis !== undefined ? { priceBasis: patch.priceBasis } : {}),
+        ...(patch.durationDays !== undefined ? { durationDays: patch.durationDays } : {}),
+        ...(patch.inclusions !== undefined ? { inclusions: patch.inclusions } : {}),
+        ...(patch.exclusions !== undefined ? { exclusions: patch.exclusions } : {}),
+        ...(patch.badge !== undefined ? { badge: patch.badge ?? null } : {}),
+        ...(patch.isFeatured !== undefined ? { isFeatured: patch.isFeatured } : {}),
+        ...(patch.isActive !== undefined ? { isActive: patch.isActive } : {}),
+        // The slug is deliberately absent. It is in URLs customers have
+        // bookmarked and search engines have indexed, so a rename changes the
+        // heading and leaves the address alone.
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(t.servicePackages.id, packageId))
+      .returning();
+
+    if (rows.length === 0) throw new NotFoundError("That package");
+
+    if (patch.mediaIds !== undefined) {
+      await replaceOwnedMedia(tx, "service_package", packageId, patch.mediaIds, staffUserId);
+    }
+    return rows[0]!;
+  });
+}
+
+/* ---- products ---- */
+
+export interface ProductInput {
+  domainId: string;
+  categoryId: string;
+  name: string;
+  shortDescription: string;
+  description: string;
+  basePrice: number;
+  priceUnit: "per_piece" | "per_sqft" | "per_running_ft" | "per_kg" | "per_room" | "per_project";
+  leadTimeDays: number;
+  isCustomisable: boolean;
+  specs: Record<string, string>;
+  options: ProductOption[];
+  tags: string[];
+  isFeatured: boolean;
+  mediaIds: string[];
+}
+
+export async function listProductsForOps(domainId?: string, categoryId?: string) {
+  const filters = [
+    domainId ? eq(t.products.domainId, domainId) : undefined,
+    categoryId ? eq(t.products.categoryId, categoryId) : undefined,
+  ].filter(Boolean);
+
+  return db
+    .select({
+      product: t.products,
+      domain: t.domains,
+      category: t.productCategories,
+      images: sql<number>`(
+        SELECT count(*) FROM ${t.mediaAssets}
+        WHERE ${t.mediaAssets.ownerType} = 'product'
+          AND ${t.mediaAssets.ownerId} = ${t.products.id}
+          AND ${t.mediaAssets.deletedAt} IS NULL
+      )::int`,
+    })
+    .from(t.products)
+    .innerJoin(t.domains, eq(t.domains.id, t.products.domainId))
+    .innerJoin(t.productCategories, eq(t.productCategories.id, t.products.categoryId))
+    .where(filters.length > 0 ? and(...filters) : undefined)
+    .orderBy(asc(t.domains.sortOrder), asc(t.products.name));
+}
+
+export async function createProduct(input: ProductInput, staffUserId: string) {
+  /**
+   * The category has to belong to the trade.
+   *
+   * Both are chosen in the same form, so this is only reachable from a stale
+   * page or a direct call. But they are independent foreign keys and nothing in
+   * the schema stops a painting product being filed under a furniture shelf: it
+   * would then list under the wrong trade and read as a bug in the catalogue
+   * rather than as a bad write.
+   */
+  const [category] = await db
+    .select({ domainId: t.productCategories.domainId })
+    .from(t.productCategories)
+    .where(eq(t.productCategories.id, input.categoryId))
+    .limit(1);
+
+  if (!category) throw new NotFoundError("That category");
+  if (category.domainId !== input.domainId) {
+    throw new ValidationError("That category belongs to a different service");
+  }
+
+  const slug = await uniqueSlug(input.name, async (candidate) => {
+    const [row] = await db
+      .select({ id: t.products.id })
+      .from(t.products)
+      .where(eq(t.products.slug, candidate))
+      .limit(1);
+    return Boolean(row);
+  });
+
+  return transaction(async (tx) => {
+    const [row] = await tx
+      .insert(t.products)
+      .values({
+        domainId: input.domainId,
+        categoryId: input.categoryId,
+        name: input.name,
+        slug,
+        shortDescription: input.shortDescription,
+        description: input.description,
+        basePrice: input.basePrice,
+        priceUnit: input.priceUnit,
+        leadTimeDays: input.leadTimeDays,
+        isCustomisable: input.isCustomisable,
+        specs: input.specs,
+        options: input.options,
+        tags: input.tags,
+        isFeatured: input.isFeatured,
+      })
+      .returning();
+
+    await attachMedia(tx, input.mediaIds, "product", row!.id, "catalogue_image", staffUserId);
+    return row!;
+  });
+}
+
+export async function updateProduct(
+  productId: string,
+  patch: Partial<ProductInput> & { isActive?: boolean },
+  staffUserId: string,
+) {
+  return transaction(async (tx) => {
+    const rows = await tx
+      .update(t.products)
+      .set({
+        ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.categoryId !== undefined ? { categoryId: patch.categoryId } : {}),
+        ...(patch.shortDescription !== undefined ? { shortDescription: patch.shortDescription } : {}),
+        ...(patch.description !== undefined ? { description: patch.description } : {}),
+        ...(patch.basePrice !== undefined ? { basePrice: patch.basePrice } : {}),
+        ...(patch.priceUnit !== undefined ? { priceUnit: patch.priceUnit } : {}),
+        ...(patch.leadTimeDays !== undefined ? { leadTimeDays: patch.leadTimeDays } : {}),
+        ...(patch.isCustomisable !== undefined ? { isCustomisable: patch.isCustomisable } : {}),
+        ...(patch.specs !== undefined ? { specs: patch.specs } : {}),
+        ...(patch.options !== undefined ? { options: patch.options } : {}),
+        ...(patch.tags !== undefined ? { tags: patch.tags } : {}),
+        ...(patch.isFeatured !== undefined ? { isFeatured: patch.isFeatured } : {}),
+        ...(patch.isActive !== undefined ? { isActive: patch.isActive } : {}),
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(t.products.id, productId))
+      .returning();
+
+    if (rows.length === 0) throw new NotFoundError("That product");
+
+    if (patch.mediaIds !== undefined) {
+      await replaceOwnedMedia(tx, "product", productId, patch.mediaIds, staffUserId);
+    }
+    return rows[0]!;
+  });
 }

@@ -39,7 +39,7 @@ export async function registerCustomerRoutes(app: FastifyInstance) {
       await consume(`upload:ip:${request.ip}`, LIMITS.anonymousUploadPerIp);
     }
 
-    return createUploadTicket(actor?.userId ?? null, input);
+    return createUploadTicket(actor?.userId ?? null, input, actor?.role);
   });
 
   /* ---------------- requirements ---------------- */

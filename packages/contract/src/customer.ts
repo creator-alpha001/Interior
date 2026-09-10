@@ -33,6 +33,18 @@ export const uploadPurposeSchema = z.enum([
   "milestone_proof",
   "portfolio_item",
   "vendor_document",
+  /**
+   * A picture of a product, package, category or trade, uploaded by staff.
+   *
+   * `upload_purpose` in the database has listed this since the first migration
+   * and this enum never did, so nothing could ask for a ticket for one. That is
+   * the whole reason every catalogue card in the product renders a gradient:
+   * not a display decision, an upload that could not be started.
+   *
+   * Staff only, enforced in `createUploadTicket` — see the note there about why
+   * "signed in" was not a sufficient check once this existed.
+   */
+  "catalogue_image",
 ]);
 
 export type UploadPurpose = z.infer<typeof uploadPurposeSchema>;

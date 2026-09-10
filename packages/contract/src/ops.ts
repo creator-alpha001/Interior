@@ -78,6 +78,96 @@ export const domainInputSchema = z.object({
   description: z.string().trim().max(2000).default(""),
   defaultCommissionPercent: z.number().int().min(0).max(50),
   labels: domainLabelsInputSchema,
+  /**
+   * The banner shown on the trade's own page.
+   *
+   * `domains.banner_url` and `domains.icon_key` have existed since the first
+   * migration and nothing could ever write them — a trade created here got a
+   * derived icon key and no picture at all, which is why every trade card in
+   * the product falls back to a gradient. Uploaded as a `catalogue_image` and
+   * stored as its public URL.
+   */
+  bannerUrl: z.string().url().max(600).nullish(),
+  iconKey: z.string().trim().max(60).optional(),
+});
+
+/* ---- catalogue ---- */
+
+/**
+ * Images are attached by id, not by URL.
+ *
+ * The upload issues a ticket and creates a `media_assets` row; the id here is
+ * what binds that row to this record. Passing a URL instead would leave the
+ * asset unowned, which is what the orphan sweep deletes, and the picture would
+ * vanish a day later with nothing to explain it.
+ *
+ * Order is the array's order. Everything in the product reads `media[0]` as
+ * the one to show on a card, so which one is first is a decision the person
+ * filling this in is making whether they know it or not.
+ */
+const mediaIdsSchema = z.array(idSchema).max(12).default([]);
+
+export const categoryInputSchema = z.object({
+  domainId: idSchema,
+  name: shortText(80),
+  description: z.string().trim().max(1000).default(""),
+  /** A category is a browsing shelf, so a picture is most of its job. */
+  imageUrl: z.string().url().max(600).nullish(),
+  /** For sub-categories. Null is a top-level shelf within the trade. */
+  parentId: idSchema.nullish(),
+  sortOrder: z.number().int().min(0).max(9999).optional(),
+});
+
+export const packageInputSchema = z.object({
+  domainId: idSchema,
+  name: shortText(120),
+  shortDescription: z.string().trim().max(300).default(""),
+  description: longText(4000).default(""),
+  price: z.number().int().min(0),
+  /** What the price is anchored to: "per 2BHK", "per 1000 sq.ft". */
+  priceBasis: shortText(80),
+  durationDays: z.number().int().min(0).max(3650).default(0),
+  inclusions: z.array(shortText(160)).max(40).default([]),
+  exclusions: z.array(shortText(160)).max(40).default([]),
+  badge: z.string().trim().max(40).nullish(),
+  isFeatured: z.boolean().default(false),
+  mediaIds: mediaIdsSchema,
+});
+
+const productOptionValueInputSchema = z.object({
+  id: z.string().trim().min(1).max(60),
+  label: shortText(80),
+  priceDelta: z.number().int(),
+});
+
+const productOptionInputSchema = z.object({
+  id: z.string().trim().min(1).max(60),
+  name: shortText(60),
+  values: z.array(productOptionValueInputSchema).max(30),
+});
+
+export const productInputSchema = z.object({
+  domainId: idSchema,
+  categoryId: idSchema,
+  name: shortText(160),
+  shortDescription: z.string().trim().max(300).default(""),
+  description: longText(4000).default(""),
+  basePrice: z.number().int().min(0),
+  priceUnit: z.enum([
+    "per_piece",
+    "per_sqft",
+    "per_running_ft",
+    "per_kg",
+    "per_room",
+    "per_project",
+  ]),
+  leadTimeDays: z.number().int().min(0).max(365).default(0),
+  isCustomisable: z.boolean().default(true),
+  specs: z.record(z.string(), z.string()).default({}),
+  options: z.array(productOptionInputSchema).max(12).default([]),
+  tags: z.array(shortText(40)).max(20).default([]),
+  isFeatured: z.boolean().default(false),
+  mediaIds: mediaIdsSchema,
 });
 
 export const invoiceStatusSchema = z.object({
@@ -291,6 +381,72 @@ export const opsRoutes = {
     body: domainInputSchema.partial().extend({ isActive: z.boolean().optional() }),
     summary: "settings.manage",
   }),
+  opsCategories: route({
+    method: "GET",
+    path: "/ops/categories",
+    audience: "staff",
+    query: z.object({ domain: idSchema.optional() }),
+  }),
+  opsCreateCategory: route({
+    method: "POST",
+    path: "/ops/categories",
+    audience: "staff",
+    body: categoryInputSchema,
+    summary: "catalog.manage",
+  }),
+  opsUpdateCategory: route({
+    method: "PATCH",
+    path: "/ops/categories/:id",
+    audience: "staff",
+    params: idParam,
+    body: categoryInputSchema.partial().extend({ isActive: z.boolean().optional() }),
+    summary: "catalog.manage",
+  }),
+
+  opsPackages: route({
+    method: "GET",
+    path: "/ops/packages",
+    audience: "staff",
+    query: z.object({ domain: idSchema.optional() }),
+  }),
+  opsCreatePackage: route({
+    method: "POST",
+    path: "/ops/packages",
+    audience: "staff",
+    body: packageInputSchema,
+    summary: "catalog.manage",
+  }),
+  opsUpdatePackage: route({
+    method: "PATCH",
+    path: "/ops/packages/:id",
+    audience: "staff",
+    params: idParam,
+    body: packageInputSchema.partial().extend({ isActive: z.boolean().optional() }),
+    summary: "catalog.manage",
+  }),
+
+  opsProducts: route({
+    method: "GET",
+    path: "/ops/products",
+    audience: "staff",
+    query: z.object({ domain: idSchema.optional(), category: idSchema.optional() }),
+  }),
+  opsCreateProduct: route({
+    method: "POST",
+    path: "/ops/products",
+    audience: "staff",
+    body: productInputSchema,
+    summary: "catalog.manage",
+  }),
+  opsUpdateProduct: route({
+    method: "PATCH",
+    path: "/ops/products/:id",
+    audience: "staff",
+    params: idParam,
+    body: productInputSchema.partial().extend({ isActive: z.boolean().optional() }),
+    summary: "catalog.manage",
+  }),
+
   opsDomainUsage: route({
     method: "GET",
     path: "/ops/domains/:id/usage",

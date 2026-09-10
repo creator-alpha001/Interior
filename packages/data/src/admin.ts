@@ -433,6 +433,8 @@ export interface DomainInput {
   materialsLabel: string;
   warrantyLabel: string;
   pricingBasis: string;
+  /** Public URL of an uploaded `catalogue_image`. */
+  bannerUrl?: string | null;
 }
 
 /**

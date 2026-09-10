@@ -24,6 +24,9 @@ export const RULES: Record<UploadPurpose, { maxBytes: number; accept: string[] }
   milestone_proof: { maxBytes: 10_000_000, accept: ["image/"] },
   portfolio_item: { maxBytes: 10_000_000, accept: ["image/"] },
   vendor_document: { maxBytes: 20_000_000, accept: ["image/", "application/pdf"] },
+  // Larger than the rest: these are the photographs the catalogue is sold on,
+  // and they are shot properly rather than taken on a phone at a site visit.
+  catalogue_image: { maxBytes: 15_000_000, accept: ["image/"] },
 };
 
 export interface UploadTicket {
@@ -58,9 +61,23 @@ export async function createUploadTicket(
    */
   userId: string | null,
   input: TicketRequest,
+  /**
+   * The caller's role, for the purposes that are not open to everyone.
+   *
+   * "Signed in" was a sufficient check while every purpose belonged to the
+   * person uploading — their room, their proof, their documents. Catalogue
+   * photography does not: it appears on pages every visitor sees, so a customer
+   * being able to request a ticket for one would be a stranger putting pictures
+   * on the shop front.
+   */
+  role?: string,
 ): Promise<UploadTicket> {
   if (!userId && input.purpose !== "requirement_photo") {
     throw new ForbiddenError("Please sign in to upload this");
+  }
+
+  if (input.purpose === "catalogue_image" && role !== "admin" && role !== "sales_agent") {
+    throw new ForbiddenError("Only staff can upload catalogue images");
   }
 
   const rule = RULES[input.purpose];
@@ -146,15 +163,73 @@ export async function attachMedia(
     }
   }
 
-  await tx
-    .update(t.mediaAssets)
-    .set({
-      ownerType,
-      ownerId,
-      confirmedAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
-    })
-    .where(inArray(t.mediaAssets.id, assetIds));
+  /**
+   * One statement per asset, so the order survives.
+   *
+   * A single `WHERE id IN (...)` cannot give each row a different sortOrder, so
+   * every asset attached this way used to land on 0 and come back in whatever
+   * order the index felt like. That was invisible while media was evidence —
+   * six photographs of a room have no first — and is not invisible at all for a
+   * catalogue, where `media[0]` is the picture on the card. The person choosing
+   * which image leads is doing it by ordering this array.
+   */
+  const now = new Date().toISOString();
+  for (const [index, assetId] of assetIds.entries()) {
+    await tx
+      .update(t.mediaAssets)
+      .set({ ownerType, ownerId, sortOrder: index, confirmedAt: now, updatedAt: now })
+      .where(eq(t.mediaAssets.id, assetId));
+  }
+}
+
+/**
+ * Makes the record's images exactly this list, in this order.
+ *
+ * Editing needs more than [attachMedia]: a form that can add a picture can also
+ * remove one, and attaching is only half of that. Anything currently owned and
+ * missing from `assetIds` is soft-deleted, so it stops appearing without
+ * destroying the row — the same rule the rest of the platform follows, and the
+ * reason support can still reconstruct what a page looked like last week.
+ *
+ * The R2 object itself stays. `sweepOrphanMedia` removes database rows and
+ * leaves storage alone, which is a known gap rather than something decided
+ * here; deleting the file would make this the one place in the product that
+ * destroys a customer-visible asset irreversibly.
+ */
+export async function replaceOwnedMedia(
+  tx: Tx,
+  ownerType: string,
+  ownerId: string,
+  assetIds: string[],
+  uploaderUserId?: string,
+): Promise<void> {
+  const now = new Date().toISOString();
+
+  const existing = await tx
+    .select({ id: t.mediaAssets.id })
+    .from(t.mediaAssets)
+    .where(
+      and(
+        eq(t.mediaAssets.ownerType, ownerType),
+        eq(t.mediaAssets.ownerId, ownerId),
+        isNull(t.mediaAssets.deletedAt),
+      ),
+    );
+
+  const keep = new Set(assetIds);
+  const dropped = existing.filter((row) => !keep.has(row.id)).map((row) => row.id);
+
+  if (dropped.length > 0) {
+    await tx
+      .update(t.mediaAssets)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(inArray(t.mediaAssets.id, dropped));
+  }
+
+  // Re-attaching one this record already owns is fine and is the normal case
+  // for a reorder: attachMedia only objects when the asset belongs to somebody
+  // else, and rewrites sortOrder from the array position either way.
+  await attachMedia(tx, assetIds, ownerType, ownerId, "catalogue_image", uploaderUserId);
 }
 
 /** Removes tickets that were issued and never used. Run weekly. */

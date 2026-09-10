@@ -267,6 +267,79 @@ export async function registerOpsRoutes(app: FastifyInstance) {
     return admin.getDomainUsage(id);
   });
 
+
+  /* ---------------- catalogue ---------------- */
+
+  /**
+   * Reads use `catalog.manage` rather than a viewer permission.
+   *
+   * These lists exist to be edited — they carry image counts and inactive rows,
+   * which is administration, not browsing. Anyone who only needs to look at the
+   * catalogue has the public one.
+   */
+  app.get(routes.opsCategories.path, async (request) => {
+    await requirePermission(request, "catalog.manage");
+    const { domain } = routes.opsCategories.query!.parse(request.query);
+    return admin.listCategoriesForOps(domain);
+  });
+
+  app.post(routes.opsCreateCategory.path, async (request, reply) => {
+    await requirePermission(request, "catalog.manage");
+    const input = routes.opsCreateCategory.body!.parse(request.body);
+    reply.status(201);
+    return admin.createCategory(input);
+  });
+
+  app.patch<{ Params: { id: string } }>(routes.opsUpdateCategory.path, async (request) => {
+    await requirePermission(request, "catalog.manage");
+    const { id } = routes.opsUpdateCategory.params!.parse(request.params);
+    const patch = routes.opsUpdateCategory.body!.parse(request.body);
+    return admin.updateCategory(id, patch);
+  });
+
+  app.get(routes.opsPackages.path, async (request) => {
+    await requirePermission(request, "catalog.manage");
+    const { domain } = routes.opsPackages.query!.parse(request.query);
+    return admin.listPackagesForOps(domain);
+  });
+
+  app.post(routes.opsCreatePackage.path, async (request, reply) => {
+    // The id is the uploader check for the images: `attachMedia` refuses an
+    // asset somebody else uploaded, so a guessed id cannot be pulled into
+    // another person's package.
+    const staffUserId = await requirePermission(request, "catalog.manage");
+    const input = routes.opsCreatePackage.body!.parse(request.body);
+    reply.status(201);
+    return admin.createPackage(input, staffUserId);
+  });
+
+  app.patch<{ Params: { id: string } }>(routes.opsUpdatePackage.path, async (request) => {
+    const staffUserId = await requirePermission(request, "catalog.manage");
+    const { id } = routes.opsUpdatePackage.params!.parse(request.params);
+    const patch = routes.opsUpdatePackage.body!.parse(request.body);
+    return admin.updatePackage(id, patch, staffUserId);
+  });
+
+  app.get(routes.opsProducts.path, async (request) => {
+    await requirePermission(request, "catalog.manage");
+    const { domain, category } = routes.opsProducts.query!.parse(request.query);
+    return admin.listProductsForOps(domain, category);
+  });
+
+  app.post(routes.opsCreateProduct.path, async (request, reply) => {
+    const staffUserId = await requirePermission(request, "catalog.manage");
+    const input = routes.opsCreateProduct.body!.parse(request.body);
+    reply.status(201);
+    return admin.createProduct(input, staffUserId);
+  });
+
+  app.patch<{ Params: { id: string } }>(routes.opsUpdateProduct.path, async (request) => {
+    const staffUserId = await requirePermission(request, "catalog.manage");
+    const { id } = routes.opsUpdateProduct.params!.parse(request.params);
+    const patch = routes.opsUpdateProduct.body!.parse(request.body);
+    return admin.updateProduct(id, patch, staffUserId);
+  });
+
   /* ---------------- support ---------------- */
 
   app.get(routes.opsTickets.path, async (request) => {
