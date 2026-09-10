@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { OpsShell } from "@/components/ops-shell";
 import "./globals.css";
 
 const inter = Inter({
@@ -21,9 +20,13 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={inter.variable}>
-      <body className="min-h-screen antialiased">
-        <OpsShell>{children}</OpsShell>
-      </body>
+      {/*
+        The shell moved down to `(panel)/layout.tsx`.
+        Sign-in is the one screen that must render without it: a sidebar full
+        of links to leads and commission, drawn for somebody who is not signed
+        in, is both a lie and an invitation.
+      */}
+      <body className="min-h-screen antialiased">{children}</body>
     </html>
   );
 }

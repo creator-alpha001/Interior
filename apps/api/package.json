@@ -21,7 +21,8 @@
     "db:seed": "tsx src/db/seed.ts",
     "db:reset": "tsx src/db/reset.ts",
     "job": "tsx src/jobs/run.ts",
-    "db:migrate:prod": "node dist/db/migrate.js"
+    "db:migrate:prod": "node dist/db/migrate.js",
+    "staff": "tsx src/db/staff.ts"
   },
   "dependencies": {
     "@fastify/cookie": "^11.0.2",
