@@ -2,6 +2,8 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/login-form";
 import { pendingGoogleLink } from "./actions";
+import { listCities } from "@repo/data";
+import { getSelectedCity } from "@/lib/city";
 import { Container } from "@repo/ui";
 
 export const metadata: Metadata = {
@@ -13,6 +15,17 @@ export default async function LoginPage() {
   // Reading a cookie makes this dynamic, which is correct: a half-finished
   // sign-in is per-person and must never be cached into somebody else's page.
   const pendingGoogle = await pendingGoogleLink();
+
+  /**
+   * The city is asked for here rather than guessed.
+   *
+   * `actorForMobile` on the server falls back to the first active city when
+   * none is given, which is silent and almost always wrong — prices, vendors
+   * and availability are all per city, so an account created in the wrong one
+   * shows the wrong catalogue and gets matched to professionals who do not work
+   * there. The header switcher is prefilled as the likely answer.
+   */
+  const [cities, selectedCity] = await Promise.all([listCities(), getSelectedCity()]);
 
   return (
     <div className="bg-paper">
@@ -51,7 +64,11 @@ export default async function LoginPage() {
           </div>
 
           <div>
-            <LoginForm pendingGoogle={pendingGoogle} />
+            <LoginForm
+              pendingGoogle={pendingGoogle}
+              cities={cities}
+              defaultCityId={selectedCity?.id}
+            />
             <p className="mt-4 text-center text-[13.5px] sm:text-[12.5px] text-ink-4">
               New here?{" "}
               <Link href="/submit-requirement" className="font-medium text-brand">

@@ -87,6 +87,15 @@ export async function verifyOtpAction(input: {
   challengeId: string;
   code: string;
   name?: string;
+  /**
+   * Where they are. Used only when the account is being created.
+   *
+   * Sent on every verification rather than only on a first sign-in, because
+   * the client cannot tell which this is — the server is the only place that
+   * knows whether the number is already an account, and it ignores this for
+   * one that is.
+   */
+  cityId?: string;
   /** Present only on the code that completes a first Google sign-in. */
   linkToken?: string;
   /** Where they were headed before being sent to sign in. */
@@ -97,6 +106,25 @@ export async function verifyOtpAction(input: {
   try {
     const { actor, setCookie } = await verifyOtp(input);
     await adoptSession(setCookie);
+
+    /**
+     * Browsing follows the city they just chose.
+     *
+     * The catalogue reads this cookie, not the account — prices, professionals
+     * and availability are all per city. Without it somebody could sign up in
+     * Lucknow and go straight back to a Bengaluru catalogue, which is the
+     * "results should match my location" failure rather than a cosmetic one.
+     */
+    if (input.cityId) {
+      (await cookies()).set({
+        name: "city",
+        value: input.cityId,
+        sameSite: "lax",
+        secure: process.env.NODE_ENV === "production",
+        path: "/",
+        maxAge: 60 * 60 * 24 * 365,
+      });
+    }
     // Whether or not this carried a link token: the sign-in is over either way,
     // and leaving the cookie behind would offer to resume a finished one.
     await forgetGoogleLink();

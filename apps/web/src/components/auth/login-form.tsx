@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import type { City } from "@repo/types";
 import { useSearchParams } from "next/navigation";
 import { Button, cn } from "@repo/ui";
 import {
@@ -27,12 +28,21 @@ import { GoogleSignInButton } from "./google-button";
  * code. A Google account nobody has linked yet lands in the same OTP stage as
  * everyone else, carrying a link token; after that one code, it is one tap.
  */
-export function LoginForm({ pendingGoogle: resumed }: { pendingGoogle?: GoogleState | null }) {
+export function LoginForm({
+  pendingGoogle: resumed,
+  cities = [],
+  defaultCityId,
+}: {
+  pendingGoogle?: GoogleState | null;
+  cities?: City[];
+  defaultCityId?: string;
+}) {
   const nextPath = useSearchParams().get("next") ?? undefined;
   const [stage, setStage] = useState<"mobile" | "otp">("mobile");
   const [mobile, setMobile] = useState("");
   // Prefilled from a resumed Google sign-in, and still editable.
   const [name, setName] = useState(resumed?.name ?? "");
+  const [cityId, setCityId] = useState(defaultCityId ?? cities[0]?.id ?? "");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [seconds, setSeconds] = useState(0);
   const [challenge, setChallenge] = useState<OtpState>({});
@@ -113,6 +123,10 @@ export function LoginForm({ pendingGoogle: resumed }: { pendingGoogle?: GoogleSt
         // What they typed wins over the Google profile name: somebody
         // correcting it on this screen means it.
         name: name.trim() || pendingGoogle?.name || undefined,
+        // Ignored by the server for an account that already exists, so sending
+        // it always is simpler than deciding here whether this is a first
+        // sign-in — the server is the only place that actually knows.
+        cityId: cityId || undefined,
         linkToken: pendingGoogle?.linkToken,
         next: nextPath,
       });
@@ -155,6 +169,30 @@ export function LoginForm({ pendingGoogle: resumed }: { pendingGoogle?: GoogleSt
               />
             </div>
           </div>
+
+          {cities.length > 0 ? (
+            <div className="mt-4">
+              <label htmlFor="city" className="text-[14px] sm:text-[13px] font-medium text-ink">
+                Your city
+              </label>
+              <select
+                id="city"
+                value={cityId}
+                onChange={(e) => setCityId(e.target.value)}
+                className="mt-2 h-12 w-full rounded-lg border border-line bg-paper px-3 text-[15px] text-ink outline-none transition-colors focus:border-brand"
+              >
+                {cities.map((city) => (
+                  <option key={city.id} value={city.id}>
+                    {city.name}
+                    {city.state ? `, ${city.state}` : ""}
+                  </option>
+                ))}
+              </select>
+              <p className="mt-1.5 text-[12.5px] text-ink-4">
+                Prices, professionals and availability are all per city.
+              </p>
+            </div>
+          ) : null}
 
           <div className="mt-4">
             <label htmlFor="name" className="text-[14px] sm:text-[13px] font-medium text-ink">
