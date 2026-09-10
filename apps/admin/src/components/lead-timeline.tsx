@@ -2,16 +2,40 @@ import type { TimelineEvent, TimelineKind } from "@repo/data";
 import { formatDateTime } from "@repo/ui";
 import { cn } from "@repo/ui";
 
+/**
+ * Every kind the API can actually send.
+ *
+ * It used to list `raised`, `visit` and `outcome` — none of which exist in
+ * `timelineKindSchema` — and to omit `created`, `meeting`, `message`,
+ * `project`, `stage` and `review`, all of which the API does send. The lookup
+ * returned undefined for a real lead and the page died on `style.dot`, taking
+ * the whole screen with it. It typechecked because `@repo/data` declared a
+ * second, contradictory `TimelineKind`; that duplicate is gone, so this map is
+ * now exhaustive by compiler rather than by hope.
+ */
 const kindStyle: Record<TimelineKind, { dot: string; label: string }> = {
-  raised: { dot: "bg-ink-4", label: "Enquiry" },
+  created: { dot: "bg-ink-4", label: "Enquiry" },
   call: { dot: "bg-brand", label: "Call" },
   assigned: { dot: "bg-clay", label: "Assignment" },
-  visit: { dot: "bg-ink-3", label: "Visit" },
-  outcome: { dot: "bg-warning", label: "Outcome" },
+  meeting: { dot: "bg-ink-3", label: "Visit" },
   quote: { dot: "bg-positive", label: "Quote" },
+  message: { dot: "bg-ink-3", label: "Message" },
   selected: { dot: "bg-brand", label: "Decision" },
   agreement: { dot: "bg-positive", label: "Agreement" },
+  project: { dot: "bg-clay", label: "Project" },
+  stage: { dot: "bg-warning", label: "Stage" },
+  review: { dot: "bg-positive", label: "Review" },
 };
+
+/**
+ * A kind this build has never heard of still draws.
+ *
+ * The enum is closed and the compiler now enforces the map, so this is only
+ * reachable when a deployed panel is older than the API that answered it —
+ * which is a normal few minutes during any release. A neutral dot is a much
+ * better outcome there than a blank screen where the lead used to be.
+ */
+const unknownKind = { dot: "bg-ink-4", label: "Update" } as const;
 
 /**
  * One chronological record of the lead, newest first. Coordinators reconstruct
@@ -30,7 +54,7 @@ export function LeadTimeline({ events }: { events: TimelineEvent[] }) {
   return (
     <ol className="max-h-[520px] overflow-y-auto px-4 py-3">
       {events.map((event, i) => {
-        const style = kindStyle[event.kind];
+        const style = kindStyle[event.kind] ?? unknownKind;
         return (
           <li key={event.id} className="flex gap-3">
             {/* Rail */}

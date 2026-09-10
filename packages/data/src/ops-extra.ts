@@ -5,7 +5,7 @@
  * screens a coordinator actually works from, and they read across almost every
  * table rather than one.
  */
-import type { Project, Rupees } from "@repo/types";
+import type { Project, Rupees, TimelineEvent, TimelineKind } from "@repo/types";
 import { domainById } from "./mappers";
 import { listOpsLeads, type OpsLeadRow } from "./ops";
 import { api } from "./client";
@@ -24,25 +24,26 @@ function rupees(amount: number): string {
  * Lead timeline
  * ------------------------------------------------------------------ */
 
-export type TimelineKind =
-  | "raised"
-  | "call"
-  | "assigned"
-  | "visit"
-  | "outcome"
-  | "quote"
-  | "selected"
-  | "agreement";
-
-export interface TimelineEvent {
-  id: string;
-  kind: TimelineKind;
-  at: string;
-  title: string;
-  detail: string | null;
-  domainName: string | null;
-  actor: string | null;
-}
+/**
+ * Re-exported from `@repo/types`, not redeclared.
+ *
+ * These were declared here as their own union — `raised`, `visit`, `outcome` —
+ * while the canonical `timelineKindSchema` said `created`, `meeting`,
+ * `message` and five others. The API emitted the canonical set; this adapter
+ * and the ops timeline component both imported *this* one, so the mock and the
+ * screen agreed with each other and disagreed with the server.
+ *
+ * Nothing caught it. The screen typechecked against the wrong union, the seed
+ * produced kinds that matched it, and the ops routes carry no `response` schema
+ * so the conformance check had nothing to compare. It surfaced the first time a
+ * real lead was opened: the API said `created`, the style lookup returned
+ * undefined, and the whole lead page died on `style.dot`.
+ *
+ * CONTEXT.md's claim is that a response which drifts from what a screen renders
+ * is a compile error because both sides import `packages/types`. That only
+ * holds if there is one definition.
+ */
+export type { TimelineKind, TimelineEvent };
 
 /**
  * Ops answer "what has actually happened on this lead?" constantly, usually
@@ -69,7 +70,7 @@ export async function getLeadTimeline(leadId: string): Promise<TimelineEvent[]> 
   const events: TimelineEvent[] = [
     {
       id: `t-raised-${lead.id}`,
-      kind: "raised",
+      kind: "created",
       at: lead.createdAt,
       title: "Requirement submitted",
       detail: `${domainRows.length} service${domainRows.length === 1 ? "" : "s"} · via ${lead.source.replace("_", " ")}`,
@@ -106,7 +107,7 @@ export async function getLeadTimeline(leadId: string): Promise<TimelineEvent[]> 
   for (const m of store.meetings.filter((x) => ids.includes(x.leadDomainId))) {
     events.push({
       id: `t-visit-${m.id}`,
-      kind: "visit",
+      kind: "meeting",
       at: m.scheduledAt,
       title: `${m.type.replace("_", " ")} — ${proName(m.professionalId)}`,
       detail: m.notes,
@@ -116,7 +117,9 @@ export async function getLeadTimeline(leadId: string): Promise<TimelineEvent[]> 
     if (m.outcome && m.outcomeRecordedAt) {
       events.push({
         id: `t-outcome-${m.id}`,
-        kind: "outcome",
+        // The outcome of a visit is still the visit, as far as the canonical
+        // kinds go. There is no separate `outcome`; the title carries it.
+        kind: "meeting",
         at: m.outcomeRecordedAt,
         title: m.outcomeChangedScope ? "Visit outcome — scope changed" : "Visit outcome recorded",
         detail: m.outcome,
