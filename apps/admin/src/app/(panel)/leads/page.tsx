@@ -116,7 +116,7 @@ export default async function LeadQueuePage({
         actions={<LeadSearch initial={sp.q ?? ""} />}
       />
 
-      <PageBody className="space-y-4">
+      <PageBody className="space-y-7">
         <FilterBar>
           <FilterGroup
             label="Needs"
@@ -174,7 +174,7 @@ export default async function LeadQueuePage({
         ) : (
           groups.map((group) => (
             <section key={group.key}>
-              <header className="mb-2 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              <header className="mb-2.5 flex flex-wrap items-baseline gap-x-3 gap-y-1">
                 <h2 className="flex items-center gap-2 text-[15px] font-semibold text-ink sm:text-[14px]">
                   <span
                     className={cn(
@@ -192,14 +192,20 @@ export default async function LeadQueuePage({
                 <p className="text-[13px] text-ink-4 sm:text-[12px]">{group.hint}</p>
               </header>
 
-              <ul className="overflow-hidden rounded-lg border border-line bg-surface">
+              {/*
+                Separate cards with air between them, rather than rows welded
+                into one slab by a shared border. Twenty leads in an unbroken
+                column is the thing that made this hard to read: nothing told
+                the eye where one enquiry ended and the next began.
+              */}
+              <ul className="space-y-2.5">
                 {group.rows.map((row) => (
-                  <li key={row.lead.lead.id} className="border-b border-line last:border-0">
+                  <li key={row.lead.lead.id}>
                     <Link
                       href={`/leads/${row.lead.lead.id}`}
-                      className="block px-4 py-3 transition-colors hover:bg-surface-2"
+                      className="block rounded-lg border border-line bg-surface px-4 py-3.5 transition-colors hover:border-line-strong hover:bg-surface-2"
                     >
-                      <div className="flex flex-wrap items-start justify-between gap-x-4 gap-y-2">
+                      <div className="flex flex-wrap items-start justify-between gap-x-5 gap-y-2.5">
                         {/* Who and what */}
                         <div className="min-w-0 flex-1 basis-64">
                           <div className="flex flex-wrap items-center gap-2">
@@ -255,8 +261,19 @@ export default async function LeadQueuePage({
                           })}
                         </div>
 
-                        {/* What it needs, and how long it has waited */}
-                        <div className="flex shrink-0 flex-col items-end gap-1">
+                        {/*
+                          When it came in, then what it needs.
+                          The date leads because the queue is ordered by it —
+                          a column you are sorted by should be the one you can
+                          read down without hunting.
+                        */}
+                        <div className="flex shrink-0 flex-col items-end gap-1.5">
+                          <span className="tnum text-[13px] font-medium text-ink sm:text-[12px]">
+                            {formatDate(row.lead.lead.createdAt)}
+                          </span>
+                          <span className="tnum text-[12px] text-ink-4 sm:text-[11px]">
+                            {row.ageDays === 0 ? "today" : `${row.ageDays}d old`}
+                          </span>
                           {row.awaitingReply > 0 ? (
                             <Badge tone="danger">{row.awaitingReply} awaiting reply</Badge>
                           ) : null}
@@ -264,13 +281,10 @@ export default async function LeadQueuePage({
                             <Badge tone="warning">{row.unassignedDomains} to assign</Badge>
                           ) : null}
                           {row.followUpDate ? (
-                            <span className="text-[12.5px] text-clay sm:text-[11.5px]">
+                            <span className="text-[12px] text-clay sm:text-[11px]">
                               follow up {formatDate(row.followUpDate)}
                             </span>
                           ) : null}
-                          <span className="tnum text-[12.5px] text-ink-4 sm:text-[11.5px]">
-                            {row.ageDays}d · {formatDate(row.lead.lead.createdAt)}
-                          </span>
                         </div>
                       </div>
                     </Link>

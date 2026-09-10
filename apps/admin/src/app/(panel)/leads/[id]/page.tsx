@@ -120,8 +120,20 @@ export default async function OpsLeadPage({
       />
 
       <PageBody className="space-y-4">
-        {/* Service switcher — the spine of a multi-service lead. */}
-        <div className="flex flex-wrap gap-2">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+          {/* ---------- Working column ---------- */}
+          <div className="min-w-0 space-y-4">
+            {/*
+              One service, one card.
+              The switcher, the scope and the next step used to be three
+              stacked sections saying three parts of the same thing, so the eye
+              had to reassemble "which service, what was asked for, what do I
+              do" every time. They are one panel now, and the next step sits at
+              the bottom of it — after the facts it follows from.
+            */}
+            <div className="overflow-hidden rounded-lg border border-line bg-surface">
+              {lead.domains.length > 1 ? (
+                <div className="flex flex-wrap gap-2 border-b border-line p-3">
           {lead.domains.map((d) => {
             const status = leadDomainStatus[d.leadDomain.status];
             const isActive = d.leadDomain.id === active.leadDomain.id;
@@ -155,34 +167,24 @@ export default async function OpsLeadPage({
                   </span>
                   <Badge tone={status.tone}>{status.label}</Badge>
                 </div>
-                <p className="mt-1 text-[12.5px] text-ink-4 sm:text-[11.5px]">{needs}</p>
-              </Link>
-            );
-          })}
-        </div>
+                    <p className="mt-1 text-[12.5px] text-ink-4 sm:text-[11.5px]">{needs}</p>
+                  </Link>
+                );
+              })}
+                </div>
+              ) : null}
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-          {/* ---------- Working column ---------- */}
-          <div className="min-w-0 space-y-4">
-            <div
-              className={cn(
-                "rounded-lg border px-4 py-3",
-                nextAction.tone === "warning"
-                  ? "border-warning/30 bg-warning-soft"
-                  : nextAction.tone === "positive"
-                    ? "border-positive/25 bg-positive-soft"
-                    : "border-line bg-surface",
-              )}
-            >
-              <p className="text-[12.5px] font-semibold uppercase tracking-wider text-ink-4 sm:text-[11.5px]">
-                Next on {active.domain.name}
-              </p>
-              <p className="mt-1 text-[14.5px] text-ink sm:text-[13.5px]">{nextAction.text}</p>
-            </div>
+              <div className="p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <h2 className="text-[15px] font-semibold text-ink sm:text-[14px]">
+                    {active.domain.name}
+                  </h2>
+                  <Badge tone={leadDomainStatus[active.leadDomain.status].tone}>
+                    {leadDomainStatus[active.leadDomain.status].label}
+                  </Badge>
+                </div>
 
-            {/* Scope */}
-            <Panel title={`${active.domain.name} — scope`}>
-              <div className="flex flex-wrap gap-2">
+                <div className="mt-3 flex flex-wrap gap-2">
                 <Badge tone="neutral">{materialSourceLabel[active.leadDomain.materialSource]}</Badge>
                 <Badge tone="neutral">{active.domain.labels.pricingBasis}</Badge>
                 {active.leadDomain.preferredProfessionalId ? (
@@ -212,13 +214,36 @@ export default async function OpsLeadPage({
                 </div>
               ) : null}
 
-              {active.leadDomain.preferenceUnmetReason ? (
-                <p className="mt-3 rounded-md border border-warning/25 bg-warning-soft px-3 py-2 text-[13px] leading-relaxed text-ink-2 sm:text-[12px]">
-                  Requested vendor could not be included — {active.leadDomain.preferenceUnmetReason}{" "}
-                  The client sees this on their requirement.
+                {active.leadDomain.preferenceUnmetReason ? (
+                  <p className="mt-3 rounded-md border border-warning/25 bg-warning-soft px-3 py-2 text-[13px] leading-relaxed text-ink-2 sm:text-[12px]">
+                    Requested vendor could not be included —{" "}
+                    {active.leadDomain.preferenceUnmetReason} The client sees this on their
+                    requirement.
+                  </p>
+                ) : null}
+              </div>
+
+              {/*
+                The next step, last — it is a conclusion drawn from everything
+                above it, and it read as an unrelated instruction when it sat
+                on top of the scope it depends on.
+              */}
+              <div
+                className={cn(
+                  "border-t px-4 py-3",
+                  nextAction.tone === "warning"
+                    ? "border-warning/30 bg-warning-soft"
+                    : nextAction.tone === "positive"
+                      ? "border-positive/25 bg-positive-soft"
+                      : "border-line bg-paper",
+                )}
+              >
+                <p className="text-[12.5px] font-semibold uppercase tracking-wider text-ink-4 sm:text-[11.5px]">
+                  Next step
                 </p>
-              ) : null}
-            </Panel>
+                <p className="mt-1 text-[14.5px] text-ink sm:text-[13.5px]">{nextAction.text}</p>
+              </div>
+            </div>
 
             {/* Execution — where the work actually is */}
             {activeProject ? (

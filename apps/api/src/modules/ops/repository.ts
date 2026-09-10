@@ -123,14 +123,18 @@ export async function listLeads(filters: OpsLeadFilters): Promise<Paginated<OpsL
       .select({ id: t.leads.id })
       .from(t.leads)
       .where(where)
-      .orderBy(
-        sql`CASE ${t.leads.urgency}
-              WHEN 'immediate' THEN 0
-              WHEN 'within_month' THEN 1
-              ELSE 2
-            END`,
-        asc(t.leads.createdAt),
-      )
+      /*
+       * Newest first.
+       *
+       * This used to sort by urgency and then by *oldest*, on the argument
+       * that a coordinator works a queue top-down. In practice it buried the
+       * lead somebody had just raised — the one they are most likely to be
+       * looking for, and the only one a customer is actively waiting on — under
+       * whatever had been sitting there longest. Urgency is still on the card,
+       * and the page still groups by what each lead needs, so nothing is lost
+       * by ordering the groups themselves by when the enquiry arrived.
+       */
+      .orderBy(desc(t.leads.createdAt))
       .limit(filters.limit)
       .offset(offset),
     db.select({ value: count() }).from(t.leads).where(where),
@@ -230,7 +234,21 @@ async function decorate(leadIds: string[]): Promise<OpsLeadRow[]> {
 
   const now = Date.now();
 
-  return views.map((view) => {
+  /**
+   * Back into the order the caller asked for.
+   *
+   * `buildLeadViews` orders by `asc(created_at)` — reasonable for the customer
+   * surface it was written for, and fatal here, because it silently replaced
+   * whatever ordering the queue's own query had chosen. Sorting the queue was
+   * therefore a no-op: the `orderBy` above ran, and then this threw the result
+   * away. `leadIds` arrives in the intended order, so it is the authority.
+   */
+  const position = new Map(leadIds.map((id, index) => [id, index]));
+  const ordered = [...views].sort(
+    (a, b) => (position.get(a.lead.id) ?? 0) - (position.get(b.lead.id) ?? 0),
+  );
+
+  return ordered.map((view) => {
     const activity = latestActivity.get(view.lead.id);
     return {
       lead: view,

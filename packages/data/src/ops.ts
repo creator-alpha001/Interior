@@ -103,17 +103,9 @@ export async function listOpsLeads(filters: OpsLeadFilters = {}): Promise<OpsLea
     })
     .map((lead) => toOpsLeadRow(lead.id));
 
-  // Urgent first, then oldest — the queue a coordinator should work top-down.
-  const urgencyWeight: Record<Urgency, number> = {
-    immediate: 0,
-    within_month: 1,
-    exploring: 2,
-  };
-  rows.sort(
-    (a, b) =>
-      urgencyWeight[a.lead.lead.urgency] - urgencyWeight[b.lead.lead.urgency] ||
-      b.ageDays - a.ageDays,
-  );
+  // Newest first, matching the API. See the note on its `orderBy`: sorting by
+  // urgency and then by oldest buried the enquiry that had just come in.
+  rows.sort((a, b) => b.lead.lead.createdAt.localeCompare(a.lead.lead.createdAt));
 
   return delay(rows);
 }
