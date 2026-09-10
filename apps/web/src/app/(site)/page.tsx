@@ -10,11 +10,14 @@ import {
   listCities,
   listPosts,
   listProducts,
+  getActor,
+  listLeadsForClient,
   listProfessionals,
   listTestimonials,
 } from "@repo/data";
 import { PostCard, ProductCard, ProfessionalCard } from "@/components/cards";
 import { getSelectedCity } from "@/lib/city";
+import { CustomerHomePanel } from "@/components/site/customer-home-panel";
 import { WhereAreYouPrompt } from "@/components/site/where-are-you-prompt";
 import {
   ButtonLink,
@@ -94,7 +97,26 @@ export default async function HomePage() {
    * prices presented as the only ones. `WhereAreYouPrompt` at the top of the
    * page is what offers to narrow it, once, with the reason attached.
    */
-  const [city, session] = await Promise.all([getSelectedCity(), getSessionUser()]);
+  const [city, session, actor] = await Promise.all([
+    getSelectedCity(),
+    getSessionUser(),
+    getActor(),
+  ]);
+
+  /**
+   * A signed-in customer's own requirements, for the panel at the top.
+   *
+   * Guarded twice over. `getActor()` rather than the session user, because the
+   * latter fills in the seeded demo person where nobody has signed in — and a
+   * home page must never greet a stranger with somebody else's requirements.
+   * And the failure is swallowed rather than thrown: this strip is a courtesy
+   * on a browsing page, and taking the whole landing page down because one
+   * per-account read failed is how a site ends up blank for everybody.
+   */
+  const myLeads =
+    actor?.role === "client"
+      ? await listLeadsForClient().catch(() => [])
+      : [];
   const [
     domains,
     cities,
@@ -129,14 +151,24 @@ export default async function HomePage() {
   return (
     <>
       {/*
-        Shown only to somebody signed in who has not told us where they are.
+        A signed-in customer's own corner of the home page: the setup questions
+        they skipped, their requirements, and the way to raise another.
 
-        Above the hero rather than buried further down, because the whole page
-        beneath it is answering a question with "everywhere" — and dismissible,
-        because being asked once is a prompt and being asked on every visit is
-        the wall this replaced.
+        Above the hero because sign-in now lands here rather than on `/account`
+        — see `destinationFor` — and because the two setup questions are the
+        reason the page beneath is answering "everywhere" when it could be
+        answering with their city.
+
+        `WhereAreYouPrompt` used to sit here for the same audience, asking only
+        about the city. It is not rendered alongside this on purpose: the panel
+        already asks that question, and asking it twice on one screen reads as a
+        bug rather than as insistence.
       */}
-      {session && !session.cityId ? <WhereAreYouPrompt cities={cities} /> : null}
+      {session && actor?.role === "client" ? (
+        <CustomerHomePanel session={session} cities={cities} leads={myLeads} />
+      ) : session && !session.cityId ? (
+        <WhereAreYouPrompt cities={cities} />
+      ) : null}
 
       {/* ---------------- Hero ---------------- */}
       {/*
