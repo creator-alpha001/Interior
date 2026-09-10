@@ -9,6 +9,7 @@ import {
 } from "@repo/data";
 import { Badge, formatDateTime } from "@repo/ui";
 import { Metric, PageBody, PageHeader, Panel } from "@/components/partner/panel-ui";
+import { whereClientIs } from "@/lib/where";
 
 export const metadata = { title: "Home" };
 
@@ -147,7 +148,7 @@ export default async function VendorHomePage() {
                           {card.description}
                         </p>
                         <p className="mt-0.5 text-[11.5px] text-ink-4">
-                          {card.client.locality}, {card.client.city.name}
+                          {whereClientIs(card.client)}
                           {card.competingQuotes > 0
                             ? ` · ${card.competingQuotes} other ${
                                 card.competingQuotes === 1 ? "quote" : "quotes"
@@ -189,7 +190,7 @@ export default async function VendorHomePage() {
                       {meeting.type.replace("_", " ")} · {leadReference}
                     </p>
                     <p className="mt-0.5 text-[11.5px] text-ink-4">
-                      {client.address ?? `${client.locality}, ${client.city.name}`}
+                      {client.address ?? whereClientIs(client)}
                     </p>
                   </li>
                 ))}

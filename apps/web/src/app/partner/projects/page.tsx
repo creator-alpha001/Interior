@@ -2,6 +2,7 @@ import { formatRupees, listVendorAgreements, listVendorProjects } from "@repo/da
 import { Badge, agreementStatus, formatDate, projectStatus } from "@repo/ui";
 import Link from "next/link";
 import { PageBody, PageHeader, Panel } from "@/components/partner/panel-ui";
+import { whereClientIs } from "@/lib/where";
 
 export const metadata = { title: "Work" };
 
@@ -48,7 +49,7 @@ export default async function VendorProjectsPage() {
                         </div>
                         <p className="mt-1 text-[12px] text-ink-3">
                           {row.lines.map((l) => l.domain.name).join(" + ")} ·{" "}
-                          {row.client.locality}, {row.client.city.name}
+                          {whereClientIs(row.client)}
                         </p>
                         {row.isCombined ? (
                           <p className="mt-1 text-[11.5px] text-ink-4">

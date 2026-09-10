@@ -15,9 +15,15 @@ import { createChallenge, verifyChallenge } from "../modules/auth/otp";
 import {
   actorForMobile,
   authenticateStaff,
+  createClientForIdentity,
   findActorByIdentity,
   linkIdentity,
 } from "../modules/auth/repository";
+import {
+  assertMobileAvailable,
+  attachVerifiedMobile,
+  updateProfile,
+} from "../modules/auth/profile";
 import { issueLinkToken, readLinkToken } from "../modules/auth/link-token";
 import { verifyGoogleIdToken } from "../lib/google";
 import {
@@ -68,16 +74,22 @@ export async function registerAuthRoutes(app: FastifyInstance) {
    *
    * Ends in one of two places. A Google account already linked to somebody is a
    * complete sign-in and behaves exactly like a verified OTP. One that is not
-   * gets a link token and a request for a mobile number, because `users.mobile`
-   * is NOT NULL and ops ring every customer about their lead — an account
-   * nobody can telephone is not one this business can serve.
+   * gets a link token and is sent to `/auth/google/complete`, which needs
+   * nothing else to make the account — a city if they will give one, and that
+   * is all.
+   *
+   * It used to ask for a mobile number here and refuse to go on without it.
+   * That was `users.mobile` being NOT NULL, dressed up as a product decision:
+   * somebody who had just authenticated with Google was shown a phone field and
+   * a Send code button and no way past either. Ops do still need a number to
+   * work a lead, and they still get one — the requirement form asks, and the
+   * account can add a verified number whenever its owner is ready.
    *
    * What it deliberately does not do is match on email. A Google address can be
    * changed by its owner and can be reissued to a different person years later,
    * and `users.email` here may have been typed in by ops rather than proved by
    * anyone. Signing somebody in because two strings matched is the ordinary way
-   * accounts are taken over, so an unlinked Google account always costs one SMS
-   * — once, ever.
+   * accounts are taken over.
    */
   app.post(routes.googleSignIn.path, async (request, reply) => {
     const { idToken } = routes.googleSignIn.body!.parse(request.body);
@@ -96,7 +108,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     if (!actor) {
       reply.header("Cache-Control", "no-store");
       return {
-        status: "mobile_required" as const,
+        status: "profile_required" as const,
         linkToken: issueLinkToken({
           provider: "google",
           subject: identity.subject,
@@ -122,6 +134,53 @@ export async function registerAuthRoutes(app: FastifyInstance) {
         ? { ...actor, sessionToken: session.token, expiresAt: session.expiresAt.toISOString() }
         : actor,
     };
+  });
+
+  /**
+   * Making the account behind a Google identity that has just been proved.
+   *
+   * The link token is the whole authorisation. It is signed by us, it names the
+   * Google subject, and it expires in fifteen minutes — so this route cannot be
+   * used to create an account for a Google identity nobody has authenticated.
+   *
+   * Everything else is optional, and the route works with nothing but the
+   * token. That is the change: signup no longer has a required field that a
+   * person might not want to answer, and "I would rather look around first" is
+   * a supported answer rather than a dead end.
+   */
+  app.post(routes.completeGoogleSignUp.path, async (request, reply) => {
+    const { linkToken, name, cityId } = routes.completeGoogleSignUp.body!.parse(request.body);
+
+    await consume(`google:ip:${request.ip}`, LIMITS.otpVerifyPerIp);
+
+    // A forged or expired token fails here, before anything is written.
+    const pending = readLinkToken(linkToken);
+
+    /**
+     * Between the token being issued and this call, the same Google account may
+     * already have been through here — a double-submitted form, or a second tab.
+     * Signing that person in is the right answer to "make me an account" when
+     * the account now exists; creating a second one is not, and the unique index
+     * on (provider, subject) would refuse it anyway.
+     */
+    const actor =
+      (await findActorByIdentity(pending.provider, pending.subject)) ??
+      (await createClientForIdentity(
+        { provider: pending.provider, subject: pending.subject, email: pending.email },
+        { name: name ?? pending.name, cityId },
+      ));
+
+    const session = await createSession(actor.userId, {
+      userAgent: request.headers["user-agent"],
+      ip: request.ip,
+    });
+
+    reply.setCookie(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
+    reply.header("Cache-Control", "no-store");
+
+    return wantsTokenInBody(request)
+      ? { ...actor, sessionToken: session.token, expiresAt: session.expiresAt.toISOString() }
+      : actor;
   });
 
   app.post(routes.verifyOtp.path, async (request, reply) => {
@@ -222,6 +281,86 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const session = await resolveSession(sessionTokenFrom(request));
     reply.header("Cache-Control", "no-store, private");
     if (!session) throw new NotAuthenticatedError();
+    return session;
+  });
+
+  /* ---------------- filling in what signup did not ask ---------------- */
+
+  /**
+   * Setting the name and city on an account that already exists.
+   *
+   * The counterpart to letting somebody skip the city. Without a route that can
+   * answer the question later, the skip button would be a one-way door and the
+   * prompt offering to change it would have nothing to call.
+   */
+  app.patch(routes.updateProfile.path, async (request, reply) => {
+    const userId = await requireUser(request);
+    const input = routes.updateProfile.body!.parse(request.body);
+
+    await updateProfile(userId, input);
+
+    const session = await resolveSession(sessionTokenFrom(request));
+    if (!session) throw new NotAuthenticatedError();
+
+    reply.header("Cache-Control", "no-store, private");
+    return session;
+  });
+
+  /**
+   * Sending a code to a number the signed-in person wants to add.
+   *
+   * Rate limited exactly like the sign-in equivalent, and additionally per
+   * account: a session is not a reason to be able to send unlimited SMS, and
+   * the per-user bucket is the one that catches a script running behind a
+   * legitimate login rather than a range of anonymous addresses.
+   */
+  app.post(routes.requestMobileVerification.path, async (request, reply) => {
+    const userId = await requireUser(request);
+    const { mobile } = routes.requestMobileVerification.body!.parse(request.body);
+
+    await consume(`otp:mobile:${mobile}`, LIMITS.otpRequestPerMobile);
+    await consume(`otp:ip:${request.ip}`, LIMITS.otpRequestPerIp);
+    await consume(`otp:user:${userId}`, LIMITS.otpRequestPerMobile);
+
+    // Before the SMS rather than after the code comes back. Failing at the end
+    // would mean paying for the round trip to be told the number was never
+    // available in the first place.
+    await assertMobileAvailable(userId, mobile);
+
+    const { challenge, code } = await createChallenge(mobile, request.ip);
+    const delivery = await sendOtp(mobile, code);
+
+    reply.header("Cache-Control", "no-store");
+    return {
+      challengeId: challenge.id,
+      expiresInSeconds: Math.round((challenge.expiresAt.getTime() - Date.now()) / 1000),
+      ...(delivery.devCode ? { devCode: delivery.devCode } : {}),
+    };
+  });
+
+  /**
+   * Proving that number and attaching it.
+   *
+   * Note what this cannot do: it never creates an account and never moves the
+   * session. `verifyChallenge` says which number was proved, and the session
+   * says whose account receives it — so completing a code for a number that
+   * belongs to somebody else attaches nothing and signs in as nobody. That
+   * separation is the reason this is not just `/auth/otp/verify` with a session.
+   */
+  app.post(routes.confirmMobileVerification.path, async (request, reply) => {
+    const userId = await requireUser(request);
+    const { challengeId, code } = routes.confirmMobileVerification.body!.parse(request.body);
+
+    await consume(`otp:verify:${request.ip}`, LIMITS.otpVerifyPerIp);
+
+    const { mobile } = await verifyChallenge(challengeId, code);
+    await attachVerifiedMobile(userId, mobile);
+    await reset(`otp:mobile:${mobile}`);
+
+    const session = await resolveSession(sessionTokenFrom(request));
+    if (!session) throw new NotAuthenticatedError();
+
+    reply.header("Cache-Control", "no-store, private");
     return session;
   });
 

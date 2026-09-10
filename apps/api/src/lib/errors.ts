@@ -82,6 +82,10 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
   uq_agreement_lead_domain: "This service is already covered by an agreement",
   uq_partner_agreement_live: "This vendor already has a live partner agreement",
   uq_users_mobile: "An account already exists for that mobile number",
+  // Two tabs finishing the same first Google sign-in at once. Signing in is the
+  // right next move, and it is what pressing the button again now does.
+  uq_auth_identities_provider_subject:
+    "That sign-in was already completed. Please try signing in again.",
   ck_message_channel: "That message would cross the client and vendor channels",
   fk_lead_domain_selected_quote: "That quote does not belong to this service",
 };

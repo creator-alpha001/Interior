@@ -51,24 +51,80 @@ export const googleSignInSchema = z.object({
 /**
  * What happened, and what the caller has to do next.
  *
- * Two outcomes rather than one, because a Google account alone cannot finish
- * signing somebody up. `users.mobile` is NOT NULL and ops ring every customer
- * about their lead, so a first-time Google user still verifies a number once —
- * after which `signed_in` is the only outcome they ever see again.
+ * Two outcomes rather than one, because there is no account yet the first time:
+ * Google says who somebody is, not where they are or what to call them. That
+ * second outcome is `profile_required`, and its only mandatory input is the
+ * link token — the caller may send a city and a name, or neither.
+ *
+ * It used to be `mobile_required`, and it meant it: `users.mobile` was NOT NULL,
+ * so somebody who had just authenticated was shown a phone field with no way
+ * past it. The rename is the point of the change rather than a tidy-up. A
+ * number is now asked for after the account exists, by `/me/mobile/request`,
+ * where declining costs nothing.
  *
  * A flat object with a `status` rather than a union of two shapes: this crosses
  * into a generated OpenAPI document and a Dart client, and both handle one
  * object with optional fields far better than they handle anyOf.
  */
 export const googleSignInResultSchema = z.object({
-  status: z.enum(["signed_in", "mobile_required"]),
+  status: z.enum(["signed_in", "profile_required"]),
   /** Present when `status` is `signed_in`. */
   session: authSessionSchema.optional(),
-  /** Present when `status` is `mobile_required`. Pass it to `/auth/otp/verify`. */
+  /** Present when `status` is `profile_required`. Pass it to `/auth/google/complete`. */
   linkToken: z.string().optional(),
   /** From the Google account, so the next screen can greet them by name. */
   email: z.string().optional(),
   name: z.string().optional(),
+});
+
+/**
+ * Turning a verified Google identity into an account.
+ *
+ * Everything except the token is optional, and that is the whole design. The
+ * screen this backs asks for a city and explains why it matters — prices,
+ * professionals and availability are all per city — but a person who would
+ * rather look around first presses past it and gets an account anyway, with a
+ * null city that the catalogue reads as "show me everywhere".
+ *
+ * No mobile field. Adding one here would recreate the wall this replaced, one
+ * optional field at a time; the number has its own verified route for after
+ * they have a reason to give it.
+ */
+export const googleCompleteSchema = z.object({
+  linkToken: z.string().max(2048),
+  name: z.string().trim().min(2).max(80).optional(),
+  cityId: z.string().uuid().optional(),
+});
+
+/**
+ * Changing the things somebody was allowed to skip.
+ *
+ * `cityId` is nullable rather than merely optional: absent means "leave it
+ * alone", explicit null means "I no longer want a city applied", and a screen
+ * offering to clear a choice needs to be able to say the second without the
+ * server reading it as the first.
+ */
+export const profileUpdateSchema = z.object({
+  name: z.string().trim().min(2).max(80).optional(),
+  cityId: z.string().uuid().nullable().optional(),
+});
+
+/**
+ * Attaching a mobile number to an account that already exists.
+ *
+ * Separate from `/auth/otp/request` even though both send six digits to a
+ * phone, because they answer different questions. That one asks "who is this",
+ * and an unknown number becomes an account. This one asks "is this number
+ * yours", on behalf of somebody already signed in — the session names the
+ * account, so the number can never create or switch one.
+ */
+export const mobileVerificationRequestSchema = z.object({
+  mobile: mobileSchema,
+});
+
+export const mobileVerificationConfirmSchema = z.object({
+  challengeId: z.string().uuid(),
+  code: z.string().regex(/^\d{6}$/, "The code is six digits"),
 });
 
 export const staffLoginSchema = z.object({
@@ -137,8 +193,16 @@ export const authRoutes = {
     path: "/auth/google",
     audience: "public",
     body: googleSignInSchema,
-    summary: "Sign in with a Google ID token, or be asked for a mobile number first",
+    summary: "Sign in with a Google ID token, or be told an account still has to be made",
     response: googleSignInResultSchema,
+  }),
+  completeGoogleSignUp: route({
+    method: "POST",
+    path: "/auth/google/complete",
+    audience: "public",
+    body: googleCompleteSchema,
+    summary: "Create the account behind a verified Google identity and sign in",
+    response: authSessionSchema,
   }),
   verifyOtp: route({
     method: "POST",
@@ -170,6 +234,39 @@ export const authRoutes = {
     audience: "public",
     query: z.object({}),
     summary: "The signed-in actor, or 401",
+    response: sessionUserSchema,
+  }),
+  updateProfile: route({
+    method: "PATCH",
+    path: "/me/profile",
+    audience: "public",
+    body: profileUpdateSchema,
+    summary: "Set or change the name and city on the signed-in account",
+    response: sessionUserSchema,
+  }),
+
+  /**
+   * Adding a number to an account that already has a session.
+   *
+   * Two calls rather than one, for the same reason sign-in is two calls: the
+   * code has to reach the handset in between. The session is what says whose
+   * account this is, so neither call takes a user id and neither can be aimed
+   * at somebody else's.
+   */
+  requestMobileVerification: route({
+    method: "POST",
+    path: "/me/mobile/request",
+    audience: "public",
+    body: mobileVerificationRequestSchema,
+    summary: "Send a code to a number the signed-in person wants to add",
+    response: otpChallengeSchema,
+  }),
+  confirmMobileVerification: route({
+    method: "POST",
+    path: "/me/mobile/confirm",
+    audience: "public",
+    body: mobileVerificationConfirmSchema,
+    summary: "Prove that number and attach it to the signed-in account",
     response: sessionUserSchema,
   }),
 

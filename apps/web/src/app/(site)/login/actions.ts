@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import {
   ApiError,
   SESSION_COOKIE,
+  completeGoogleSignUp,
   requestOtp,
   signInWithGoogle,
   signOut,
@@ -67,6 +68,55 @@ async function adoptSession(setCookie: string | null): Promise<void> {
 }
 
 /**
+ * Points browsing at a city, or stops pointing it anywhere.
+ *
+ * The catalogue reads this cookie rather than the account, because it has to
+ * work for people who are not signed in — prices, professionals and
+ * availability are all per city. Without it somebody could sign up in Lucknow
+ * and go straight back to a Bengaluru catalogue, which is the "results should
+ * match my location" failure rather than a cosmetic one.
+ *
+ * Passing null deletes it, and that case matters as much as setting one. A
+ * person who declines to give a city has asked to see everything; a cookie left
+ * over from before they signed in would quietly narrow the catalogue to a city
+ * they never picked and never mention it.
+ */
+export async function applyCityCookie(cityId: string | null): Promise<void> {
+  const jar = await cookies();
+
+  if (!cityId) {
+    jar.delete("city");
+    /*
+     * A marker, because deleting a cookie cannot express a choice.
+     *
+     * "No city cookie" is the state of every first-time visitor, so on its own
+     * it cannot also mean "I deliberately want every city" — a signed-in person
+     * choosing All cities would fall through to whatever their account says and
+     * watch the header change straight back. This says which of the two it is.
+     */
+    jar.set({
+      name: "city_cleared",
+      value: "1",
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 365,
+    });
+    return;
+  }
+
+  jar.delete("city_cleared");
+  jar.set({
+    name: "city",
+    value: cityId,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: 60 * 60 * 24 * 365,
+  });
+}
+
+/**
  * Where to send somebody once they are in.
  *
  * `next` is only ever a path on this site, and only one inside the area their
@@ -107,24 +157,9 @@ export async function verifyOtpAction(input: {
     const { actor, setCookie } = await verifyOtp(input);
     await adoptSession(setCookie);
 
-    /**
-     * Browsing follows the city they just chose.
-     *
-     * The catalogue reads this cookie, not the account — prices, professionals
-     * and availability are all per city. Without it somebody could sign up in
-     * Lucknow and go straight back to a Bengaluru catalogue, which is the
-     * "results should match my location" failure rather than a cosmetic one.
-     */
-    if (input.cityId) {
-      (await cookies()).set({
-        name: "city",
-        value: input.cityId,
-        sameSite: "lax",
-        secure: process.env.NODE_ENV === "production",
-        path: "/",
-        maxAge: 60 * 60 * 24 * 365,
-      });
-    }
+    // Browsing follows the city they just chose. See `applyCityCookie`.
+    if (input.cityId) await applyCityCookie(input.cityId);
+
     // Whether or not this carried a link token: the sign-in is over either way,
     // and leaving the cookie behind would offer to resume a finished one.
     await forgetGoogleLink();
@@ -198,20 +233,29 @@ export async function clearGoogleLinkAction(): Promise<void> {
 }
 
 export interface GoogleState {
-  /** Set when this Google account has no number against it yet. */
+  /** Set when this Google account has no account here yet. */
   linkToken?: string;
   email?: string;
   name?: string;
+  /**
+   * Where they were headed before signing in.
+   *
+   * Carried through the cookie rather than the URL because the welcome screen
+   * is reached by a redirect, and a person who pressed "Continue with Google"
+   * from a product page should land back on it rather than on a generic
+   * account page.
+   */
+  next?: string;
   error?: string;
 }
 
 /**
  * Signs in with a Google ID token the browser obtained.
  *
- * Returns rather than redirects when the account is new, because there is a
- * step left: `users.mobile` is NOT NULL and ops ring every customer about
- * their lead, so a first-time Google user verifies one code and the two are
- * linked for good.
+ * Returns rather than redirects when there is no account yet, because there is
+ * a step left — though a much smaller one than there used to be. It asked for a
+ * mobile number and would not continue without one; now it asks where somebody
+ * is, says why that matters, and takes "not now" for an answer.
  */
 export async function googleSignInAction(
   idToken: string,
@@ -222,11 +266,12 @@ export async function googleSignInAction(
   try {
     const result = await signInWithGoogle(idToken);
 
-    if (result.status === "mobile_required") {
+    if (result.status === "profile_required") {
       await rememberGoogleLink({
         linkToken: result.linkToken,
         email: result.email,
         name: result.name,
+        next,
       });
       // Off the sign-in page entirely. Staying there left somebody who had just
       // authenticated looking at a heading telling them to sign in, beside a
@@ -240,6 +285,67 @@ export async function googleSignInAction(
     destination = destinationFor(result.actor.role, next);
   } catch (error) {
     return { error: messageFor(error, "That Google sign-in did not work.") };
+  }
+
+  redirect(destination);
+}
+
+/**
+ * Finishes a first Google sign-in, with or without a city.
+ *
+ * The one action behind both buttons on the welcome screen. "Continue" sends
+ * the city that was picked; "I will choose later" sends the same call with no
+ * city at all — deliberately the same code path, so skipping cannot rot into a
+ * second-class route that quietly stops working.
+ */
+export async function completeGoogleSignUpAction(input: {
+  name?: string;
+  cityId?: string;
+}): Promise<{ error: string } | never> {
+  const pending = await pendingGoogleLink();
+  if (!pending?.linkToken) {
+    // The link token expired, or this is a stale tab. Starting again is the
+    // only thing left, and it is one press.
+    redirect("/login");
+  }
+
+  let destination: string;
+
+  try {
+    const { actor, setCookie } = await completeGoogleSignUp({
+      linkToken: pending.linkToken,
+      name: input.name?.trim() || pending.name || undefined,
+      cityId: input.cityId || undefined,
+    });
+
+    await adoptSession(setCookie);
+
+    /**
+     * Browsing follows the city they just chose — and stops following one when
+     * they chose none.
+     *
+     * The catalogue reads this cookie rather than the account, because it also
+     * has to work for people who are not signed in. Clearing it matters as much
+     * as setting it: a stale cookie from before they signed in would quietly
+     * filter the catalogue to a city they never picked, which is the same
+     * silent-wrong-city bug in a different place.
+     */
+    await applyCityCookie(input.cityId || null);
+    await forgetGoogleLink();
+
+    /**
+     * The number is asked for on the next screen, not this one.
+     *
+     * A real route rather than a second stage held in component state, because
+     * the account exists from this moment: a reload, a restored tab or a back
+     * button must not land somebody on a signup screen for an account they
+     * already have. `next` rides along so somebody who pressed "Continue with
+     * Google" from a product page still ends up back on it.
+     */
+    const onward = destinationFor(actor.role, pending.next);
+    destination = `/welcome/number?next=${encodeURIComponent(onward)}`;
+  } catch (error) {
+    return { error: messageFor(error, "We could not finish setting up your account.") };
   }
 
   redirect(destination);

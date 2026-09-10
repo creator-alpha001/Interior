@@ -24,7 +24,7 @@ export default async function SearchPage({
 }) {
   const { q = "" } = await searchParams;
   const city = await getSelectedCity();
-  const results = await search(q, city.id);
+  const results = await search(q, city?.id);
 
   return (
     <>
@@ -41,8 +41,8 @@ export default async function SearchPage({
 
           {q ? (
             <p className="mt-4 text-[15.5px] text-ink-3 sm:text-[14.5px]">
-              {results.total} {results.total === 1 ? "result" : "results"} · prices shown for{" "}
-              {city.name}
+              {results.total} {results.total === 1 ? "result" : "results"}
+              {city ? ` · prices shown for ${city.name}` : " · from every city we cover"}
             </p>
           ) : null}
         </Container>

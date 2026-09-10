@@ -33,21 +33,40 @@ export const users = pgTable(
   {
     id: primaryId(),
     name: text("name").notNull(),
-    /** E.164 without the plus, e.g. "919919344871". The login identifier. */
-    mobile: varchar("mobile", { length: 20 }).notNull(),
+    /**
+     * E.164 without the plus, e.g. "919919344871". A login identifier, not the
+     * only one, and not a condition of having an account.
+     *
+     * Nullable since a person can sign in with Google and decline to give a
+     * number. Ops still need one before a lead can be worked, but that is a
+     * property of the lead and is asked for there — holding signup hostage to
+     * it only ever lost the signup.
+     */
+    mobile: varchar("mobile", { length: 20 }),
+    /** When the number was last proved by a code. See the note on `users` below. */
+    mobileVerifiedAt: ts("mobile_verified_at"),
     email: text("email"),
     role: userRole("role").notNull(),
-    cityId: fk("city_id")
-      .notNull()
-      .references(() => cities.id),
+    /**
+     * Where they are, or null when they have not said.
+     *
+     * Null is a real answer and must not be replaced by a guess: prices,
+     * professionals and availability are all per city, so defaulting somebody
+     * into the wrong one shows them a catalogue that does not apply to them and
+     * never mentions it. Readers treat null as "every city".
+     */
+    cityId: fk("city_id").references(() => cities.id),
     status: userStatus("status").notNull().default("active"),
     avatarUrl: text("avatar_url"),
     ...timestamps,
   },
   (t) => [
     // Soft-deleted rows must not stop a returning customer signing up again
-    // with the same number, so both uniques are partial.
-    uniqueIndex("uq_users_mobile").on(t.mobile).where(sql`${t.deletedAt} IS NULL`),
+    // with the same number, so both uniques are partial. Accounts with no
+    // number are excluded too — "no number" is not a number two of them share.
+    uniqueIndex("uq_users_mobile")
+      .on(t.mobile)
+      .where(sql`${t.deletedAt} IS NULL AND ${t.mobile} IS NOT NULL`),
     uniqueIndex("uq_users_email")
       .on(t.email)
       .where(sql`${t.deletedAt} IS NULL AND ${t.email} IS NOT NULL`),
@@ -214,11 +233,11 @@ export const otpChallenges = pgTable(
  * A Google account's address can change, and two people can hold the same
  * address years apart; the subject cannot and does not.
  *
- * Note what this table does *not* do: it never replaces `users.mobile`. Ops
- * ring every customer for the scoping call, so an account nobody can telephone
- * is not an account this business can serve. A person signing in with Google
- * for the first time still verifies a number once, and the row here is what
- * lets them skip the code every time after.
+ * A row here is a complete way in on its own. It used to be half of one: a
+ * first Google sign-in still had to verify a mobile number before the account
+ * existed, because `users.mobile` was NOT NULL. That cost the signup of anyone
+ * unwilling to hand over a phone number to a site they were still evaluating,
+ * to buy a number ops would have confirmed on the call anyway.
  */
 export const authIdentities = pgTable(
   "auth_identities",

@@ -86,6 +86,17 @@ export async function maskedClientsById(
   const unique = [...new Set(clientIds)];
   if (unique.length === 0) return byId;
 
+  /*
+   * The city comes from the account here, not from a lead, and the account may
+   * not have one — `users.city_id` is nullable since signup stopped insisting.
+   * So this is a LEFT join: an inner one would drop the client from the map
+   * entirely, and the agreements screen would render a signed contract with no
+   * customer against it.
+   *
+   * `maskedClientsFor` above has no such problem and needs no such care: it
+   * joins the *lead's* city, which is required by the requirement form and is
+   * in any case the more useful answer when there is a job in context.
+   */
   const rows = await db
     .select({
       clientId: t.clients.id,
@@ -95,13 +106,13 @@ export async function maskedClientsById(
     })
     .from(t.clients)
     .innerJoin(t.users, eq(t.users.id, t.clients.userId))
-    .innerJoin(t.cities, eq(t.cities.id, t.users.cityId))
+    .leftJoin(t.cities, eq(t.cities.id, t.users.cityId))
     .where(inArray(t.clients.id, unique));
 
   for (const row of rows) {
     byId.set(row.clientId, {
       displayName: shortName(row.name),
-      city: toCity(row.city),
+      city: row.city ? toCity(row.city) : null,
       locality: localityOf(row.address),
       address: null,
       contactReleased: false,

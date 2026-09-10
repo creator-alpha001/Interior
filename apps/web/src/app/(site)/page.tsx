@@ -2,10 +2,12 @@ import Link from "next/link";
 import {
   countCatalogueByDomain,
   formatRupeesShort,
+  getSessionUser,
   getPlatformStats,
   listBanners,
   listDomains,
   listFeaturedPackages,
+  listCities,
   listPosts,
   listProducts,
   listProfessionals,
@@ -13,6 +15,7 @@ import {
 } from "@repo/data";
 import { PostCard, ProductCard, ProfessionalCard } from "@/components/cards";
 import { getSelectedCity } from "@/lib/city";
+import { WhereAreYouPrompt } from "@/components/site/where-are-you-prompt";
 import {
   ButtonLink,
   Container,
@@ -82,9 +85,19 @@ const steps = [
 ];
 
 export default async function HomePage() {
-  const city = await getSelectedCity();
+  /**
+   * The feed follows the city, and follows the account before the cookie.
+   *
+   * Null is the honest answer for somebody who has not said where they are, and
+   * it is passed straight down: every catalogue query below treats an absent
+   * city as "every city", so they see the whole platform rather than one city's
+   * prices presented as the only ones. `WhereAreYouPrompt` at the top of the
+   * page is what offers to narrow it, once, with the reason attached.
+   */
+  const [city, session] = await Promise.all([getSelectedCity(), getSessionUser()]);
   const [
     domains,
+    cities,
     banners,
     counts,
     featuredPackages,
@@ -95,11 +108,12 @@ export default async function HomePage() {
     stats,
   ] = await Promise.all([
       listDomains(),
+      listCities(),
       listBanners(),
       countCatalogueByDomain(),
       listFeaturedPackages(3),
-      listProducts({ sort: "featured", limit: 8, cityId: city.id }),
-      listProfessionals({ verifiedOnly: true, limit: 3, cityId: city.id }),
+      listProducts({ sort: "featured", limit: 8, cityId: city?.id }),
+      listProfessionals({ verifiedOnly: true, limit: 3, cityId: city?.id }),
       listTestimonials(),
       listPosts({ limit: 3 }),
       getPlatformStats(),
@@ -114,6 +128,16 @@ export default async function HomePage() {
 
   return (
     <>
+      {/*
+        Shown only to somebody signed in who has not told us where they are.
+
+        Above the hero rather than buried further down, because the whole page
+        beneath it is answering a question with "everywhere" — and dismissible,
+        because being asked once is a prompt and being asked on every visit is
+        the wall this replaced.
+      */}
+      {session && !session.cityId ? <WhereAreYouPrompt cities={cities} /> : null}
+
       {/* ---------------- Hero ---------------- */}
       {/*
         The comparison is the opening image.

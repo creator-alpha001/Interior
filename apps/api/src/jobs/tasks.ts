@@ -168,12 +168,23 @@ export async function dispatchNotifications(batchSize = 50): Promise<JobResult> 
         }
       }
 
-      const sms = await sendTransactional(row.mobile, `${row.title}. ${row.body}`);
-      if (sms.sent) {
-        texted += 1;
-        channels.push("sms");
-      } else if (sms.skippedReason) {
-        notes.push(`sms: ${sms.skippedReason}`);
+      /*
+       * An account may have no number at all: signing in with Google no longer
+       * requires one. The in-app notification is still written and still shown
+       * the next time they open the site — only the text message has nowhere to
+       * go, and the note says so rather than leaving a silent gap in the
+       * delivery record.
+       */
+      if (row.mobile) {
+        const sms = await sendTransactional(row.mobile, `${row.title}. ${row.body}`);
+        if (sms.sent) {
+          texted += 1;
+          channels.push("sms");
+        } else if (sms.skippedReason) {
+          notes.push(`sms: ${sms.skippedReason}`);
+        }
+      } else {
+        notes.push("sms: no mobile number on the account");
       }
     } else {
       notes.push("account is not active");

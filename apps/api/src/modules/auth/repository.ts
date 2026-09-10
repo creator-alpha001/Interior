@@ -27,53 +27,128 @@ export async function actorForMobile(
   const existing = await findActorByMobile(mobile);
   if (existing) return existing;
 
-  return transaction(async (tx) => {
-    // Every user needs a city, and the form may not have asked. Falling back to
-    // the first active city keeps signup to one screen; ops correct it on the
-    // scoping call, which happens for every lead anyway.
-    let cityId = profile.cityId;
-    if (!cityId) {
-      const [city] = await tx
-        .select({ id: t.cities.id })
-        .from(t.cities)
-        .where(eq(t.cities.isActive, true))
-        .limit(1);
-      if (!city) throw new Error("No active city configured");
-      cityId = city.id;
-    }
-
-    const [user] = await tx
-      .insert(t.users)
-      .values({
-        name: profile.name?.trim() || "New customer",
-        mobile,
-        role: "client",
-        cityId,
-        status: "active",
-      })
-      .returning({ id: t.users.id });
-
-    const [client] = await tx
-      .insert(t.clients)
-      .values({
-        userId: user!.id,
-        referralCode: buildReferralCode(profile.name, mobile),
-      })
-      .returning({ id: t.clients.id });
-
-    return { role: "client", userId: user!.id, clientId: client!.id } satisfies Actor;
+  return createClient({
+    name: profile.name,
+    cityId: profile.cityId,
+    mobile,
+    mobileVerified: true,
   });
+}
+
+/**
+ * The account behind a Google identity that has never signed in here.
+ *
+ * Where `actorForMobile` starts from a proved phone number, this starts from a
+ * proved Google subject and may have nothing else at all — no number, and no
+ * city if the person chose not to say. Both are nullable columns now, so this
+ * is one insert rather than a negotiation.
+ *
+ * The identity row is written inside the same transaction as the user. Split
+ * across two, a failure between them leaves an account nobody can sign into:
+ * Google is the only credential it has, and the row that says so is the one
+ * that did not get written.
+ */
+export async function createClientForIdentity(
+  identity: { provider: "google" | "apple"; subject: string; email: string },
+  profile: { name?: string; cityId?: string },
+): Promise<Actor> {
+  return transaction(async (tx) => {
+    const actor = await insertClient(tx, {
+      name: profile.name,
+      cityId: profile.cityId,
+      mobile: null,
+      mobileVerified: false,
+    });
+
+    await tx.insert(t.authIdentities).values({
+      userId: actor.userId,
+      provider: identity.provider,
+      subject: identity.subject,
+      email: identity.email,
+      lastUsedAt: new Date().toISOString(),
+    });
+
+    return actor;
+  });
+}
+
+async function createClient(input: NewClient): Promise<Actor> {
+  return transaction((tx) => insertClient(tx, input));
+}
+
+interface NewClient {
+  name?: string;
+  /** Null or absent means "they have not said", never "use the default city". */
+  cityId?: string | null;
+  mobile: string | null;
+  mobileVerified: boolean;
+}
+
+/**
+ * One insert of a customer, shared by every path that makes one.
+ *
+ * There is deliberately no city fallback here any more. It used to pick the
+ * first active city when the form had not asked, which was silent and almost
+ * always wrong — prices, professionals and availability are per city, so it
+ * quietly showed a Lucknow customer a Bengaluru catalogue. Null now travels
+ * all the way to the catalogue, which reads it as "every city" and says so.
+ */
+async function insertClient(
+  tx: Parameters<Parameters<typeof transaction>[0]>[0],
+  input: NewClient,
+): Promise<Actor> {
+  const name = input.name?.trim() || "New customer";
+
+  const [user] = await tx
+    .insert(t.users)
+    .values({
+      name,
+      mobile: input.mobile,
+      mobileVerifiedAt: input.mobile && input.mobileVerified ? new Date().toISOString() : null,
+      /**
+       * `users.email` is deliberately left null, even when Google just proved
+       * an address.
+       *
+       * It carries a partial unique index, and ops type addresses into the
+       * admin panel from phone calls. Copying Google's address here would make
+       * a first Google sign-in fail outright for anyone whose address ops had
+       * already recorded — the exact signup this route exists to rescue. The
+       * proved address lives on `auth_identities`, which is where anything
+       * asking "which Google account is this" should read it.
+       */
+      role: "client",
+      cityId: input.cityId ?? null,
+      status: "active",
+    })
+    .returning({ id: t.users.id });
+
+  const [client] = await tx
+    .insert(t.clients)
+    .values({
+      userId: user!.id,
+      referralCode: buildReferralCode(name, input.mobile, user!.id),
+    })
+    .returning({ id: t.clients.id });
+
+  return { role: "client", userId: user!.id, clientId: client!.id } satisfies Actor;
 }
 
 /**
  * A referral code somebody can read out over the phone.
  *
- * First name plus the last four digits of the number: memorable, unique enough
- * in practice, and the unique index catches the rest.
+ * First name plus four digits: memorable, unique enough in practice, and the
+ * unique index catches the rest. The digits came from the mobile number, which
+ * no longer always exists — the tail of the user's own id stands in, and reads
+ * the same over a phone even though it is not a phone number.
  */
-function buildReferralCode(name: string | undefined, mobile: string): string {
+function buildReferralCode(name: string | undefined, mobile: string | null, userId: string): string {
   const first = (name?.trim().split(" ")[0] ?? "INTERIOBEE").toUpperCase().replace(/[^A-Z]/g, "");
-  return `${first.slice(0, 8) || "INTERIOBEE"}${mobile.slice(-4)}`;
+  const digits = mobile
+    ? mobile.slice(-4)
+    : // A uuid's hex is mostly letters; take the digits that are there and pad
+      // rather than emit a code of a different shape for phoneless accounts.
+      `${userId.replace(/\D/g, "")}0000`.slice(-4);
+  return `${first.slice(0, 8) || "INTERIOBEE"}${digits}`;
 }
 
 /** The columns every sign-in path needs to decide what kind of actor this is. */

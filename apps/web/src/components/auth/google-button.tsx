@@ -109,7 +109,7 @@ export function GoogleSignInButton({ next, onError }: Props) {
       void googleSignInAction(response.credential, next)
         .then((result) => {
           // Both outcomes redirect inside the action — to /account when the
-          // account exists, to /welcome when it still needs a number — so
+          // account exists, to /welcome when there is still one to make — so
           // anything that resolves here is a failure.
           if (result?.error) onError(result.error);
         })

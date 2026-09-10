@@ -68,11 +68,11 @@ export default async function DomainCataloguePage({
       domainSlug: slug,
       categorySlug: category,
       search: q,
-      cityId: city.id,
+      cityId: city?.id,
       sort: (sort as "featured") ?? "featured",
     }),
     listPackages(slug),
-    listProfessionals({ domainSlug: slug, cityId: city.id, verifiedOnly: true, limit: 3 }),
+    listProfessionals({ domainSlug: slug, cityId: city?.id, verifiedOnly: true, limit: 3 }),
     listPosts({ domainSlug: slug, limit: 3 }),
   ]);
 
@@ -113,7 +113,11 @@ export default async function DomainCataloguePage({
                 <Badge tone="clay">{domain.labels.pricingBasis}</Badge>
                 <Badge>{products.length} items</Badge>
                 <Badge>{packages.length} packages</Badge>
-                <Badge tone="neutral">Prices for {city.name}</Badge>
+                {/* Naming the city is the point of the badge, so with no city
+                    chosen it says that rather than a city nobody picked. */}
+                <Badge tone="neutral">
+                  {city ? `Prices for ${city.name}` : "Prices across every city"}
+                </Badge>
               </div>
             </div>
             <ButtonLink href={`/submit-requirement?domain=${domain.slug}`} size="lg">

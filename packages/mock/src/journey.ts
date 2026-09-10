@@ -86,11 +86,19 @@ const clientSeeds: ClientSeed[] = [
   },
 ];
 
+/**
+ * Customers signed in with a code, so their numbers are proved and dated to the
+ * moment the account was made. Staff below are the opposite case on purpose:
+ * they sign in with a password and a TOTP code and have never verified a
+ * number, so theirs stay null — a number ops typed in from a call is exactly
+ * the kind this column exists to distinguish.
+ */
 export const clientUsers: User[] = clientSeeds.map((c, i) => ({
   ...rec(200 - i * 12, 2),
   id: `user-client-${c.key}`,
   name: c.name,
   mobile: c.mobile,
+  mobileVerifiedAt: daysAgo(200 - i * 12),
   email: c.email,
   role: "client" as const,
   cityId: c.cityId,
@@ -120,6 +128,7 @@ export const salesUsers: User[] = [
     id: "user-sales-kavita",
     name: "Kavita Bisht",
     mobile: "9120045566",
+    mobileVerifiedAt: null,
     email: "kavita@example.com",
     role: "sales_agent",
     cityId: "city-luc",
@@ -131,6 +140,7 @@ export const salesUsers: User[] = [
     id: "user-sales-amit",
     name: "Amit Tiwari",
     mobile: "9120045577",
+    mobileVerifiedAt: null,
     email: "amit@example.com",
     role: "sales_agent",
     cityId: "city-luc",
@@ -150,6 +160,7 @@ export const adminUsers: User[] = [
     id: "user-admin",
     name: "Neha Bajpai",
     mobile: "9000000001",
+    mobileVerifiedAt: null,
     email: "admin@example.com",
     role: "admin",
     cityId: "city-luc",

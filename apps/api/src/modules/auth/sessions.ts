@@ -152,6 +152,19 @@ export async function resolveSession(token: string | undefined): Promise<Session
     actor,
     name: row.user.name,
     mobile: row.user.mobile,
+    /**
+     * Having a number and having proved it are separate answers.
+     *
+     * Ops type numbers in from a phone call, so a present `mobile` is not by
+     * itself evidence the account holder confirmed it. A screen that showed one
+     * of those as verified would be telling the person something we do not know.
+     */
+    mobileVerified: row.user.mobileVerifiedAt !== null,
+    /**
+     * Carried on the session so every client knows what is still unanswered
+     * without a second call. Null is what the "where are you?" prompts key off.
+     */
+    cityId: row.user.cityId,
     avatarUrl: row.user.avatarUrl,
   };
 }

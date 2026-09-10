@@ -97,12 +97,24 @@ export default async function OpsLeadPage({
             {row.awaitingReply > 0 ? (
               <Badge tone="danger">{row.awaitingReply} awaiting reply</Badge>
             ) : null}
-            <a
-              href={`tel:${lead.client.mobile}`}
-              className="rounded-full bg-brand px-4 py-2 text-[13.5px] font-medium text-white hover:bg-brand-hover sm:text-[12.5px]"
-            >
-              Call {lead.client.mobile}
-            </a>
+            {/*
+              No number, no call button.
+
+              An anchor to `tel:null` looks like a working call button and does
+              nothing when pressed, which on a scoping call is a coordinator
+              blaming their handset. Somebody with no number on file has to be
+              reached another way, and the badge says so plainly.
+            */}
+            {lead.client.mobile ? (
+              <a
+                href={`tel:${lead.client.mobile}`}
+                className="rounded-full bg-brand px-4 py-2 text-[13.5px] font-medium text-white hover:bg-brand-hover sm:text-[12.5px]"
+              >
+                Call {lead.client.mobile}
+              </a>
+            ) : (
+              <Badge tone="neutral">No number on file</Badge>
+            )}
           </>
         }
       />
@@ -413,12 +425,18 @@ export default async function OpsLeadPage({
           <aside className="min-w-0 space-y-4">
             <Panel title="Client">
               <p className="text-[15px] font-medium text-ink sm:text-[14px]">{lead.client.name}</p>
-              <a
-                href={`tel:${lead.client.mobile}`}
-                className="mt-0.5 block text-[14px] text-brand sm:text-[13px]"
-              >
-                {lead.client.mobile}
-              </a>
+              {lead.client.mobile ? (
+                <a
+                  href={`tel:${lead.client.mobile}`}
+                  className="mt-0.5 block text-[14px] text-brand sm:text-[13px]"
+                >
+                  {lead.client.mobile}
+                </a>
+              ) : (
+                <p className="mt-0.5 text-[14px] text-ink-4 sm:text-[13px]">
+                  No number on file — reach them by email or through the platform
+                </p>
+              )}
               {lead.client.email ? (
                 <p className="text-[13.5px] text-ink-3 sm:text-[12.5px]">{lead.client.email}</p>
               ) : null}

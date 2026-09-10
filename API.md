@@ -208,10 +208,40 @@ been removed along with its dead UI — it let somebody declare themselves done.
 | Method | Path | Response |
 | --- | --- | --- |
 | POST | `/auth/otp/request` | `{ challengeId, expiresInSeconds }` — body `{ mobile }` |
-| POST | `/auth/otp/verify` | `Actor`, and sets the session cookie — body `{ challengeId, code, name?, cityId? }` |
+| POST | `/auth/otp/verify` | `Actor`, and sets the session cookie — body `{ challengeId, code, name?, cityId?, linkToken? }` |
+| POST | `/auth/google` | `{ status, session?, linkToken?, email?, name? }` — body `{ idToken }` |
+| POST | `/auth/google/complete` | `Actor`, and sets the session cookie — body `{ linkToken, name?, cityId? }` |
 | POST | `/auth/staff/login` | `Actor`, and sets the session cookie — body `{ email, password, totp? }` |
 | POST | `/auth/logout` | `{ ok }` — revokes the session and forgets this device's push token |
-| GET | `/me` | `SessionUser` — `{ actor, name, mobile, avatarUrl }`, or 401 |
+| GET | `/me` | `SessionUser` — `{ actor, name, mobile, mobileVerified, cityId, avatarUrl }`, or 401 |
+| PATCH | `/me/profile` | `SessionUser` — body `{ name?, cityId? }`; `cityId: null` clears it |
+| POST | `/me/mobile/request` | `{ challengeId, expiresInSeconds }` — body `{ mobile }` |
+| POST | `/me/mobile/confirm` | `SessionUser` — body `{ challengeId, code }` |
+
+### A number and a city are optional
+
+`users.mobile` and `users.city_id` are both nullable, and `GET /me` reports both
+honestly — `mobile: null`, `cityId: null`, `mobileVerified: false`.
+
+This was not always so, and the reason it changed is worth keeping. `mobile` was
+NOT NULL on the argument that ops ring every customer about their lead, so an
+account nobody can telephone is not one this business can serve. That is true of
+a **lead** and is still enforced there — the requirement form asks for a city,
+and ops take the number on the scoping call. Applied to **signup** it meant a
+person who had just authenticated with Google was shown a phone field with no
+way past it, and the business lost the account rather than the phone number.
+
+Two consequences worth knowing about when writing a client:
+
+- **A null city means "every city", never a default.** `actorForMobile` used to
+  fall back to the first active city, which is silent and almost always wrong —
+  prices, professionals and availability are per city. Every catalogue query
+  treats an absent `cityId` as unfiltered, and the screens say so.
+- **`/me/mobile/*` is not `/auth/otp/*`.** The auth pair asks "who is this", and
+  an unknown number becomes an account. This pair asks "is this number yours" on
+  behalf of a session — the session names the account, so the number can never
+  create or switch one. A number already on another account is refused with 409
+  *before* the SMS goes out, not after the code comes back.
 
 ### Sessions on two carriers
 

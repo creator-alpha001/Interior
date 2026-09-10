@@ -18,8 +18,24 @@ import { seedRow, store } from "./store";
 
 /* ---- lookups ---- */
 
-export const cityById = (id: string): City =>
+/**
+ * A city that is expected to exist. The fallback covers a fixture referring to
+ * a city that was renamed, and is only ever reached for a professional or a
+ * lead — both of which are created with one.
+ */
+export const cityById = (id: string | null): City =>
   store.cities.find((c) => c.id === id) ?? store.cities[0];
+
+/**
+ * A city that may genuinely not have been chosen.
+ *
+ * Separate from `cityById` because the fallback above is exactly wrong here: a
+ * customer who has not told us where they are must not be rendered as living
+ * in whichever city happens to sort first. Null travels through to the screen,
+ * which asks them.
+ */
+export const cityByIdOrNull = (id: string | null): City | null =>
+  id ? (store.cities.find((c) => c.id === id) ?? null) : null;
 
 export const domainById = (id: string): Domain =>
   store.domains.find((d) => d.id === id) ?? store.domains[0];
@@ -118,7 +134,7 @@ export function toClientSummary(clientId: string): ClientSummary {
     name: user.name,
     mobile: user.mobile,
     email: user.email,
-    city: cityById(user.cityId),
+    city: cityByIdOrNull(user.cityId),
     address: client.address,
   };
 }
@@ -154,7 +170,7 @@ export function toMaskedClientSummary(
 
   return {
     displayName: restName.length ? `${first} ${restName[restName.length - 1].charAt(0)}.` : first,
-    city: cityById(user.cityId),
+    city: cityByIdOrNull(user.cityId),
     locality,
     address: addressReleased ? client.address : null,
     contactReleased: false,

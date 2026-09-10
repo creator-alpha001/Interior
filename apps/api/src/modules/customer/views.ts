@@ -128,12 +128,22 @@ async function professionalDomainLinks(professionalIds: string[]) {
   return byPro;
 }
 
+/**
+ * The city join is a LEFT join, and has to stay one.
+ *
+ * `users.city_id` is nullable — somebody who signed up with Google may not have
+ * said where they are. An inner join does not render such a customer without a
+ * city; it returns no row at all, so this function would throw `No client` for
+ * an account that exists and is perfectly valid, and the ops list below would
+ * simply omit them. A customer vanishing from an ops screen is the kind of bug
+ * that gets diagnosed as "the lead was never created".
+ */
 export async function clientSummary(clientId: string): Promise<ClientSummary> {
   const [row] = await db
     .select({ client: t.clients, user: t.users, city: t.cities })
     .from(t.clients)
     .innerJoin(t.users, eq(t.users.id, t.clients.userId))
-    .innerJoin(t.cities, eq(t.cities.id, t.users.cityId))
+    .leftJoin(t.cities, eq(t.cities.id, t.users.cityId))
     .where(eq(t.clients.id, clientId))
     .limit(1);
 
@@ -145,7 +155,7 @@ export async function clientSummary(clientId: string): Promise<ClientSummary> {
     name: row.user.name,
     mobile: row.user.mobile,
     email: row.user.email,
-    city: toCity(row.city),
+    city: row.city ? toCity(row.city) : null,
     address: row.client.address,
   };
 }
@@ -419,7 +429,8 @@ async function clientSummariesFor(clientIds: string[]): Promise<Map<string, Clie
     .select({ client: t.clients, user: t.users, city: t.cities })
     .from(t.clients)
     .innerJoin(t.users, eq(t.users.id, t.clients.userId))
-    .innerJoin(t.cities, eq(t.cities.id, t.users.cityId))
+    // LEFT, for the reason given on `clientSummary` above.
+    .leftJoin(t.cities, eq(t.cities.id, t.users.cityId))
     .where(inArray(t.clients.id, unique));
 
   for (const row of rows) {
@@ -429,7 +440,7 @@ async function clientSummariesFor(clientIds: string[]): Promise<Map<string, Clie
       name: row.user.name,
       mobile: row.user.mobile,
       email: row.user.email,
-      city: toCity(row.city),
+      city: row.city ? toCity(row.city) : null,
       address: row.client.address,
     });
   }

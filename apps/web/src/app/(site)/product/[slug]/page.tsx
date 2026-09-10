@@ -35,13 +35,13 @@ export async function generateMetadata({ params }: { params: Promise<Params> }):
 export default async function ProductPage({ params }: { params: Promise<Params> }) {
   const { slug } = await params;
   const city = await getSelectedCity();
-  const view = await getProductBySlug(slug, city.id);
+  const view = await getProductBySlug(slug, city?.id);
   if (!view) notFound();
 
   const { product, domain, category } = view;
   const [related, proPage] = await Promise.all([
-    listRelatedProducts(product.id, city.id, 4),
-    listProfessionals({ domainSlug: domain.slug, cityId: city.id, verifiedOnly: true, limit: 3 }),
+    listRelatedProducts(product.id, city?.id, 4),
+    listProfessionals({ domainSlug: domain.slug, cityId: city?.id, verifiedOnly: true, limit: 3 }),
   ]);
 
   const pros = proPage.items;
@@ -95,7 +95,8 @@ export default async function ProductPage({ params }: { params: Promise<Params> 
               <RatingLine value={product.rating} count={product.ratingCount} />
               <span className="text-[14px] sm:text-[13px] text-ink-4">·</span>
               <span className="text-[14px] sm:text-[13px] text-ink-3">
-                Priced {priceUnitLabel[product.priceUnit]} · rates for {city.name}
+                Priced {priceUnitLabel[product.priceUnit]}
+                {city ? ` · rates for ${city.name}` : " · indicative rates, pick a city for local ones"}
               </span>
             </div>
             <p className="mt-4 text-[15.5px] leading-relaxed text-ink-2">

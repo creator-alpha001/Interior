@@ -235,8 +235,12 @@ export async function getProfessional(id: string): Promise<ProfessionalProfile |
       id: row.user.id,
       name: row.user.name,
       // A public profile carries no way to contact this person directly. The
-      // columns exist on the row; they stop here.
-      mobile: "",
+      // columns exist on the row; they stop here. Null rather than the empty
+      // string now that the column is nullable — "no number here" is the truth
+      // being told, and an empty string reads as a number that happens to be
+      // blank, which is how a redaction ends up rendered as one.
+      mobile: null,
+      mobileVerifiedAt: null,
       email: null,
       role: row.user.role,
       cityId: row.user.cityId,

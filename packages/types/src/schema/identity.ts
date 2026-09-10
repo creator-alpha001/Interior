@@ -8,10 +8,13 @@ export const userStatusSchema = z.enum(["active", "inactive", "blocked"]);
 export const userSchema = baseRecordSchema.extend({
   id: idSchema,
   name: z.string(),
-  mobile: z.string(),
+  /** Null until they give one. Adding it later is a verified, optional step. */
+  mobile: z.string().nullable(),
+  mobileVerifiedAt: z.string().nullable(),
   email: z.string().nullable(),
   role: userRoleSchema,
-  cityId: idSchema,
+  /** Null means "not told", never "the default city". */
+  cityId: idSchema.nullable(),
   status: userStatusSchema,
   avatarUrl: z.string().nullable(),
 });
@@ -137,7 +140,27 @@ export const actorSchema = z.discriminatedUnion("role", [
 export const sessionUserSchema = z.object({
   actor: actorSchema,
   name: z.string(),
-  /** The signed-in person's own number — never another party's. */
-  mobile: z.string(),
+  /**
+   * The signed-in person's own number — never another party's. Null when they
+   * have not given one, which is an ordinary state and not an error.
+   */
+  mobile: z.string().nullable(),
+  /**
+   * Whether that number was proved by a code.
+   *
+   * Separate from having one, because ops type numbers in from a phone call and
+   * a number somebody else typed is the one worth re-checking. False with a
+   * `mobile` present means "on file, unproved".
+   */
+  mobileVerified: z.boolean(),
+  /**
+   * Where they are, or null when they have not said.
+   *
+   * The reason this is on the session rather than left to a cookie: the cookie
+   * says which catalogue to render, and a signed-in person expects that to
+   * follow them to a new browser. Null is what the prompts key off — every
+   * client asks again, gently, rather than guessing.
+   */
+  cityId: idSchema.nullable(),
   avatarUrl: z.string().nullable(),
 });

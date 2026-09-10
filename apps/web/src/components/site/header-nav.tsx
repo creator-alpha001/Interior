@@ -33,7 +33,8 @@ export function HeaderNav({
   demoMode,
 }: {
   cities: City[];
-  selectedCity: City;
+  /** Null when nobody has chosen one — a real state, not a missing value. */
+  selectedCity: City | null;
   signedInAsClient: boolean;
   /** Shown in place of "Account" once there is a real session. */
   accountName?: string | null;

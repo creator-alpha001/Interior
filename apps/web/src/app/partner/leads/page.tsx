@@ -2,6 +2,7 @@ import Link from "next/link";
 import { formatRupees, listVendorLeads } from "@repo/data";
 import { Badge, formatDate, materialSourceLabel, urgencyLabel } from "@repo/ui";
 import { FilterBar, FilterGroup, PageBody, PageHeader } from "@/components/partner/panel-ui";
+import { whereClientIs } from "@/lib/where";
 
 export const metadata = { title: "Leads" };
 
@@ -91,7 +92,7 @@ export default async function VendorLeadsPage({
 
                       <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-[11.5px] text-ink-4">
                         <span>
-                          {card.client.locality}, {card.client.city.name}
+                          {whereClientIs(card.client)}
                         </span>
                         <span>{materialSourceLabel[card.materialSource]}</span>
                         {card.budgetMax ? (

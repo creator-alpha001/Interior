@@ -15,12 +15,14 @@ import {
   requestReschedule,
   selectQuote,
   sendClientMessage,
+  setMyCity,
   signAgreement,
   submitRequirement,
   submitReview,
   verifyOtp,
 } from "@repo/data";
 import type { RequirementInput, ReviewInput, TicketInput } from "@repo/data";
+import { applyCityCookie } from "./(site)/login/actions";
 
 /**
  * Server actions are the seam the API sits behind. Screens call these; whether
@@ -196,9 +198,28 @@ export async function replyToTicketAction(ticketId: string, body: string) {
  * The chosen city drives which professionals can be assigned and which price
  * a catalogue item shows, so it is stored server-side rather than in component
  * state — every server-rendered price reads the same value.
+ *
+ * `null` clears it, and means "show me every city". That is what somebody who
+ * skipped the question at signup is already seeing, so the switcher has to be
+ * able to put them back into it — a control that can only ever narrow is one
+ * people avoid touching.
+ *
+ * When there is a session the choice is written to the account as well as the
+ * cookie. The cookie is per-browser; the account is the copy that travels, so
+ * without this a person who set their city here would be asked again by the app
+ * on their phone, which is exactly the nagging this whole change is removing.
  */
-export async function setCityAction(cityId: string, returnTo: string) {
-  const jar = await cookies();
-  jar.set("city", cityId, { path: "/", maxAge: 60 * 60 * 24 * 365 });
+export async function setCityAction(cityId: string | null, returnTo: string) {
+  // Shared with the signup path so both write the same pair of cookies. Two
+  // copies of "set a city cookie" is how one of them stops clearing the marker.
+  await applyCityCookie(cityId);
+
+  if (await getActor()) {
+    // Best effort. Failing to persist the preference must not lose the switch
+    // they just made — the cookie is already set and the page is about to
+    // render for the right city either way.
+    await setMyCity(cityId).catch(() => {});
+  }
+
   revalidatePath(returnTo || "/");
 }

@@ -10,8 +10,14 @@ import { cn } from "@repo/ui";
  * The city is not cosmetic: it decides which professionals can be assigned and
  * which price a catalogue item shows, since labour and material rates are not
  * uniform across cities.
+ *
+ * `selected` may be null, and the control has to read as a genuine state rather
+ * than a broken one when it is. Nobody is obliged to choose a city — signing up
+ * offers the question and takes "not now" for an answer — so "All cities" is a
+ * first-class option here, both as the label and as something you can switch
+ * back to.
  */
-export function CitySwitcher({ cities, selected }: { cities: City[]; selected: City }) {
+export function CitySwitcher({ cities, selected }: { cities: City[]; selected: City | null }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -32,12 +38,14 @@ export function CitySwitcher({ cities, selected }: { cities: City[]; selected: C
         onClick={() => setOpen((v) => !v)}
         disabled={pending}
         className="flex h-11 items-center gap-1.5 rounded-full px-2.5 text-[14.5px] sm:text-[13.5px] text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
-        aria-label={`Change city, currently ${selected.name}`}
+        aria-label={
+          selected ? `Change city, currently ${selected.name}` : "Choose your city, showing all cities"
+        }
       >
         <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 fill-ink-4" aria-hidden="true">
           <path d="M8 1a4.5 4.5 0 00-4.5 4.5C3.5 9 8 15 8 15s4.5-6 4.5-9.5A4.5 4.5 0 008 1zm0 6.2a1.7 1.7 0 110-3.4 1.7 1.7 0 010 3.4z" />
         </svg>
-        <span className="hidden sm:inline">{selected.name}</span>
+        <span className="hidden sm:inline">{selected?.name ?? "All cities"}</span>
       </button>
 
       {open ? (
@@ -55,13 +63,31 @@ export function CitySwitcher({ cities, selected }: { cities: City[]; selected: C
               }}
               className={cn(
                 "flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-[14.5px] sm:text-[13.5px] transition-colors hover:bg-surface-2",
-                city.id === selected.id ? "font-medium text-brand" : "text-ink-2",
+                city.id === selected?.id ? "font-medium text-brand" : "text-ink-2",
               )}
             >
               <span>{city.name}</span>
               <span className="text-[12.5px] sm:text-[11.5px] text-ink-4">{city.state}</span>
             </button>
           ))}
+
+          {/* The way back out. Without it, choosing a city once would be
+              irreversible from here, and "show me everything again" would mean
+              clearing a cookie the person cannot see. */}
+          <button
+            type="button"
+            onClick={() => {
+              setOpen(false);
+              startTransition(async () => setCityAction(null, pathname));
+            }}
+            className={cn(
+              "mt-1 flex w-full items-center justify-between rounded-lg border-t border-line px-3 py-2 text-left text-[14.5px] sm:text-[13.5px] transition-colors hover:bg-surface-2",
+              selected ? "text-ink-3" : "font-medium text-brand",
+            )}
+          >
+            <span>All cities</span>
+            <span className="text-[12.5px] sm:text-[11.5px] text-ink-4">No filter</span>
+          </button>
         </div>
       ) : null}
     </div>

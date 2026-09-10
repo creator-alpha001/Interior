@@ -84,9 +84,18 @@ export const clientSummarySchema = z.object({
   id: idSchema,
   userId: idSchema,
   name: z.string(),
-  mobile: z.string(),
+  /** Null until they give one; ops collect it on the call if the lead needs it. */
+  mobile: z.string().nullable(),
   email: z.string().nullable(),
-  city: citySchema,
+  /**
+   * Null when they have not told us where they are.
+   *
+   * Ops screens show this as "not set" rather than a city name. It is not the
+   * same question as a lead's city, which is always present — a requirement
+   * asks where the work is, and the answer is a property of the job rather than
+   * of the person who raised it.
+   */
+  city: citySchema.nullable(),
   address: z.string().nullable(),
 });
 
@@ -106,7 +115,13 @@ export const clientSummarySchema = z.object({
 export const maskedClientSummarySchema = z.object({
   /** First name plus initial, e.g. "Priya S." */
   displayName: z.string(),
-  city: citySchema,
+  /**
+   * Where a lead is in context this is the lead's city and is always present.
+   * On the agreements screen there is no lead in context, so it falls back to
+   * the account's own city — which may be null, because signup does not insist
+   * on one. Render `locality` alone rather than the word "null".
+   */
+  city: citySchema.nullable(),
   locality: z.string(),
   /** Full address, present only once a visit has been confirmed. */
   address: z.string().nullable(),

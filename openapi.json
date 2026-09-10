@@ -1249,14 +1249,20 @@
             "type": "string"
           },
           "mobile": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "email": {
             "type": "string",
             "nullable": true
           },
           "city": {
-            "$ref": "#/components/schemas/City"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/City"
+              }
+            ],
+            "nullable": true
           },
           "address": {
             "type": "string",
@@ -1408,6 +1414,46 @@
           "overdueCount",
           "dueSoonCount",
           "rows"
+        ],
+        "additionalProperties": false
+      },
+      "CompleteGoogleSignUpBody": {
+        "type": "object",
+        "properties": {
+          "linkToken": {
+            "type": "string",
+            "maxLength": 2048
+          },
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "cityId": {
+            "type": "string",
+            "format": "uuid"
+          }
+        },
+        "required": [
+          "linkToken"
+        ],
+        "additionalProperties": false
+      },
+      "ConfirmMobileVerificationBody": {
+        "type": "object",
+        "properties": {
+          "challengeId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "code": {
+            "type": "string",
+            "pattern": "^\\d{6}$"
+          }
+        },
+        "required": [
+          "challengeId",
+          "code"
         ],
         "additionalProperties": false
       },
@@ -1910,7 +1956,7 @@
             "type": "string",
             "enum": [
               "signed_in",
-              "mobile_required"
+              "profile_required"
             ]
           },
           "session": {
@@ -2563,7 +2609,12 @@
             "type": "string"
           },
           "city": {
-            "$ref": "#/components/schemas/City"
+            "allOf": [
+              {
+                "$ref": "#/components/schemas/City"
+              }
+            ],
+            "nullable": true
           },
           "locality": {
             "type": "string"
@@ -5671,7 +5722,7 @@
         ],
         "additionalProperties": false
       },
-      "RequestOtpBody": {
+      "RequestMobileVerificationBody": {
         "type": "object",
         "properties": {
           "mobile": {
@@ -6125,7 +6176,15 @@
             "type": "string"
           },
           "mobile": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
+          },
+          "mobileVerified": {
+            "type": "boolean"
+          },
+          "cityId": {
+            "type": "string",
+            "nullable": true
           },
           "avatarUrl": {
             "type": "string",
@@ -6136,6 +6195,8 @@
           "actor",
           "name",
           "mobile",
+          "mobileVerified",
+          "cityId",
           "avatarUrl"
         ],
         "additionalProperties": false
@@ -6568,6 +6629,22 @@
           "review"
         ]
       },
+      "UpdateProfileBody": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "minLength": 2,
+            "maxLength": 80
+          },
+          "cityId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "UploadPurpose": {
         "type": "string",
         "enum": [
@@ -6649,7 +6726,12 @@
             "type": "string"
           },
           "mobile": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
+          },
+          "mobileVerifiedAt": {
+            "type": "string",
+            "nullable": true
           },
           "email": {
             "type": "string",
@@ -6659,7 +6741,8 @@
             "$ref": "#/components/schemas/UserRole"
           },
           "cityId": {
-            "type": "string"
+            "type": "string",
+            "nullable": true
           },
           "status": {
             "$ref": "#/components/schemas/UserStatus"
@@ -6676,6 +6759,7 @@
           "id",
           "name",
           "mobile",
+          "mobileVerifiedAt",
           "email",
           "role",
           "cityId",
@@ -7278,7 +7362,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestOtpBody"
+                "$ref": "#/components/schemas/RequestMobileVerificationBody"
               }
             }
           }
@@ -7291,8 +7375,8 @@
         "tags": [
           "public"
         ],
-        "summary": "Sign in with a Google ID token, or be asked for a mobile number first",
-        "description": "Sign in with a Google ID token, or be asked for a mobile number first No session required.",
+        "summary": "Sign in with a Google ID token, or be told an account still has to be made",
+        "description": "Sign in with a Google ID token, or be told an account still has to be made No session required.",
         "parameters": [],
         "responses": {
           "200": {
@@ -7352,6 +7436,79 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/GoogleSignInBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/google/complete": {
+      "post": {
+        "operationId": "completeGoogleSignUp",
+        "tags": [
+          "public"
+        ],
+        "summary": "Create the account behind a verified Google identity and sign in",
+        "description": "Create the account behind a verified Google identity and sign in No session required.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuthSession"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record — which also covers a record belonging to somebody else",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request body or query failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Retry after the stated time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CompleteGoogleSignUpBody"
               }
             }
           }
@@ -7624,6 +7781,225 @@
                 "schema": {
                   "$ref": "#/components/schemas/ApiProblem"
                 }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/profile": {
+      "patch": {
+        "operationId": "updateProfile",
+        "tags": [
+          "public"
+        ],
+        "summary": "Set or change the name and city on the signed-in account",
+        "description": "Set or change the name and city on the signed-in account No session required.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionUser"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record — which also covers a record belonging to somebody else",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request body or query failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Retry after the stated time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateProfileBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/mobile/request": {
+      "post": {
+        "operationId": "requestMobileVerification",
+        "tags": [
+          "public"
+        ],
+        "summary": "Send a code to a number the signed-in person wants to add",
+        "description": "Send a code to a number the signed-in person wants to add No session required.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OtpChallenge"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record — which also covers a record belonging to somebody else",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request body or query failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Retry after the stated time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RequestMobileVerificationBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/me/mobile/confirm": {
+      "post": {
+        "operationId": "confirmMobileVerification",
+        "tags": [
+          "public"
+        ],
+        "summary": "Prove that number and attach it to the signed-in account",
+        "description": "Prove that number and attach it to the signed-in account No session required.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SessionUser"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record — which also covers a record belonging to somebody else",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request body or query failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Retry after the stated time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmMobileVerificationBody"
               }
             }
           }

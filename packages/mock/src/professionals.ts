@@ -5,7 +5,7 @@ import type {
   ProfessionalServiceArea,
   User,
 } from "@repo/types";
-import { ph, rec } from "./helpers";
+import { daysAgo, ph, rec } from "./helpers";
 
 interface Seed {
   key: string;
@@ -297,6 +297,8 @@ export const professionalUsers: User[] = seeds.map((s, i) => ({
   id: `user-${s.key}`,
   name: s.name,
   mobile: `98${String(10_000_000 + i * 13_579).slice(0, 8)}`,
+  // Vendors sign in with a code like customers do, so the number is proved.
+  mobileVerifiedAt: daysAgo(300 - i * 5),
   email: `${s.key.replace("pro-", "")}@example.com`,
   role: "professional" as const,
   cityId: s.cityId,

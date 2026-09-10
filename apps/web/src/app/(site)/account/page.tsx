@@ -1,10 +1,13 @@
 import Link from "next/link";
 import {
   formatRupees,
+  getSessionUser,
   listAgreementsForClient,
+  listCities,
   listLeadsForClient,
   listProjectsForClient,
 } from "@repo/data";
+import { FinishSetup } from "@/components/account/finish-setup";
 import {
   Badge,
   ButtonLink,
@@ -21,10 +24,12 @@ import {
 } from "@repo/ui";
 
 export default async function AccountOverviewPage() {
-  const [leads, agreements, projects] = await Promise.all([
+  const [leads, agreements, projects, session, cities] = await Promise.all([
     listLeadsForClient(),
     listAgreementsForClient(),
     listProjectsForClient(),
+    getSessionUser(),
+    listCities(),
   ]);
 
   const activeLeads = leads.filter(
@@ -37,6 +42,13 @@ export default async function AccountOverviewPage() {
 
   return (
     <div className="space-y-8">
+      {/*
+        Whatever signup let them skip, offered again where it can be answered
+        for good. Renders nothing once both are dealt with, so it is a task
+        rather than a permanent fixture.
+      */}
+      {session ? <FinishSetup session={session} cities={cities} /> : null}
+
       {/* Attention band */}
       {quotesWaiting.length > 0 ? (
         <div className="overflow-hidden rounded-xl border border-clay-line bg-clay-soft">

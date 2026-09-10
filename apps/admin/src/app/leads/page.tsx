@@ -222,8 +222,11 @@ export default async function LeadQueuePage({
                             {row.lead.lead.description}
                           </p>
                           <p className="mt-1 text-[12.5px] text-ink-4 sm:text-[11.5px]">
-                            {row.lead.client.mobile} · {row.lead.city.name} ·{" "}
-                            {row.agentName ?? "no agent"}
+                            {/* A customer may have no number: signing up with Google
+                                does not require one. Saying so is what stops a
+                                coordinator reading the line as a rendering bug. */}
+                            {row.lead.client.mobile ?? "no number on file"} · {row.lead.city.name}{" "}
+                            · {row.agentName ?? "no agent"}
                           </p>
                         </div>
 

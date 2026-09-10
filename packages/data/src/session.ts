@@ -13,6 +13,7 @@
  */
 import type { Actor, ActorRole, ID, SessionUser } from "@repo/types";
 import { ApiError, USING_API, api, currentSessionCookie } from "./client";
+import { store } from "./store";
 
 // Re-exported so existing callers keep importing these from @repo/data, while
 // the API imports them from @repo/types without pulling in the seed store.
@@ -160,9 +161,18 @@ function demoSessionUser(): SessionUser {
   return {
     actor: DEMO_ACTORS.client,
     name: "Priya Sharma",
-    mobile: "",
+    // The demo person is a fully set-up account: a proved number and a city,
+    // so the prompts that chase those do not fire all over a demo.
+    mobile: "919919344871",
+    mobileVerified: true,
+    cityId: demoCityId(),
     avatarUrl: null,
   };
+}
+
+/** The seeded demo customer lives in the first seeded city. */
+function demoCityId(): string | null {
+  return store.cities[0]?.id ?? null;
 }
 
 /**

@@ -5,6 +5,7 @@ import { Badge, cn, formatDate, formatDateTime, materialSourceLabel, meetingStat
 import { QuoteBuilder } from "@/components/partner/quote-builder";
 import { VendorMessageForm } from "@/components/partner/vendor-message-form";
 import { PageBody, PageHeader, Panel } from "@/components/partner/panel-ui";
+import { whereClientIs } from "@/lib/where";
 
 type Params = { id: string };
 
@@ -30,7 +31,7 @@ export default async function VendorLeadPage({ params }: { params: Promise<Param
       <PageHeader
         breadcrumb={[{ label: "Leads", href: "/leads" }, { label: card.leadReference }]}
         title={`${card.domain.name} — ${card.client.displayName}`}
-        subtitle={`${card.client.locality}, ${card.client.city.name} · assigned ${formatDate(
+        subtitle={`${whereClientIs(card.client)} · assigned ${formatDate(
           card.assignment.assignedAt,
         )}`}
         actions={
@@ -114,7 +115,7 @@ export default async function VendorLeadPage({ params }: { params: Promise<Param
         {/* Site and contact — the masking rule made visible */}
         <Panel title="Site">
           <p className="text-[13.5px] text-ink">
-            {card.client.address ?? `${card.client.locality}, ${card.client.city.name}`}
+            {card.client.address ?? whereClientIs(card.client)}
           </p>
           {!card.client.address ? (
             <p className="mt-1.5 text-[12px] leading-relaxed text-ink-4">

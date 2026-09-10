@@ -162,10 +162,13 @@ async function main() {
         id: uid(u.id),
         name: u.name,
         // The mock stores ten-digit numbers; the API normalises to 91XXXXXXXXXX.
-        mobile: u.mobile.length === 10 ? `91${u.mobile}` : u.mobile,
+        // A fixture may carry no number at all, which is what an account made
+        // through Google alone looks like.
+        mobile: u.mobile ? (u.mobile.length === 10 ? `91${u.mobile}` : u.mobile) : null,
+        mobileVerifiedAt: u.mobileVerifiedAt,
         email: u.email,
         role: u.role,
-        cityId: uid(u.cityId),
+        cityId: u.cityId ? uid(u.cityId) : null,
         status: u.status,
         avatarUrl: u.avatarUrl,
         createdAt: u.createdAt,

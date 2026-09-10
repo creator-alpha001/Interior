@@ -85,6 +85,13 @@
       "when": 1788621916132,
       "tag": "0011_auth_identities",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1788625516132,
+      "tag": "0012_optional_contact",
+      "breakpoints": true
     }
   ]
 }
