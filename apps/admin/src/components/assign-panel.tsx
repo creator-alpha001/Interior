@@ -1,5 +1,6 @@
 "use client";
 
+import Link from "next/link";
 import { useState, useTransition } from "react";
 import type { VendorPoolEntry } from "@repo/data";
 import { Badge, cn } from "@repo/ui";
@@ -16,23 +17,61 @@ export function AssignPanel({
   leadDomainId,
   leadId,
   domainName,
+  domainSlug,
   cityName,
 }: {
   pool: VendorPoolEntry[];
   leadDomainId: string;
   leadId: string;
   domainName: string;
+  /** For the link to the vendors list, filtered to this trade. */
+  domainSlug: string;
   cityName: string;
 }) {
   const available = pool.filter((entry) => !entry.isAssigned);
   const [selected, setSelected] = useState<string[]>([]);
   const [pending, startTransition] = useTransition();
 
+  /**
+   * Two different situations, and they were saying the same sentence.
+   *
+   * "No further vendors" is true when every eligible one is already on this
+   * job. It is misleading when there were never any — which is what a
+   * coordinator actually hits on a lead in a city the trade does not cover
+   * yet, and it reads as though the panel is broken rather than as though the
+   * answer is genuinely nobody.
+   *
+   * Eligibility is four conditions at once (`eligible_vendors`): verified,
+   * approved for this trade, serving this city, and signed up on the current
+   * terms. Saying so is the difference between "assign is missing" and "here
+   * is what to go and fix".
+   */
+  if (pool.length === 0) {
+    return (
+      <div className="rounded-md border border-dashed border-line-strong p-4 text-[13px] text-ink-3">
+        <p className="font-medium text-ink">
+          No vendor can take {domainName.toLowerCase()} in {cityName} yet.
+        </p>
+        <p className="mt-1.5 leading-relaxed">
+          A vendor reaches this pool only when all four are true: verified, approved for{" "}
+          {domainName.toLowerCase()}, covering {cityName}, and signed up on the current partner
+          terms. Nobody currently clears all four.
+        </p>
+        <Link
+          href={`/vendors?domain=${encodeURIComponent(domainSlug)}`}
+          className="mt-2.5 inline-block font-medium text-brand"
+        >
+          See who is approved for {domainName.toLowerCase()} →
+        </Link>
+      </div>
+    );
+  }
+
   if (available.length === 0) {
     return (
       <div className="rounded-md border border-dashed border-line-strong p-4 text-[13px] text-ink-3">
-        No further {domainName.toLowerCase()} vendors available in {cityName}. Recruit for this
-        city, or widen the service area of an existing vendor.
+        Every eligible {domainName.toLowerCase()} vendor in {cityName} is already assigned to this
+        job. Recruit for this city, or widen the service area of an existing vendor.
       </div>
     );
   }

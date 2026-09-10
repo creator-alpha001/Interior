@@ -300,6 +300,7 @@ export default async function OpsLeadPage({
                 leadDomainId={active.leadDomain.id}
                 leadId={lead.lead.id}
                 domainName={active.domain.name}
+                domainSlug={active.domain.slug}
                 cityName={lead.city.name}
               />
             </Panel>
