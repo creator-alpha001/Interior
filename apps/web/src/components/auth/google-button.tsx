@@ -1,8 +1,48 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import Script from "next/script";
 import { googleSignInAction, type GoogleState } from "@/app/(site)/login/actions";
+
+const GSI_SRC = "https://accounts.google.com/gsi/client";
+
+/**
+ * Loads Google's identity library, once per page.
+ *
+ * Loaded by hand rather than with `next/script`. That component emitted a
+ * `<link rel="preload">` and then never appended the script at all — the
+ * browser warned that the resource was "preloaded but not used", `window.google`
+ * stayed undefined, and the button silently never appeared. Nothing in the page
+ * reported an error, because from React's point of view everything had
+ * rendered.
+ *
+ * A third-party widget script with its own global and its own lifecycle does
+ * not gain anything from Next's scheduling, and this way the load either
+ * happens or rejects.
+ */
+function loadGoogleScript(): Promise<void> {
+  if (typeof window === "undefined") return Promise.resolve();
+  if (window.google?.accounts?.id) return Promise.resolve();
+
+  const existing = document.querySelector<HTMLScriptElement>(`script[src="${GSI_SRC}"]`);
+  if (existing) {
+    // Already in flight from an earlier mount: wait for that one rather than
+    // starting a second copy, which would re-register the callback.
+    return new Promise((resolve, reject) => {
+      existing.addEventListener("load", () => resolve());
+      existing.addEventListener("error", () => reject(new Error("Google script failed")));
+    });
+  }
+
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = GSI_SRC;
+    script.async = true;
+    script.defer = true;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error("Google script failed"));
+    document.head.appendChild(script);
+  });
+}
 
 /**
  * Google's own rendered button, not one of ours.
@@ -20,8 +60,8 @@ import { googleSignInAction, type GoogleState } from "@/app/(site)/login/actions
 declare global {
   interface Window {
     google?: {
-      accounts: {
-        id: {
+      accounts?: {
+        id?: {
           initialize(options: {
             client_id: string;
             callback: (response: { credential?: string }) => void;
@@ -88,9 +128,31 @@ export function GoogleSignInButton({ next, onMobileRequired, onError }: Props) {
   );
 
   useEffect(() => {
+    if (!clientId) return;
+
+    let cancelled = false;
+    loadGoogleScript()
+      .then(() => {
+        if (!cancelled) setReady(true);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          onError("Google sign-in could not load. Use your mobile number instead.");
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [clientId, onError]);
+
+  useEffect(() => {
     if (!ready || !clientId || !container.current) return;
 
-    window.google?.accounts.id.initialize({
+    const id = window.google?.accounts?.id;
+    if (!id) return;
+
+    id.initialize({
       client_id: clientId,
       callback: handleCredential,
       // No One Tap and no automatic sign-in. Signing somebody in because they
@@ -100,7 +162,7 @@ export function GoogleSignInButton({ next, onMobileRequired, onError }: Props) {
       cancel_on_tap_outside: true,
     });
 
-    window.google?.accounts.id.renderButton(container.current, {
+    id.renderButton(container.current, {
       type: "standard",
       theme: "outline",
       size: "large",
@@ -119,13 +181,6 @@ export function GoogleSignInButton({ next, onMobileRequired, onError }: Props) {
 
   return (
     <div className="mt-6">
-      <Script
-        src="https://accounts.google.com/gsi/client"
-        strategy="afterInteractive"
-        onReady={() => setReady(true)}
-        onError={() => onError("Google sign-in could not load. Use your mobile number instead.")}
-      />
-
       <div className="flex items-center gap-3">
         <span className="h-px flex-1 bg-line" />
         <span className="text-[12.5px] uppercase tracking-[0.12em] text-ink-4">or</span>
