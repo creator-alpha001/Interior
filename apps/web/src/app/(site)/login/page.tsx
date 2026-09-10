@@ -151,6 +151,7 @@ export default async function LoginPage({
               cities={cities}
               defaultCityId={selectedCity?.id}
               next={nextPath}
+              intent={asProfessional ? "professional" : undefined}
               /* A vendor's account already has a city; asking again would be
                  asking them to re-answer something ops recorded. */
               askForCity={!asProfessional}

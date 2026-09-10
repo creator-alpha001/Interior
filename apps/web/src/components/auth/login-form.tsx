@@ -9,6 +9,7 @@ import {
   verifyOtpAction,
   type GoogleState,
   type OtpState,
+  type SignInIntent,
 } from "@/app/(site)/login/actions";
 import { GoogleSignInButton } from "./google-button";
 
@@ -31,6 +32,7 @@ export function LoginForm({
   cities = [],
   defaultCityId,
   next,
+  intent,
   askForCity = true,
 }: {
   cities?: City[];
@@ -58,6 +60,15 @@ export function LoginForm({
    * — and the answer would be ignored, since the server only reads it when it
    * is creating an account.
    */
+  /**
+   * Which sign-in this is.
+   *
+   * Sent to the server so it can answer the question that was actually asked.
+   * It grants nothing: the role comes from the account, and somebody choosing
+   * the professional tab with a customer's number is told so rather than
+   * quietly handed the customer area they did not ask for.
+   */
+  intent?: SignInIntent;
   askForCity?: boolean;
 }) {
   const nextPath = next;
@@ -147,6 +158,7 @@ export function LoginForm({
         // an answer nobody gave.
         cityId: (askForCity && cityId) || undefined,
         next: nextPath,
+        intent,
       });
       if (result?.error) {
         setError(result.error);
@@ -237,7 +249,7 @@ export function LoginForm({
           </Button>
 
 
-          <GoogleSignInButton next={nextPath} onError={setError} />
+          <GoogleSignInButton next={nextPath} intent={intent} onError={setError} />
 
           <p className="mt-6 text-center text-[12.5px] sm:text-[11.5px] leading-relaxed text-ink-4">
             By continuing you agree to our terms and privacy policy. We never share your number with

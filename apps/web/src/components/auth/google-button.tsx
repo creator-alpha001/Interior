@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { googleSignInAction } from "@/app/(site)/login/actions";
+import { googleSignInAction, type SignInIntent } from "@/app/(site)/login/actions";
 
 const GSI_SRC = "https://accounts.google.com/gsi/client";
 
@@ -89,10 +89,12 @@ declare global {
 interface Props {
   /** Where they were headed before being asked to sign in. */
   next?: string;
+  /** Which sign-in they chose, so a customer account cannot pass as a vendor. */
+  intent?: SignInIntent;
   onError: (message: string) => void;
 }
 
-export function GoogleSignInButton({ next, onError }: Props) {
+export function GoogleSignInButton({ next, intent, onError }: Props) {
   const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
   const container = useRef<HTMLDivElement | null>(null);
   const [ready, setReady] = useState(false);
@@ -106,7 +108,7 @@ export function GoogleSignInButton({ next, onError }: Props) {
       }
 
       setBusy(true);
-      void googleSignInAction(response.credential, next)
+      void googleSignInAction(response.credential, next, intent)
         .then((result) => {
           // Both outcomes redirect inside the action — to /account when the
           // account exists, to /welcome when there is still one to make — so
@@ -116,7 +118,7 @@ export function GoogleSignInButton({ next, onError }: Props) {
         .catch(() => onError("That Google sign-in did not work. Please try again."))
         .finally(() => setBusy(false));
     },
-    [next, onError],
+    [next, intent, onError],
   );
 
   useEffect(() => {

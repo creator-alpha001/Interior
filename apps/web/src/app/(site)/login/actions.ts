@@ -123,14 +123,64 @@ export async function applyCityCookie(cityId: string | null): Promise<void> {
  * role belongs to. An open redirect here would let a phishing link send
  * somebody through a genuine sign-in and straight out to another domain.
  */
-function destinationFor(role: string, next?: string): string {
-  // A vendor signing in belongs in the portal, not the customer account area.
-  const home = role === "professional" ? "/partner" : "/account";
+/**
+ * Who the person said they were when they started signing in.
+ *
+ * Only "professional" is worth carrying: it is the one choice that can turn out
+ * to be wrong about the account behind the number.
+ */
+export type SignInIntent = "professional" | undefined;
 
-  if (next?.startsWith("/") && !next.startsWith("//") && next.startsWith(home)) {
+function destinationFor(role: string, next?: string, intent?: SignInIntent): string {
+  /**
+   * Asked for the portal, but this number is not a vendor.
+   *
+   * This case used to be silent, and silence made the professional tab a lie:
+   * `next` was `/partner`, the check below rejected it because it does not
+   * start with `/account`, and the person landed in the customer account with
+   * no word about why. They had just told us they were a professional.
+   *
+   * Being signed in is still correct — they proved the number, and the account
+   * behind it is real. What was missing is the answer to the question they
+   * actually asked, so they are sent to the one screen that gives it: this
+   * number is not registered as a professional, and here is how to apply.
+   *
+   * The role itself is never negotiable here. It comes from the session, which
+   * comes from the database; nothing a browser sends can grant it.
+   */
+  if (intent === "professional" && role !== "professional") {
+    // Inline rather than a shared const: a "use server" module may only export
+    // async functions, so a exported string here breaks the build for every
+    // route that imports this file — which is most of them.
+    return "/account/become-a-professional?from=signin";
+  }
+
+  /**
+   * The area this role owns, used only to vet `next`.
+   *
+   * An open redirect here would let a phishing link send somebody through a
+   * genuine sign-in and straight out to another domain, so `next` is honoured
+   * only when it points inside the caller's own area.
+   */
+  const area = role === "professional" ? "/partner" : "/account";
+
+  if (next?.startsWith("/") && !next.startsWith("//") && next.startsWith(area)) {
     return next;
   }
-  return home;
+
+  /**
+   * Where they land when nothing said otherwise — deliberately not `area`.
+   *
+   * A vendor's work is the portal, so that stays. A customer's was `/account`,
+   * which is the worst page on the site to arrive at: for anybody who has just
+   * created an account it is three zeroes and an empty list. Signing in ended
+   * on a dead end, and the catalogue, the packages and the professionals — the
+   * things there are actually to do — were a click away behind a nav item.
+   *
+   * The home page carries their requirements and the setup prompts at the top
+   * for exactly this reason, so nothing is lost by landing there instead.
+   */
+  return role === "professional" ? "/partner" : "/";
 }
 
 export async function verifyOtpAction(input: {
@@ -150,6 +200,8 @@ export async function verifyOtpAction(input: {
   linkToken?: string;
   /** Where they were headed before being sent to sign in. */
   next?: string;
+  /** Which sign-in they chose. See `destinationFor`. */
+  intent?: SignInIntent;
 }): Promise<{ error: string } | never> {
   let destination: string;
 
@@ -163,7 +215,7 @@ export async function verifyOtpAction(input: {
     // Whether or not this carried a link token: the sign-in is over either way,
     // and leaving the cookie behind would offer to resume a finished one.
     await forgetGoogleLink();
-    destination = destinationFor(actor.role, input.next);
+    destination = destinationFor(actor.role, input.next, input.intent);
   } catch (error) {
     return { error: messageFor(error, "That code did not work.") };
   }
@@ -246,6 +298,8 @@ export interface GoogleState {
    * account page.
    */
   next?: string;
+  /** Which sign-in they chose, so finishing one keeps the answer. */
+  intent?: SignInIntent;
   error?: string;
 }
 
@@ -260,6 +314,7 @@ export interface GoogleState {
 export async function googleSignInAction(
   idToken: string,
   next?: string,
+  intent?: SignInIntent,
 ): Promise<GoogleState | never> {
   let destination: string;
 
@@ -272,6 +327,7 @@ export async function googleSignInAction(
         email: result.email,
         name: result.name,
         next,
+        intent,
       });
       // Off the sign-in page entirely. Staying there left somebody who had just
       // authenticated looking at a heading telling them to sign in, beside a
@@ -282,7 +338,7 @@ export async function googleSignInAction(
     }
 
     await adoptSession(result.setCookie);
-    destination = destinationFor(result.actor.role, next);
+    destination = destinationFor(result.actor.role, next, intent);
   } catch (error) {
     return { error: messageFor(error, "That Google sign-in did not work.") };
   }
@@ -342,7 +398,13 @@ export async function completeGoogleSignUpAction(input: {
      * already have. `next` rides along so somebody who pressed "Continue with
      * Google" from a product page still ends up back on it.
      */
-    const onward = destinationFor(actor.role, pending.next);
+    /*
+     * A first Google sign-up always creates a customer — `createClientForIdentity`
+     * is the only thing it can call. So somebody who came in through the
+     * professional tab is told so here too, rather than discovering it by
+     * ending up somewhere they did not ask for.
+     */
+    const onward = destinationFor(actor.role, pending.next, pending.intent);
     destination = `/welcome/number?next=${encodeURIComponent(onward)}`;
   } catch (error) {
     return { error: messageFor(error, "We could not finish setting up your account.") };

@@ -29,7 +29,22 @@ export const metadata: Metadata = {
  * question — "can I work here yet?" — and a person who was refused needs the
  * reason on the same screen they would go to in order to reapply.
  */
-export default async function BecomeAProfessionalPage() {
+export default async function BecomeAProfessionalPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ from?: string }>;
+}) {
+  /**
+   * `from=signin` means they chose "I'm a professional" on the sign-in page and
+   * the number turned out not to be a vendor.
+   *
+   * Being told that is the whole point. Before this, the professional tab
+   * accepted anybody and dropped them in the customer account without a word —
+   * so the one audience the tab existed for got no answer to the only question
+   * they had asked.
+   */
+  const sentHereBySignIn = (await searchParams).from === "signin";
+
   const [existing, domains, cities, sessionUser] = await Promise.all([
     myProfessionalApplication(),
     listDomains(),
@@ -120,6 +135,23 @@ export default async function BecomeAProfessionalPage() {
 
   return (
     <div className="space-y-5">
+      {sentHereBySignIn ? (
+        <div className="rounded-xl border border-warning/30 bg-warning-soft p-5">
+          <p className="text-[12px] sm:text-[11px] font-semibold uppercase tracking-[0.14em] text-warning">
+            Not a professional account
+          </p>
+          <h2 className="mt-2 font-display text-[22px]">
+            You are signed in, but this number is not registered as a professional
+          </h2>
+          <p className="mt-2 max-w-xl text-[14.5px] leading-relaxed text-ink-2">
+            Professional accounts are created by our team after an application is
+            approved — you cannot sign up for one directly. Apply below and we will
+            come back to you, usually within two working days. Meanwhile this
+            account works as a normal customer account.
+          </p>
+        </div>
+      ) : null}
+
       {changesRequested ? (
         <Card>
           <Badge tone="warning">Needs a change</Badge>
