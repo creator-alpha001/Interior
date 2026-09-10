@@ -11,16 +11,20 @@ import type {
   Domain,
   DomainApprovalStatus,
   InvoiceStatus,
+  PriceUnit,
+  Product,
+  ProductCategory,
   Professional,
   ProfessionalDomain,
   ProfessionalSummary,
   Rupees,
+  ServicePackage,
   SupportTicket,
   VerificationStatus,
 } from "@repo/types";
 import { domainById, toAgreementView, toProfessionalSummary } from "./mappers";
 import { hasSignedPartnerAgreementSync } from "./onboarding";
-import { api } from "./client";
+import { ApiError, api } from "./client";
 import { callingApiAsUser } from "./session";
 import { delay, nextId, nowIso, store } from "./store";
 
@@ -443,6 +447,26 @@ export interface DomainInput {
  * projects and reports the moment it is created here.
  */
 export async function createDomain(input: DomainInput): Promise<Domain> {
+  if (await callingApiAsUser()) {
+    return api<Domain>("/ops/domains", {
+      method: "POST",
+      body: {
+        name: input.name,
+        tagline: input.tagline,
+        description: input.description,
+        defaultCommissionPercent: input.defaultCommissionPercent,
+        // The API groups the three under `labels`; this layer has always kept
+        // them flat because that is the shape the form has.
+        labels: {
+          materials: input.materialsLabel,
+          warranty: input.warrantyLabel,
+          pricingBasis: input.pricingBasis,
+        },
+        bannerUrl: input.bannerUrl ?? null,
+      },
+    });
+  }
+
   const slug = input.name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -476,6 +500,35 @@ export async function updateDomain(
   domainId: string,
   patch: Partial<DomainInput> & { isActive?: boolean },
 ): Promise<void> {
+  if (await callingApiAsUser()) {
+    const labels =
+      patch.materialsLabel !== undefined ||
+      patch.warrantyLabel !== undefined ||
+      patch.pricingBasis !== undefined
+        ? {
+            materials: patch.materialsLabel ?? "",
+            warranty: patch.warrantyLabel ?? "",
+            pricingBasis: patch.pricingBasis ?? "",
+          }
+        : undefined;
+
+    await api(`/ops/domains/${encodeURIComponent(domainId)}`, {
+      method: "PATCH",
+      body: {
+        ...(patch.name !== undefined ? { name: patch.name } : {}),
+        ...(patch.tagline !== undefined ? { tagline: patch.tagline } : {}),
+        ...(patch.description !== undefined ? { description: patch.description } : {}),
+        ...(patch.defaultCommissionPercent !== undefined
+          ? { defaultCommissionPercent: patch.defaultCommissionPercent }
+          : {}),
+        ...(labels ? { labels } : {}),
+        ...(patch.bannerUrl !== undefined ? { bannerUrl: patch.bannerUrl } : {}),
+        ...(patch.isActive !== undefined ? { isActive: patch.isActive } : {}),
+      },
+    });
+    return;
+  }
+
   const domain = store.domains.find((d) => d.id === domainId);
   if (!domain) throw new Error("Unknown domain");
 
@@ -565,6 +618,16 @@ export async function replyToTicketAsAdmin(
   authorName: string,
   body: string,
 ): Promise<void> {
+  if (await callingApiAsUser()) {
+    // `authorName` is not sent: the API takes the author from the staff
+    // session, which is the only account of who replied that can be trusted.
+    await api(`/ops/tickets/${encodeURIComponent(ticketId)}/replies`, {
+      method: "POST",
+      body: { body },
+    });
+    return;
+  }
+
   const ticket = store.supportTickets.find((t) => t.id === ticketId);
   if (!ticket) throw new Error("Unknown ticket");
   ticket.replies.push({
@@ -596,4 +659,145 @@ export async function setTicketStatus(
   ticket.status = status;
   ticket.updatedAt = nowIso();
   return delay(undefined);
+}
+
+/* ------------------------------------------------------------------ *
+ * Catalogue management
+ *
+ * Unlike everything above, these have no seed fallback. The rest of this file
+ * keeps one so the team preview works with no backend at all, and that is right
+ * for reading — a preview with an empty catalogue is useless. It is wrong for
+ * writing: a form that appears to save a package into an in-memory store, on a
+ * server that is replaced on the next request, teaches somebody that their work
+ * was saved when it was not. That is the failure this screen is being built to
+ * end, so these refuse instead.
+ * ------------------------------------------------------------------ */
+
+export interface CategoryInput {
+  domainId: string;
+  name: string;
+  description: string;
+  imageUrl?: string | null;
+  parentId?: string | null;
+  sortOrder?: number;
+}
+
+export interface PackageInput {
+  domainId: string;
+  name: string;
+  shortDescription: string;
+  description: string;
+  price: number;
+  priceBasis: string;
+  durationDays: number;
+  inclusions: string[];
+  exclusions: string[];
+  badge?: string | null;
+  isFeatured: boolean;
+  /** Ids of uploaded `catalogue_image` assets. The first is the card image. */
+  mediaIds: string[];
+}
+
+export interface CatalogueProductInput {
+  domainId: string;
+  categoryId: string;
+  name: string;
+  shortDescription: string;
+  description: string;
+  basePrice: number;
+  priceUnit: PriceUnit;
+  leadTimeDays: number;
+  isCustomisable: boolean;
+  specs: Record<string, string>;
+  tags: string[];
+  isFeatured: boolean;
+  mediaIds: string[];
+}
+
+export interface OpsCategoryRow {
+  category: ProductCategory;
+  domain: Domain;
+  products: number;
+}
+
+export interface OpsPackageRow {
+  servicePackage: ServicePackage;
+  domain: Domain;
+  images: number;
+}
+
+export interface OpsProductRow {
+  product: Product;
+  domain: Domain;
+  category: ProductCategory;
+  images: number;
+}
+
+/** Refuses rather than pretending. See the note above this section. */
+async function requireApi(what: string): Promise<void> {
+  if (await callingApiAsUser()) return;
+  throw new ApiError(
+    0,
+    "no_api_configured",
+    `Editing ${what} needs a signed-in staff session against the live API.`,
+  );
+}
+
+export async function listCategoriesForOps(domainId?: string): Promise<OpsCategoryRow[]> {
+  await requireApi("categories");
+  return api<OpsCategoryRow[]>("/ops/categories", { query: { domain: domainId } });
+}
+
+export async function createCategory(input: CategoryInput): Promise<void> {
+  await requireApi("categories");
+  await api("/ops/categories", { method: "POST", body: input });
+}
+
+export async function updateCategory(
+  categoryId: string,
+  patch: Partial<CategoryInput> & { isActive?: boolean },
+): Promise<void> {
+  await requireApi("categories");
+  await api(`/ops/categories/${encodeURIComponent(categoryId)}`, { method: "PATCH", body: patch });
+}
+
+export async function listPackagesForOps(domainId?: string): Promise<OpsPackageRow[]> {
+  await requireApi("packages");
+  return api<OpsPackageRow[]>("/ops/packages", { query: { domain: domainId } });
+}
+
+export async function createPackage(input: PackageInput): Promise<void> {
+  await requireApi("packages");
+  await api("/ops/packages", { method: "POST", body: input });
+}
+
+export async function updatePackage(
+  packageId: string,
+  patch: Partial<PackageInput> & { isActive?: boolean },
+): Promise<void> {
+  await requireApi("packages");
+  await api(`/ops/packages/${encodeURIComponent(packageId)}`, { method: "PATCH", body: patch });
+}
+
+export async function listProductsForOps(
+  domainId?: string,
+  categoryId?: string,
+): Promise<OpsProductRow[]> {
+  await requireApi("products");
+  return api<OpsProductRow[]>("/ops/products", {
+    query: { domain: domainId, category: categoryId },
+  });
+}
+
+export async function createCatalogueProduct(input: CatalogueProductInput): Promise<void> {
+  await requireApi("products");
+  await api("/ops/products", { method: "POST", body: input });
+}
+
+export async function updateCatalogueProduct(
+  productId: string,
+  patch: Partial<CatalogueProductInput> & { isActive?: boolean },
+): Promise<void> {
+  await requireApi("products");
+  await api(`/ops/products/${encodeURIComponent(productId)}`, { method: "PATCH", body: patch });
 }

@@ -2,8 +2,12 @@
 
 import { revalidatePath } from "next/cache";
 import {
+  ApiError,
   assignProfessionals,
+  createCatalogueProduct,
+  createCategory,
   createDomain,
+  createPackage,
   logCall,
   relayToVendors,
   replyToClient,
@@ -17,9 +21,19 @@ import {
   setTicketStatus,
   setVendorDomainStatus,
   setVendorStatus,
+  updateCatalogueProduct,
+  updateCategory,
   updateDomain,
+  updatePackage,
 } from "@repo/data";
-import type { CallLogInput, DomainInput, ScheduleVisitInput } from "@repo/data";
+import type {
+  CallLogInput,
+  CatalogueProductInput,
+  CategoryInput,
+  DomainInput,
+  PackageInput,
+  ScheduleVisitInput,
+} from "@repo/data";
 import type {
   DomainApprovalStatus,
   InvoiceStatus,
@@ -190,4 +204,93 @@ export async function reviewStageAction(
   revalidatePath(`/leads/${leadId}`);
   revalidatePath("/my-day");
   revalidatePath("/");
+}
+
+/* ---------------- Catalogue ---------------- */
+
+/**
+ * Every one of these returns `{ error }` rather than throwing.
+ *
+ * The actions above predate the catalogue and throw, which surfaces as Next's
+ * error page — acceptable for a status change with one field, and not for a
+ * form somebody has spent five minutes filling in, where an unhandled throw
+ * loses the lot. These hand the message back so the form can keep its state and
+ * show what went wrong.
+ */
+type ActionResult = { error?: string };
+
+function failed(error: unknown, fallback: string): ActionResult {
+  // The API writes messages meant for the person who caused them — "That
+  // category belongs to a different service" — so pass those through.
+  if (error instanceof ApiError && error.isClientError) return { error: error.message };
+  return { error: fallback };
+}
+
+export async function createCategoryAction(input: CategoryInput): Promise<ActionResult> {
+  try {
+    await createCategory(input);
+  } catch (error) {
+    return failed(error, "That category could not be saved.");
+  }
+  revalidatePath("/catalogue");
+  return {};
+}
+
+export async function updateCategoryAction(
+  categoryId: string,
+  patch: Partial<CategoryInput> & { isActive?: boolean },
+): Promise<ActionResult> {
+  try {
+    await updateCategory(categoryId, patch);
+  } catch (error) {
+    return failed(error, "That category could not be saved.");
+  }
+  revalidatePath("/catalogue");
+  return {};
+}
+
+export async function createPackageAction(input: PackageInput): Promise<ActionResult> {
+  try {
+    await createPackage(input);
+  } catch (error) {
+    return failed(error, "That package could not be saved.");
+  }
+  revalidatePath("/catalogue");
+  return {};
+}
+
+export async function updatePackageAction(
+  packageId: string,
+  patch: Partial<PackageInput> & { isActive?: boolean },
+): Promise<ActionResult> {
+  try {
+    await updatePackage(packageId, patch);
+  } catch (error) {
+    return failed(error, "That package could not be saved.");
+  }
+  revalidatePath("/catalogue");
+  return {};
+}
+
+export async function createProductAction(input: CatalogueProductInput): Promise<ActionResult> {
+  try {
+    await createCatalogueProduct(input);
+  } catch (error) {
+    return failed(error, "That product could not be saved.");
+  }
+  revalidatePath("/catalogue");
+  return {};
+}
+
+export async function updateProductAction(
+  productId: string,
+  patch: Partial<CatalogueProductInput> & { isActive?: boolean },
+): Promise<ActionResult> {
+  try {
+    await updateCatalogueProduct(productId, patch);
+  } catch (error) {
+    return failed(error, "That product could not be saved.");
+  }
+  revalidatePath("/catalogue");
+  return {};
 }

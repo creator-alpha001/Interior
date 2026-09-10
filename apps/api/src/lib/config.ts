@@ -452,6 +452,23 @@ function load() {
      */
     databaseUrlForPg: env.DATABASE_URL.replace(/[?&]sslmode=[^&]*/i, ""),
 
+    /**
+     * Origins the browser may call this API from.
+     *
+     * Both `www` and the apex, derived from whichever was configured. They are
+     * different origins to a browser and only one can be written in
+     * `WEB_ORIGIN`, so an allowlist built from that value alone rejects half
+     * the site — and CORS failures do not appear in the server log at all,
+     * which is a bad way to find out. Production is configured as
+     * `https://www.interiobee.com` while the site answers on the apex, so this
+     * was already wrong for every visitor who typed the short address.
+     */
+    corsOrigins: [env.WEB_ORIGIN, env.ADMIN_ORIGIN].flatMap((origin) => {
+      const url = new URL(origin);
+      const host = url.host.startsWith("www.") ? url.host.slice(4) : url.host;
+      return [`${url.protocol}//${host}`, `${url.protocol}//www.${host}`];
+    }),
+
     /** GOOGLE_CLIENT_IDS split and cleaned. Empty when the feature is off. */
     googleClientIds: (env.GOOGLE_CLIENT_IDS ?? "")
       .split(",")

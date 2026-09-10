@@ -103,7 +103,7 @@ export async function buildApp(): Promise<FastifyInstance> {
    * to make authenticated requests as whoever is signed in.
    */
   await app.register(cors, {
-    origin: [config.WEB_ORIGIN, config.ADMIN_ORIGIN],
+    origin: config.corsOrigins,
     credentials: true,
     methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     // `x-request-id` is sent by the browser upload path so one file's journey
