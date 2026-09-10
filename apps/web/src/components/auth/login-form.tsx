@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button, cn } from "@repo/ui";
 import {
+  clearGoogleLinkAction,
   requestOtpAction,
   verifyOtpAction,
   type GoogleState,
@@ -26,16 +27,22 @@ import { GoogleSignInButton } from "./google-button";
  * code. A Google account nobody has linked yet lands in the same OTP stage as
  * everyone else, carrying a link token; after that one code, it is one tap.
  */
-export function LoginForm() {
+export function LoginForm({ pendingGoogle: resumed }: { pendingGoogle?: GoogleState | null }) {
   const nextPath = useSearchParams().get("next") ?? undefined;
   const [stage, setStage] = useState<"mobile" | "otp">("mobile");
   const [mobile, setMobile] = useState("");
-  const [name, setName] = useState("");
+  // Prefilled from a resumed Google sign-in, and still editable.
+  const [name, setName] = useState(resumed?.name ?? "");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [seconds, setSeconds] = useState(0);
   const [challenge, setChallenge] = useState<OtpState>({});
-  /** Set while a Google account is waiting for its first mobile number. */
-  const [pendingGoogle, setPendingGoogle] = useState<GoogleState | null>(null);
+  /**
+   * A Google account waiting for its first mobile number.
+   *
+   * Seeded from the cookie the server read, so a reload resumes the step rather
+   * than losing the link token and sending somebody back to the beginning.
+   */
+  const [pendingGoogle, setPendingGoogle] = useState<GoogleState | null>(resumed ?? null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
@@ -174,6 +181,23 @@ export function LoginForm() {
           <Button onClick={sendCode} disabled={!mobileValid || pending} size="lg" className="mt-5 w-full">
             {pending ? "Sending…" : "Send code"}
           </Button>
+
+          {pendingGoogle ? (
+            <button
+              type="button"
+              onClick={() =>
+                startTransition(async () => {
+                  await clearGoogleLinkAction();
+                  setPendingGoogle(null);
+                  setName("");
+                  setError(null);
+                })
+              }
+              className="mt-4 text-[13.5px] text-ink-3 underline hover:text-ink"
+            >
+              Not {pendingGoogle.email}? Start again
+            </button>
+          ) : null}
 
           {/* Hidden once a Google sign-in is already waiting on this number:
               offering the same button again is an invitation to go round in a

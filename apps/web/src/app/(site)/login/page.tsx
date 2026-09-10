@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/login-form";
+import { pendingGoogleLink } from "./actions";
 import { Container } from "@repo/ui";
 
 export const metadata: Metadata = {
@@ -8,7 +9,11 @@ export const metadata: Metadata = {
   description: "Sign in with your mobile number to track your requirements, quotes and projects.",
 };
 
-export default function LoginPage() {
+export default async function LoginPage() {
+  // Reading a cookie makes this dynamic, which is correct: a half-finished
+  // sign-in is per-person and must never be cached into somebody else's page.
+  const pendingGoogle = await pendingGoogleLink();
+
   return (
     <div className="bg-paper">
       <Container width="default" className="py-14 sm:py-20">
@@ -46,7 +51,7 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <LoginForm />
+            <LoginForm pendingGoogle={pendingGoogle} />
             <p className="mt-4 text-center text-[13.5px] sm:text-[12.5px] text-ink-4">
               New here?{" "}
               <Link href="/submit-requirement" className="font-medium text-brand">

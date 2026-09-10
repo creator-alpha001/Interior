@@ -97,12 +97,76 @@ export async function verifyOtpAction(input: {
   try {
     const { actor, setCookie } = await verifyOtp(input);
     await adoptSession(setCookie);
+    // Whether or not this carried a link token: the sign-in is over either way,
+    // and leaving the cookie behind would offer to resume a finished one.
+    await forgetGoogleLink();
     destination = destinationFor(actor.role, input.next);
   } catch (error) {
     return { error: messageFor(error, "That code did not work.") };
   }
 
   redirect(destination);
+}
+
+/**
+ * Where a half-finished Google sign-in is kept.
+ *
+ * It used to live only in React state, which meant a reload — or the browser
+ * restoring the tab, or anything at all that remounted the page — threw the
+ * link token away and dropped the person back to the start with no way to
+ * finish. They had proved who they were to Google and the site had forgotten.
+ *
+ * httpOnly, because it carries the signed token that says which Google account
+ * this is; short-lived, because the token behind it expires in fifteen minutes
+ * and a stale cookie would offer to finish a sign-in that can no longer be
+ * finished.
+ */
+const GOOGLE_LINK_COOKIE = "interiobee_google_link";
+const GOOGLE_LINK_TTL_SECONDS = 15 * 60;
+
+async function rememberGoogleLink(state: GoogleState): Promise<void> {
+  (await cookies()).set({
+    name: GOOGLE_LINK_COOKIE,
+    value: Buffer.from(JSON.stringify(state), "utf8").toString("base64url"),
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+    maxAge: GOOGLE_LINK_TTL_SECONDS,
+  });
+}
+
+async function forgetGoogleLink(): Promise<void> {
+  (await cookies()).delete(GOOGLE_LINK_COOKIE);
+}
+
+/**
+ * The pending Google sign-in, if there is one. Read by the login page so a
+ * reload resumes where it was rather than starting again.
+ */
+export async function pendingGoogleLink(): Promise<GoogleState | null> {
+  const raw = (await cookies()).get(GOOGLE_LINK_COOKIE)?.value;
+  if (!raw) return null;
+
+  try {
+    const state = JSON.parse(Buffer.from(raw, "base64url").toString("utf8")) as GoogleState;
+    return state.linkToken ? state : null;
+  } catch {
+    // A malformed cookie is not worth an error page; starting over is the
+    // right outcome and the only one available.
+    return null;
+  }
+}
+
+/**
+ * Abandons a half-finished Google sign-in.
+ *
+ * Signing in with the wrong Google account is an easy mistake on a shared
+ * machine, and without this the login page would go on insisting on a number
+ * for that account until the token expired a quarter of an hour later.
+ */
+export async function clearGoogleLinkAction(): Promise<void> {
+  await forgetGoogleLink();
 }
 
 export interface GoogleState {
@@ -131,7 +195,13 @@ export async function googleSignInAction(
     const result = await signInWithGoogle(idToken);
 
     if (result.status === "mobile_required") {
-      return { linkToken: result.linkToken, email: result.email, name: result.name };
+      const state: GoogleState = {
+        linkToken: result.linkToken,
+        email: result.email,
+        name: result.name,
+      };
+      await rememberGoogleLink(state);
+      return state;
     }
 
     await adoptSession(result.setCookie);
