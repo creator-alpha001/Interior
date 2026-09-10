@@ -211,7 +211,13 @@ export function HeaderNav({
                 : completingSignIn
                   ? // No account yet, so "My requirements" would lead nowhere.
                     [{ name: "Finish setting up", href: "/welcome" }]
-                  : [{ name: "Sign in", href: "/login" }]
+                  : // Both, and in that order — the same pair the desktop bar
+                    // shows. Offering only "Sign in" on a phone left somebody
+                    // with no account nothing to press.
+                    [
+                      { name: "Sign in", href: "/login" },
+                      { name: "Sign up", href: "/login?mode=signup" },
+                    ]
               ).map((l) => (
                 <Link key={l.href} href={l.href} className="rounded-lg px-2 py-2 text-[15px] hover:bg-surface-2">
                   {l.name}

@@ -6,17 +6,20 @@ import { useEffect, useRef, useState } from "react";
 import { cn } from "@repo/ui";
 
 /**
- * One slot in the header for everything to do with who you are.
+ * The header's identity slot.
  *
- * There are more identity destinations than a navbar has room for — customers
- * sign in, professionals sign in somewhere else entirely, professionals also
- * join, and with no backend configured both portals are browsable on seed data.
- * Hung individually off the header those become five competing links next to
- * the primary call to action, which is how a navbar stops being scannable.
+ * Signed in, this is a menu: there are more account destinations than a navbar
+ * has room for, and grouping them keeps the bar scannable.
  *
- * So they live here, grouped and labelled, and the header keeps one control.
- * The groups are the point: a professional looking for their portal should not
- * have to work out which of two "sign in" links is theirs.
+ * Signed out, it is deliberately *not* a menu. Signing in and signing up are
+ * the two things a visitor in that state might want, and both were hidden one
+ * click deep behind a control labelled "Sign in" — so the way to create an
+ * account was inside the menu you would only open if you already had one. They
+ * are two plain controls in the bar now.
+ *
+ * The professional entrances moved to the sign-in page, where they can be
+ * explained. They were two links here that both pointed at `/login`, which is
+ * exactly the confusion this component's old comment claimed to prevent.
  */
 export function AccountMenu({
   signedInAsClient,
@@ -38,6 +41,10 @@ export function AccountMenu({
   const [open, setOpen] = useState(false);
   const ref = useRef<HTMLDivElement>(null);
 
+  // Hooks first, then the branch: a signed-out visitor gets two controls rather
+  // than a menu, but this component still owns the slot either way.
+  const signedOut = !signedInAsClient && !completingSignIn;
+
   useEffect(() => {
     function onClick(e: MouseEvent) {
       if (!ref.current?.contains(e.target as Node)) setOpen(false);
@@ -54,6 +61,30 @@ export function AccountMenu({
     setOpen(false);
   }
 
+  if (signedOut) {
+    return (
+      <div className="flex shrink-0 items-center gap-1">
+        <Link
+          href="/login"
+          className="flex h-11 items-center whitespace-nowrap rounded-full px-3 text-[14.5px] text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink sm:text-[13.5px]"
+        >
+          Sign in
+        </Link>
+        {/*
+          Outlined rather than filled: "Get quotes" is the primary action of the
+          whole site and there must be exactly one of those in the bar. This has
+          to be findable, not loud.
+        */}
+        <Link
+          href="/login?mode=signup"
+          className="flex h-11 items-center whitespace-nowrap rounded-full border border-line-strong px-3.5 text-[14.5px] font-medium text-ink transition-colors hover:border-ink-4 hover:bg-surface-2 sm:text-[13.5px]"
+        >
+          Sign up
+        </Link>
+      </div>
+    );
+  }
+
   return (
     <div ref={ref} className="relative shrink-0">
       <button
@@ -61,7 +92,7 @@ export function AccountMenu({
         onClick={() => setOpen((v) => !v)}
         aria-expanded={open}
         aria-haspopup="menu"
-        aria-label={signedInAsClient ? "Your account" : "Sign in or join"}
+        aria-label={signedInAsClient ? "Your account" : "Finish signing in"}
         className={cn(
           "flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[14.5px] transition-colors hover:bg-surface-2 hover:text-ink sm:text-[13.5px]",
           open ? "bg-surface-2 text-ink" : "text-ink-2",
@@ -75,9 +106,7 @@ export function AccountMenu({
             ? // The first name, because a header is not the place for "Priya
               // Sharma Kulkarni" and the full name is on the account page.
               (accountName?.trim().split(/\s+/)[0] ?? "Account")
-            : completingSignIn
-              ? "Finishing…"
-              : "Sign in"}
+            : "Finishing…"}
         </span>
       </button>
 
@@ -101,26 +130,7 @@ export function AccountMenu({
                 emphasis
               />
             </Group>
-          ) : (
-            <Group>
-              <Item
-                href="/login"
-                label="Sign in"
-                hint="Track your quotes and projects"
-                emphasis
-              />
-              <Item href="/submit-requirement" label="Create an account" hint="Post a requirement — we make one for you" />
-            </Group>
-          )}
-
-          <Group heading="For professionals" divided>
-            <Item
-              href="/join-as-professional"
-              label="Join as a professional"
-              hint="Qualified leads in your trade"
-            />
-            <Item href="/login" label="Professional sign in" />
-          </Group>
+          ) : null}
 
           {/* Only where there is no backend: these are the seed-data walkthrough,
               and saying so is the difference between a preview and a pretence. */}

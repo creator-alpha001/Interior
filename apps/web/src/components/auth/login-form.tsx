@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useState, useTransition } from "react";
 import type { City } from "@repo/types";
-import { useSearchParams } from "next/navigation";
 import { Button, cn } from "@repo/ui";
 import {
   clearGoogleLinkAction,
@@ -31,11 +30,37 @@ import { GoogleSignInButton } from "./google-button";
 export function LoginForm({
   cities = [],
   defaultCityId,
+  next,
+  askForCity = true,
 }: {
   cities?: City[];
   defaultCityId?: string;
+  /**
+   * Where to land afterwards.
+   *
+   * Passed down rather than read here with `useSearchParams()`. The page is
+   * already a Server Component reading `as` and `mode` off the URL, and it has
+   * to be — the audience decides the whole left-hand column — so it resolves
+   * the destination too: an explicit `next` the visitor arrived with, else the
+   * default for the audience being addressed.
+   *
+   * Two readers of one URL is how the form and the page come to disagree about
+   * where somebody was going, and reading it in a client component costs a
+   * Suspense boundary that this form would otherwise need for no other reason.
+   */
+  next?: string;
+  /**
+   * Whether the city question belongs on this form.
+   *
+   * It exists to stop a *new customer* account being created in the wrong city.
+   * A vendor signing in already has one on record, put there when ops approved
+   * them, so asking again is asking them to re-answer somebody else's question
+   * — and the answer would be ignored, since the server only reads it when it
+   * is creating an account.
+   */
+  askForCity?: boolean;
 }) {
-  const nextPath = useSearchParams().get("next") ?? undefined;
+  const nextPath = next;
   const [stage, setStage] = useState<"mobile" | "otp">("mobile");
   const [mobile, setMobile] = useState("");
   const [name, setName] = useState("");
@@ -91,11 +116,13 @@ export function LoginForm({
       return;
     }
 
-    const next = [...otp];
+    // Named for what it is rather than `next`, which is now a prop meaning
+    // somewhere entirely different.
+    const filled = [...otp];
     digits.slice(0, 6 - index).forEach((digit, offset) => {
-      next[index + offset] = digit;
+      filled[index + offset] = digit;
     });
-    setOtp(next);
+    setOtp(filled);
 
     const landed = Math.min(index + digits.length, 5);
     inputs.current[landed]?.focus();
@@ -115,8 +142,10 @@ export function LoginForm({
         name: name.trim() || undefined,
         // Ignored by the server for an account that already exists, so sending
         // it always is simpler than deciding here whether this is a first
-        // sign-in — the server is the only place that actually knows.
-        cityId: cityId || undefined,
+        // sign-in — the server is the only place that actually knows. Omitted
+        // entirely when the form never asked, so a hidden default cannot become
+        // an answer nobody gave.
+        cityId: (askForCity && cityId) || undefined,
         next: nextPath,
       });
       if (result?.error) {
@@ -157,7 +186,7 @@ export function LoginForm({
             </div>
           </div>
 
-          {cities.length > 0 ? (
+          {askForCity && cities.length > 0 ? (
             <div className="mt-4">
               <label htmlFor="city" className="text-[14px] sm:text-[13px] font-medium text-ink">
                 Your city
