@@ -131,9 +131,11 @@ export default async function OurWorkPage({
                             {pro.name.charAt(0)}
                           </span>
                           <span className="truncate">{pro.companyName}</span>
-                          <span className="ml-auto shrink-0 text-[13px] sm:text-[12px] text-ink-4">
-                            {pro.city.name}
-                          </span>
+                          {pro.city ? (
+                            <span className="ml-auto shrink-0 text-[13px] sm:text-[12px] text-ink-4">
+                              {pro.city.name}
+                            </span>
+                          ) : null}
                         </Link>
                       ) : null}
                     </figcaption>

@@ -25,6 +25,7 @@ import { db } from "../../db/client";
 import * as t from "../../db/schema";
 import { groupMediaByOwner } from "../../lib/media";
 import { toCity, toDomain, toProfessionalSummary } from "../../lib/mappers";
+import { vendorCityJoin } from "../../lib/vendor-city";
 
 /* ------------------------------------------------------------------ *
  * Shared lookups
@@ -47,7 +48,7 @@ async function professionalSummaries(
       .select({ professional: t.professionals, user: t.users, city: t.cities })
       .from(t.professionals)
       .innerJoin(t.users, eq(t.users.id, t.professionals.userId))
-      .innerJoin(t.cities, eq(t.cities.id, t.users.cityId))
+      .leftJoin(t.cities, vendorCityJoin)
       .where(inArray(t.professionals.id, unique)),
     db
       .select({ link: t.professionalDomains, domain: t.domains })

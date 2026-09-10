@@ -51,6 +51,62 @@ export const professionalSchema = baseRecordSchema.extend({
   avgResponseHours: z.number(),
 });
 
+/**
+ * Somebody asking to become a vendor.
+ *
+ * A separate record from `professionals` on purpose. A professional row is a
+ * vendor who exists — it is joined to by leads, quotes and invoices, and
+ * `actorFromRow` turns one into a session with the partner portal behind it.
+ * An application is a request that may be refused, so it must be storable
+ * without any of that being true. Approving one creates the professional row;
+ * rejecting one leaves nothing behind but the record of the decision.
+ */
+export const professionalApplicationStatusSchema = z.enum([
+  "submitted",
+  "under_review",
+  "changes_requested",
+  "approved",
+  "rejected",
+]);
+
+export const professionalApplicationSchema = baseRecordSchema.extend({
+  id: idSchema,
+  /** The customer account that applied. There is no anonymous application. */
+  userId: idSchema,
+  companyName: z.string(),
+  gstNumber: z.string().nullable(),
+  experienceYears: z.number().int(),
+  bio: z.string(),
+  /** Who ops should ask for, which is not always the account holder's name. */
+  contactName: z.string(),
+  contactMobile: z.string().nullable(),
+  /**
+   * The trades they want approval for, and where they work.
+   *
+   * Ids rather than a child table because they are read and written whole and
+   * never queried into — the same reason `salesAgents.assignedCityIds` is JSONB.
+   * Approval turns each of these into a `professional_domains` row, which is
+   * where per-trade decisions live once the vendor exists.
+   */
+  requestedDomainIds: z.array(idSchema),
+  serviceCityIds: z.array(idSchema),
+  serviceAreaNote: z.string(),
+  status: professionalApplicationStatusSchema,
+  submittedAt: z.string(),
+  decidedAt: z.string().nullable(),
+  decidedByUserId: idSchema.nullable(),
+  /**
+   * Shown to the applicant, so it is written for them rather than for ops.
+   *
+   * Required on a rejection and on a change request: "your application was
+   * refused" with no reason gives somebody no way to fix anything, and turns
+   * every decision into a support ticket.
+   */
+  reviewerNote: z.string().nullable(),
+  /** Set on approval, pointing at the vendor record this became. */
+  professionalId: idSchema.nullable(),
+});
+
 export const salesAgentSchema = baseRecordSchema.extend({
   id: idSchema,
   userId: idSchema,

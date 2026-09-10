@@ -7,6 +7,7 @@ export * from "./helpers";
 export * from "./cities";
 export * from "./domains";
 export * from "./professionals";
+export * from "./applications";
 export * from "./catalog";
 export * from "./blog";
 export * from "./partner-terms";

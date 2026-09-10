@@ -19,6 +19,7 @@ import {
   setInvoiceStatus,
   setLeadDomainStatus,
   setTicketStatus,
+  decideProfessionalApplication,
   setVendorDomainStatus,
   setVendorStatus,
   updateCatalogueProduct,
@@ -27,6 +28,7 @@ import {
   updatePackage,
 } from "@repo/data";
 import type {
+  ApplicationDecision,
   CallLogInput,
   CatalogueProductInput,
   CategoryInput,
@@ -224,6 +226,35 @@ function failed(error: unknown, fallback: string): ActionResult {
   // category belongs to a different service" — so pass those through.
   if (error instanceof ApiError && error.isClientError) return { error: error.message };
   return { error: fallback };
+}
+
+/* ---------------- Applications to become a vendor ---------------- */
+
+/**
+ * One action for every decision, matching the endpoint behind it.
+ *
+ * Approving is the branch that matters: it creates the professional record, its
+ * approved trades and its service areas, and moves the applicant's account over
+ * — so the vendor screens are revalidated too, because a new vendor has just
+ * appeared on them.
+ */
+export async function decideApplicationAction(
+  applicationId: string,
+  decision: ApplicationDecision,
+): Promise<ActionResult> {
+  try {
+    await decideProfessionalApplication(applicationId, decision);
+  } catch (error) {
+    return failed(error, "That decision could not be recorded.");
+  }
+
+  revalidatePath("/applications");
+  revalidatePath(`/applications/${applicationId}`);
+  if (decision.action === "approve") {
+    revalidatePath("/vendors");
+    revalidatePath("/");
+  }
+  return {};
 }
 
 export async function createCategoryAction(input: CategoryInput): Promise<ActionResult> {

@@ -29,7 +29,12 @@ import {
 import { meetingSchema, messageSchema, quoteSchema } from "./flow";
 import { blogCategorySchema, blogPostSchema } from "./content";
 import { productCategorySchema, productSchema, servicePackageSchema } from "./catalog";
-import { clientSchema, professionalSchema, userSchema } from "./identity";
+import {
+  clientSchema,
+  professionalApplicationSchema,
+  professionalSchema,
+  userSchema,
+} from "./identity";
 
 /**
  * A vendor's rating *in one trade*.
@@ -50,7 +55,21 @@ export const professionalSummarySchema = z.object({
   name: z.string(),
   companyName: z.string(),
   avatarUrl: z.string().nullable(),
-  city: citySchema,
+  /**
+   * Where this vendor is, or null when nothing on record says.
+   *
+   * Nullable since migration 0012 made `users.city_id` nullable — a Google
+   * sign-in may never have been asked. It was not made nullable *here* at the
+   * time, and the queries went on inner-joining the city, which does not
+   * produce a missing city on a card: it drops the vendor from the directory
+   * altogether. A vendor nobody can find is a worse answer than one whose
+   * location is not shown.
+   *
+   * Resolved as the first city they actually serve, falling back to the city on
+   * their account. For a vendor those are answers to different questions, and
+   * "where do you work" is the one a customer is asking.
+   */
+  city: citySchema.nullable(),
   experienceYears: z.number(),
   completedProjects: z.number().int(),
   avgRating: z.number(),
@@ -582,4 +601,24 @@ export const adminTicketRowSchema = z.object({
   ticket: supportTicketSchema,
   raisedByName: z.string(),
   raisedByRole: z.string(),
+});
+
+/**
+ * An application with the names behind its ids.
+ *
+ * The record stores domain and city ids; a reviewer needs to read "Carpentry
+ * and Painting, in Bengaluru". Resolved server-side rather than by the screen,
+ * for the same reason as every other view here: the admin panel and the
+ * applicant's own status screen would otherwise each assemble the join, and
+ * only one of them would be updated when a trade is renamed.
+ */
+export const professionalApplicationViewSchema = z.object({
+  application: professionalApplicationSchema,
+  applicantName: z.string(),
+  applicantMobile: z.string().nullable(),
+  applicantEmail: z.string().nullable(),
+  requestedDomains: z.array(domainSchema),
+  serviceCities: z.array(citySchema),
+  /** How many requirements they have raised as a customer. Ops context. */
+  requirementsRaised: z.number().int(),
 });

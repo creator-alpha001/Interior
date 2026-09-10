@@ -75,7 +75,11 @@ export async function searchSuggestions(
     })),
     ...professionals.items.map((p) => ({
       label: p.companyName,
-      hint: `${p.city.name} · ${p.domains.map((d) => d.name).join(", ")}`,
+      // A vendor with no city on record still belongs in the results; the hint
+      // just says less about them.
+      hint: [p.city?.name, p.domains.map((d) => d.name).join(", ")]
+        .filter(Boolean)
+        .join(" · "),
       href: `/professionals/${p.id}`,
     })),
     ...posts.items.map((p) => ({

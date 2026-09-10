@@ -13,6 +13,8 @@ import { LIMITS, consume } from "../lib/rate-limit";
 import * as customer from "../modules/customer/repository";
 import * as write from "../modules/customer/mutations";
 import { createUploadTicket } from "../modules/uploads/repository";
+import * as applications from "../modules/applications/repository";
+import * as applicationWrite from "../modules/applications/mutations";
 
 export async function registerCustomerRoutes(app: FastifyInstance) {
   /**
@@ -151,6 +153,36 @@ export async function registerCustomerRoutes(app: FastifyInstance) {
     const { body } = routes.replyToTicket.body!.parse(request.body);
     reply.status(201);
     return write.replyToTicket(userId, id, body);
+  });
+
+  /* ---------------- becoming a vendor ---------------- */
+
+  /**
+   * A customer's own application, and the only way to make one.
+   *
+   * `requireUser` rather than `requireClient` on the read: a person whose
+   * application was just approved is a professional as of their next request,
+   * and the screen they are sitting on is the one that has to tell them so.
+   * Refusing them their own application at the moment it succeeded would leave
+   * them staring at an error.
+   */
+  app.get(routes.myProfessionalApplication.path, async (request) => {
+    return applications.myApplication(await requireUser(request));
+  });
+
+  app.post(routes.submitProfessionalApplication.path, async (request, reply) => {
+    // The write is for customers only, and the module checks the role again
+    // against the database rather than trusting the session alone.
+    await requireClient(request);
+    const userId = await requireUser(request);
+    const input = routes.submitProfessionalApplication.body!.parse(request.body);
+    reply.status(201);
+    return applicationWrite.submitApplication(userId, input);
+  });
+
+  app.delete(routes.withdrawProfessionalApplication.path, async (request) => {
+    await requireClient(request);
+    return applicationWrite.withdrawApplication(await requireUser(request));
   });
 
   app.get(routes.referrals.path, async (request) => {

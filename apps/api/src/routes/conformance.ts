@@ -32,6 +32,8 @@ import type * as onboarding from "../modules/vendor/onboarding";
 import type * as uploads from "../modules/uploads/repository";
 import type * as sessions from "../modules/auth/sessions";
 import type * as closure from "../modules/auth/closure";
+import type * as applications from "../modules/applications/repository";
+import type * as applicationWrite from "../modules/applications/mutations";
 
 /* ------------------------------------------------------------------ *
  * The mechanism
@@ -226,6 +228,20 @@ export type _replyToTicket = Assert<Check<
   typeof customerWrite.replyToTicket
 >>;
 export type _referrals = Assert<Check<typeof routes.referrals, typeof customer.getReferralSummary>>;
+
+/** Null is a real answer here: most customers have never applied. */
+export type _myProfessionalApplication = Assert<Check<
+  typeof routes.myProfessionalApplication,
+  typeof applications.myApplication
+>>;
+export type _submitProfessionalApplication = Assert<Check<
+  typeof routes.submitProfessionalApplication,
+  typeof applicationWrite.submitApplication
+>>;
+export type _withdrawProfessionalApplication = Assert<Check<
+  typeof routes.withdrawProfessionalApplication,
+  typeof applicationWrite.withdrawApplication
+>>;
 
 /* ------------------------------------------------------------------ *
  * The vendor surface

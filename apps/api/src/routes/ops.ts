@@ -13,6 +13,8 @@ import * as ops from "../modules/ops/repository";
 import * as write from "../modules/ops/mutations";
 import * as admin from "../modules/ops/admin";
 import { getOnboarding } from "../modules/vendor/onboarding";
+import * as applications from "../modules/applications/repository";
+import * as applicationWrite from "../modules/applications/mutations";
 
 export async function registerOpsRoutes(app: FastifyInstance) {
   /**
@@ -215,6 +217,35 @@ export async function registerOpsRoutes(app: FastifyInstance) {
       }
 
       return admin.getVendor(id);
+    },
+  );
+
+  /* ---------------- becoming a vendor ---------------- */
+
+  app.get(routes.opsProfessionalApplications.path, async (request) => {
+    await requirePermission(request, "vendors.view");
+    const { status } = routes.opsProfessionalApplications.query!.parse(request.query);
+    return applications.listApplications({ status });
+  });
+
+  app.get<{ Params: { id: string } }>(routes.opsProfessionalApplication.path, async (request) => {
+    await requirePermission(request, "vendors.view");
+    const { id } = routes.opsProfessionalApplication.params!.parse(request.params);
+    return applications.getApplication(id);
+  });
+
+  /**
+   * Approving here is what creates a vendor, so it needs the same permission as
+   * verifying one. Anything less would make this the cheaper way to do the
+   * thing `vendors.verify` exists to protect.
+   */
+  app.post<{ Params: { id: string } }>(
+    routes.opsDecideProfessionalApplication.path,
+    async (request) => {
+      const staffUserId = await requirePermission(request, "vendors.verify");
+      const { id } = routes.opsDecideProfessionalApplication.params!.parse(request.params);
+      const decision = routes.opsDecideProfessionalApplication.body!.parse(request.body);
+      return applicationWrite.decideApplication(staffUserId, id, decision);
     },
   );
 

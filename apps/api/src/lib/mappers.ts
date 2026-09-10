@@ -197,7 +197,8 @@ export function toPortfolioItem(
 export function toProfessionalSummary(input: {
   professional: Row<typeof t.professionals>;
   user: Row<typeof t.users>;
-  city: Row<typeof t.cities>;
+  /** Null when neither a service area nor the account says where they are. */
+  city: Row<typeof t.cities> | null;
   domains: Array<Row<typeof t.domains>>;
   domainLink?: Row<typeof t.professionalDomains> | null;
 }): ProfessionalSummary {
@@ -208,7 +209,7 @@ export function toProfessionalSummary(input: {
     name: user.name,
     companyName: professional.companyName,
     avatarUrl: user.avatarUrl,
-    city: toCity(city),
+    city: city ? toCity(city) : null,
     experienceYears: professional.experienceYears,
     completedProjects: professional.completedProjects,
     avgRating: fromX10(professional.avgRatingX10),

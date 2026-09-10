@@ -17,6 +17,23 @@ export const verificationStatus = pgEnum("verification_status", [
   "suspended",
   "blacklisted",
 ]);
+/**
+ * Where a request to become a vendor has got to.
+ *
+ * Distinct from `verification_status`, which describes a vendor that exists.
+ * "rejected" is not a state a professional row can be in — the row is never
+ * created — so folding the two together would mean either an enum value the
+ * professionals table can never hold, or a vendor record standing in for a
+ * refusal.
+ */
+export const professionalApplicationStatus = pgEnum("professional_application_status", [
+  "submitted",
+  "under_review",
+  "changes_requested",
+  "approved",
+  "rejected",
+]);
+
 export const referralRewardStatus = pgEnum("referral_reward_status", [
   "pending",
   "earned",

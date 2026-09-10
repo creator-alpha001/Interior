@@ -212,10 +212,17 @@ export default async function ProfessionalPage({ params }: { params: Promise<Par
                   Details
                 </h3>
                 <dl className="mt-4">
-                  <div className="flex items-baseline justify-between border-b border-line py-2.5">
-                    <dt className="text-[14px] sm:text-[13px] text-ink-3">Based in</dt>
-                    <dd className="text-[14.5px] sm:text-[13.5px] font-medium text-ink">{pro.city.name}</dd>
-                  </div>
+                  {/* Omitted rather than shown empty when nothing on record
+                      says where they are. "Serves" below is the more useful
+                      answer anyway, and it is always present. */}
+                  {pro.city ? (
+                    <div className="flex items-baseline justify-between border-b border-line py-2.5">
+                      <dt className="text-[14px] sm:text-[13px] text-ink-3">Based in</dt>
+                      <dd className="text-[14.5px] sm:text-[13.5px] font-medium text-ink">
+                        {pro.city.name}
+                      </dd>
+                    </div>
+                  ) : null}
                   <div className="flex items-baseline justify-between border-b border-line py-2.5">
                     <dt className="text-[14px] sm:text-[13px] text-ink-3">Serves</dt>
                     <dd className="text-right text-[14.5px] sm:text-[13.5px] font-medium text-ink">

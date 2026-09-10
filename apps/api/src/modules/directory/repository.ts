@@ -13,6 +13,7 @@ import * as t from "../../db/schema";
 import { groupMediaByOwner, type MediaRow } from "../../lib/media";
 import { fromX10, toDomain, toPortfolioItem, toProfessionalSummary } from "../../lib/mappers";
 import { decodeCursor, page } from "../../lib/pagination";
+import { vendorCityJoin } from "../../lib/vendor-city";
 
 export interface ProfessionalQuery {
   domain?: string;
@@ -104,7 +105,7 @@ export async function listProfessionals(
       })
       .from(t.professionals)
       .innerJoin(t.users, eq(t.users.id, t.professionals.userId))
-      .innerJoin(t.cities, eq(t.cities.id, t.users.cityId))
+      .leftJoin(t.cities, vendorCityJoin)
       // When a trade is in context, its per-trade rating is what should rank
       // and display — a painter's carpentry average is not the answer to
       // "who should paint my flat".
@@ -152,7 +153,7 @@ export async function getProfessional(id: string): Promise<ProfessionalProfile |
     .select({ professional: t.professionals, user: t.users, city: t.cities })
     .from(t.professionals)
     .innerJoin(t.users, eq(t.users.id, t.professionals.userId))
-    .innerJoin(t.cities, eq(t.cities.id, t.users.cityId))
+    .leftJoin(t.cities, vendorCityJoin)
     .where(and(eq(t.professionals.id, id), isNull(t.professionals.deletedAt)))
     .limit(1);
 

@@ -5,6 +5,7 @@
  * lands, this file is replaced by an HTTP client and nothing above it changes —
  * screens import from `@repo/data`, never from `@repo/mock`.
  */
+import type { ProfessionalApplication } from "@repo/types";
 import * as seed from "@repo/mock";
 
 export const store = {
@@ -14,6 +15,14 @@ export const store = {
   users: [...seed.users],
   clients: [...seed.clients],
   professionals: [...seed.professionals],
+  /**
+   * Requests to become a vendor.
+   *
+   * Typed explicitly rather than left to inference: the seed holds one waiting
+   * application, and without the annotation the array would be typed as that
+   * one row's literal shape rather than as the record type.
+   */
+  professionalApplications: [...seed.professionalApplications] as ProfessionalApplication[],
   professionalDomains: [...seed.professionalDomains],
   professionalServiceAreas: [...seed.professionalServiceAreas],
   portfolioItems: [...seed.portfolioItems],

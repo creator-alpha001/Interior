@@ -31,6 +31,7 @@ import { NotFoundError } from "../../lib/errors";
 import { toDomain, toProfessionalSummary } from "../../lib/mappers";
 import { decodeCursor, page } from "../../lib/pagination";
 import { buildLeadViews } from "../customer/views";
+import { vendorCityJoin } from "../../lib/vendor-city";
 
 export interface OpsLeadFilters {
   status?: LeadStatus | "all";
@@ -323,7 +324,7 @@ async function summariesFor(professionalIds: string[]) {
       .select({ professional: t.professionals, user: t.users, city: t.cities })
       .from(t.professionals)
       .innerJoin(t.users, eq(t.users.id, t.professionals.userId))
-      .innerJoin(t.cities, eq(t.cities.id, t.users.cityId))
+      .leftJoin(t.cities, vendorCityJoin)
       .where(inArray(t.professionals.id, unique)),
     db
       .select({ professionalId: t.professionalDomains.professionalId, domain: t.domains })

@@ -37,6 +37,19 @@ export const cityById = (id: string | null): City =>
 export const cityByIdOrNull = (id: string | null): City | null =>
   id ? (store.cities.find((c) => c.id === id) ?? null) : null;
 
+/**
+ * Where a vendor is shown, resolved the way the API resolves it.
+ *
+ * The first city they serve, then the city on their account, then null. See
+ * `apps/api/src/lib/vendor-city.ts` for why that order and why null is allowed
+ * — in short, a vendor with no city used to vanish from the directory entirely
+ * rather than appear without a location.
+ */
+export const vendorCity = (professionalId: string, userCityId: string | null): City | null => {
+  const area = store.professionalServiceAreas.find((a) => a.professionalId === professionalId);
+  return cityByIdOrNull(area?.cityId ?? userCityId);
+};
+
 export const domainById = (id: string): Domain =>
   store.domains.find((d) => d.id === id) ?? store.domains[0];
 
@@ -65,7 +78,11 @@ export function toProfessionalSummary(
     name: user.name,
     companyName: pro.companyName,
     avatarUrl: user.avatarUrl,
-    city: cityById(user.cityId),
+    /*
+     * Where they work first, then the account's own city — the same order the
+     * API resolves it in. See `apps/api/src/lib/vendor-city.ts`.
+     */
+    city: vendorCity(pro.id, user.cityId),
     experienceYears: pro.experienceYears,
     completedProjects: contextLink?.completedProjects ?? pro.completedProjects,
     avgRating: pro.avgRating,

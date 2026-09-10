@@ -22,6 +22,7 @@ import { cities } from "./geo";
 import {
   authProvider,
   devicePlatform,
+  professionalApplicationStatus,
   referralRewardStatus,
   userRole,
   userStatus,
@@ -122,6 +123,52 @@ export const professionals = pgTable(
   (t) => [
     uniqueIndex("uq_professionals_user").on(t.userId),
     index("ix_professionals_verification").on(t.verificationStatus),
+  ],
+);
+
+/**
+ * A customer asking to become a vendor.
+ *
+ * Nothing here creates a professional; approving one does. Until then this is
+ * the only record that the request exists, which is what lets the applicant be
+ * shown "we are looking at this" and lets ops refuse without leaving a
+ * half-made vendor behind.
+ *
+ * There is no unique index on `user_id`. A rejected application must be able to
+ * be replaced by a better one, and the history of both is worth keeping — the
+ * partial index below enforces the rule that actually matters: one *open*
+ * application per person at a time.
+ */
+export const professionalApplications = pgTable(
+  "professional_applications",
+  {
+    id: primaryId(),
+    userId: fk("user_id")
+      .notNull()
+      .references(() => users.id),
+    companyName: text("company_name").notNull(),
+    gstNumber: varchar("gst_number", { length: 20 }),
+    experienceYears: integer("experience_years").notNull().default(0),
+    bio: text("bio").notNull().default(""),
+    contactName: text("contact_name").notNull(),
+    contactMobile: varchar("contact_mobile", { length: 20 }),
+    /** Read and written whole, never queried into. See the note in @repo/types. */
+    requestedDomainIds: jsonb("requested_domain_ids").$type<string[]>().notNull().default([]),
+    serviceCityIds: jsonb("service_city_ids").$type<string[]>().notNull().default([]),
+    serviceAreaNote: text("service_area_note").notNull().default(""),
+    status: professionalApplicationStatus("status").notNull().default("submitted"),
+    submittedAt: ts("submitted_at").notNull().defaultNow(),
+    decidedAt: ts("decided_at"),
+    decidedByUserId: fk("decided_by_user_id").references(() => users.id),
+    /** Written for the applicant to read. Required on a refusal. */
+    reviewerNote: text("reviewer_note"),
+    /** Set on approval, pointing at the vendor record this became. */
+    professionalId: fk("professional_id").references(() => professionals.id),
+    ...timestamps,
+  },
+  (t) => [
+    index("ix_professional_applications_status").on(t.status, t.submittedAt),
+    index("ix_professional_applications_user").on(t.userId),
   ],
 );
 

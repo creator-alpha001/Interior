@@ -17,6 +17,7 @@ export * from "./search";
 export * from "./ops";
 export * from "./ops-extra";
 export * from "./onboarding";
+export * from "./applications";
 export * from "./admin";
 export * from "./vendor";
 export * from "./content";

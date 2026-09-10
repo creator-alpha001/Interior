@@ -36,6 +36,7 @@ const groups: Array<{ title: string; items: NavItem[] }> = [
     title: "Admin",
     items: [
       { href: "/vendors", label: "Vendors" },
+      { href: "/applications", label: "Applications" },
       { href: "/agreements", label: "Agreements" },
       { href: "/commission", label: "Commission" },
       { href: "/reports", label: "Reports" },

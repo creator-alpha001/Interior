@@ -19,6 +19,13 @@ export function AccountNav({
     { href: "/account/notifications", label: "Notifications", count: counts.notifications },
     { href: "/account/referrals", label: "Refer & earn" },
     { href: "/account/support", label: "Support" },
+    /*
+     * Last, and deliberately not styled as a call to action.
+     *
+     * It is the only tab that leads out of the customer area rather than around
+     * it, and most people reading this nav are here about their own kitchen.
+     */
+    { href: "/account/become-a-professional", label: "Join as a pro" },
   ];
 
   return (

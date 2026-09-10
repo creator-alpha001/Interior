@@ -13,6 +13,8 @@ import type {
   clientSchema,
   deviceTokenSchema,
   permissionKeySchema,
+  professionalApplicationSchema,
+  professionalApplicationStatusSchema,
   professionalSchema,
   referralSchema,
   salesAgentSchema,
@@ -34,6 +36,11 @@ export type Client = z.infer<typeof clientSchema>;
 export type VerificationStatus = z.infer<typeof verificationStatusSchema>;
 
 export type Professional = z.infer<typeof professionalSchema>;
+
+export type ProfessionalApplicationStatus = z.infer<typeof professionalApplicationStatusSchema>;
+
+/** A customer's request to become a vendor, before ops have decided. */
+export type ProfessionalApplication = z.infer<typeof professionalApplicationSchema>;
 
 export type SalesAgent = z.infer<typeof salesAgentSchema>;
 

@@ -81,6 +81,7 @@ customer's phone number.
 | `/account/notifications` | Account → Notifications | **Done** |
 | `/account/referrals` | Account → Invite a friend | **Done** |
 | `/account/support` | Account → Help | **Done.** Tickets and replies |
+| `/account/become-a-professional` | Account → Work with us | **Missing.** The application form, and the four states of the answer: waiting, changes asked for, approved, refused. `GET`/`POST`/`DELETE /me/professional-application` — already in `openapi.json`, so the Dart models generate |
 
 ### The professional's surfaces
 

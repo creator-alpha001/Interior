@@ -330,6 +330,53 @@ export const opsRoutes = {
     body: z.object({ status: z.enum(["pending", "verified", "suspended", "blacklisted"]) }),
     summary: "vendors.verify",
   }),
+  /* ---------------- becoming a vendor ---------------- */
+
+  opsProfessionalApplications: route({
+    method: "GET",
+    path: "/ops/professional-applications",
+    audience: "staff",
+    query: z.object({
+      status: z
+        .enum(["all", "submitted", "under_review", "changes_requested", "approved", "rejected"])
+        .optional(),
+    }),
+    summary: "vendors.view — the queue of people asking to become vendors",
+  }),
+  opsProfessionalApplication: route({
+    method: "GET",
+    path: "/ops/professional-applications/:id",
+    audience: "staff",
+    params: idParam,
+    summary: "vendors.view",
+  }),
+  /**
+   * One endpoint for every decision, because they are one decision.
+   *
+   * Splitting approve and reject into two paths invites a third that forgets to
+   * record who decided, and the reviewer's screen is a single set of buttons
+   * either way. The discriminator is in the body.
+   */
+  opsDecideProfessionalApplication: route({
+    method: "POST",
+    path: "/ops/professional-applications/:id/decision",
+    audience: "staff",
+    params: idParam,
+    body: z.discriminatedUnion("action", [
+      z.object({ action: z.literal("start_review") }),
+      z.object({ action: z.literal("request_changes"), note: longText(2000) }),
+      z.object({ action: z.literal("reject"), note: longText(2000) }),
+      z.object({
+        action: z.literal("approve"),
+        note: z.string().trim().max(2000).optional(),
+        /** Omitted means every trade they asked for. */
+        approvedDomainIds: z.array(idSchema).max(12).optional(),
+        commissionPercentOverrides: z.record(idSchema, z.number().int().min(0).max(100)).optional(),
+      }),
+    ]),
+    summary: "vendors.verify — approving creates the vendor",
+  }),
+
   opsSetVendorDomain: route({
     method: "PATCH",
     path: "/ops/vendors/:id/domains/:domainId",

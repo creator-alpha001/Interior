@@ -40,6 +40,7 @@ import type {
   packageViewSchema,
   productViewSchema,
   professionalDomainLinkSchema,
+  professionalApplicationViewSchema,
   professionalProfileSchema,
   professionalSummarySchema,
   projectViewSchema,
@@ -113,6 +114,9 @@ export type CitySlice = z.infer<typeof citySliceSchema>;
 export type ProfessionalSummary = z.infer<typeof professionalSummarySchema>;
 
 export type ProfessionalProfile = z.infer<typeof professionalProfileSchema>;
+
+/** An application with its domain and city ids already resolved to names. */
+export type ProfessionalApplicationView = z.infer<typeof professionalApplicationViewSchema>;
 
 export type ReviewView = z.infer<typeof reviewViewSchema>;
 

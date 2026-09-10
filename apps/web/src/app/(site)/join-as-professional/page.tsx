@@ -1,5 +1,5 @@
 import type { Metadata } from "next";
-import { listDomains } from "@repo/data";
+import { getActor, listDomains } from "@repo/data";
 import {
   Badge,
   Breadcrumbs,
@@ -16,8 +16,25 @@ export const metadata: Metadata = {
     "Receive verified leads for the trades you are approved for. No listing fee — commission only on work you win.",
 };
 
+/** Where the application form lives, and where sign-in has to come back to. */
+const APPLY_PATH = "/account/become-a-professional";
+
 export default async function JoinPage() {
-  const domains = await listDomains();
+  const [domains, actor] = await Promise.all([listDomains(), getActor()]);
+
+  /**
+   * "Apply to join" used to point at /partner.
+   *
+   * /partner turns away anybody who is not already a professional, so the
+   * button did nothing for the only people who would ever press it: a signed-in
+   * customer was bounced back to /account, and a signed-out visitor to /login
+   * and then to /account. The destination is the application form now, and a
+   * visitor who is not signed in carries their intent through sign-in rather
+   * than losing it there.
+   */
+  const applyHref = actor
+    ? APPLY_PATH
+    : `/login?next=${encodeURIComponent(APPLY_PATH)}`;
 
   return (
     <>
@@ -35,7 +52,7 @@ export default async function JoinPage() {
             only on work you actually win.
           </p>
           <div className="mt-7 flex flex-wrap gap-3">
-            <ButtonLink href="/partner" size="lg">
+            <ButtonLink href={applyHref} size="lg">
               Apply to join
             </ButtonLink>
             <ButtonLink href="/how-it-works#commission" variant="secondary" size="lg">

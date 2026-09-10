@@ -21,6 +21,7 @@ import * as t from "../../db/schema";
 import { ConflictError, NotFoundError, ValidationError } from "../../lib/errors";
 import { fromX10, toDomain, toProfessionalSummary } from "../../lib/mappers";
 import { decodeCursor, page } from "../../lib/pagination";
+import { vendorCityJoin } from "../../lib/vendor-city";
 
 /* ------------------------------------------------------------------ *
  * The business dashboard
@@ -178,7 +179,7 @@ export async function listVendors(filters: VendorFilters): Promise<Paginated<Ven
       .select({ professional: t.professionals, user: t.users, city: t.cities })
       .from(t.professionals)
       .innerJoin(t.users, eq(t.users.id, t.professionals.userId))
-      .innerJoin(t.cities, eq(t.cities.id, t.users.cityId))
+      .leftJoin(t.cities, vendorCityJoin)
       .where(where)
       // Anything waiting on us first, then by rating.
       .orderBy(desc(t.professionals.avgRatingX10), asc(t.professionals.id))
@@ -200,7 +201,7 @@ export async function getVendor(professionalId: string): Promise<VendorRow> {
     .select({ professional: t.professionals, user: t.users, city: t.cities })
     .from(t.professionals)
     .innerJoin(t.users, eq(t.users.id, t.professionals.userId))
-    .innerJoin(t.cities, eq(t.cities.id, t.users.cityId))
+    .leftJoin(t.cities, vendorCityJoin)
     .where(eq(t.professionals.id, professionalId))
     .limit(1);
 
@@ -213,7 +214,8 @@ async function decorateVendors(
   rows: Array<{
     professional: typeof t.professionals.$inferSelect;
     user: typeof t.users.$inferSelect;
-    city: typeof t.cities.$inferSelect;
+    /** Null when neither a service area nor the account says where they are. */
+    city: typeof t.cities.$inferSelect | null;
   }>,
 ): Promise<VendorRow[]> {
   if (rows.length === 0) return [];
@@ -407,7 +409,7 @@ export async function listInvoices(status: string, limit: number, cursor?: strin
       .innerJoin(t.agreements, eq(t.agreements.id, t.commissionInvoices.agreementId))
       .innerJoin(t.professionals, eq(t.professionals.id, t.commissionInvoices.professionalId))
       .innerJoin(t.users, eq(t.users.id, t.professionals.userId))
-      .innerJoin(t.cities, eq(t.cities.id, t.users.cityId))
+      .leftJoin(t.cities, vendorCityJoin)
       .where(where)
       .orderBy(asc(t.commissionInvoices.dueDate))
       .limit(limit)

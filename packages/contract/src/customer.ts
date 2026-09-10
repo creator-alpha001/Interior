@@ -13,6 +13,7 @@ import {
   meetingSchema as meetingRecordSchema,
   messageSchema as messageRecordSchema,
   notificationSchema,
+  professionalApplicationViewSchema,
   projectViewSchema,
   reviewSchema as reviewRecordSchema,
   supportTicketSchema,
@@ -127,6 +128,29 @@ export const ticketSchema = z.object({
 
 export const messageSchema = z.object({ body: longText(2000) });
 export const rescheduleSchema = z.object({ note: z.string().trim().max(500).default("") });
+
+/**
+ * What somebody has to say to be considered as a vendor.
+ *
+ * Deliberately short. Documents, work photographs, references and bank details
+ * are collected by `/partner/onboarding`, which already exists and already
+ * gates lead delivery on them — asking for all of it before a human has even
+ * looked at the business would lose most applicants at a form, to no purpose.
+ * This is what a reviewer needs in order to decide whether to go further.
+ */
+export const professionalApplicationInputSchema = z.object({
+  companyName: shortText(160),
+  /** Optional, and honestly so: smaller workshops are not registered. */
+  gstNumber: z.string().trim().max(20).nullish(),
+  experienceYears: z.number().int().min(0).max(70),
+  bio: longText(2000),
+  contactName: shortText(120),
+  /** Falls back to the number on the account when it is left out. */
+  contactMobile: z.string().trim().max(20).nullish(),
+  requestedDomainIds: z.array(idSchema).min(1).max(12),
+  serviceCityIds: z.array(idSchema).min(1).max(20),
+  serviceAreaNote: z.string().trim().max(1000).default(""),
+});
 
 const idParam = z.object({ id: idSchema });
 
@@ -274,6 +298,37 @@ export const customerRoutes = {
     body: messageSchema,
     response: ticketReplySchema,
     successStatus: 201,
+  }),
+
+  /* ---------------- becoming a vendor ---------------- */
+
+  /**
+   * Null until they have ever applied, rather than a 404.
+   *
+   * "You have no application" is a perfectly good answer to this question and
+   * the screen renders it — an error status would make the ordinary case look
+   * like a failure to every client that checks one.
+   */
+  myProfessionalApplication: route({
+    method: "GET",
+    path: "/me/professional-application",
+    audience: "client",
+    query: z.object({}),
+    response: professionalApplicationViewSchema.nullable(),
+  }),
+  submitProfessionalApplication: route({
+    method: "POST",
+    path: "/me/professional-application",
+    audience: "client",
+    body: professionalApplicationInputSchema,
+    response: professionalApplicationViewSchema,
+    successStatus: 201,
+  }),
+  withdrawProfessionalApplication: route({
+    method: "DELETE",
+    path: "/me/professional-application",
+    audience: "client",
+    response: professionalApplicationViewSchema.nullable(),
   }),
 
   referrals: route({
