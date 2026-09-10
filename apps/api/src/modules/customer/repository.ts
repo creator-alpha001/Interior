@@ -187,7 +187,7 @@ export async function getReferralSummary(clientId: string): Promise<ReferralSumm
 
   return {
     code: client.client.referralCode,
-    shareUrl: `https://interiobee.example.com/join?ref=${client.client.referralCode}`,
+    shareUrl: `https://www.decorashine.com/join?ref=${client.client.referralCode}`,
     invited: rows.length,
     earned: sum(["paid", "earned"]),
     pending: sum(["pending"]),

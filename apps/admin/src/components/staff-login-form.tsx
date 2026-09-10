@@ -35,7 +35,7 @@ export function StaffLoginForm({ wrongRole }: { wrongRole?: boolean }) {
       }}
       className="w-full max-w-sm rounded-xl border border-line bg-surface p-6"
     >
-      <h1 className="font-display text-[24px] text-ink">InterioBee Ops</h1>
+      <h1 className="font-display text-[24px] text-ink">Decora Shine Ops</h1>
       <p className="mt-1.5 text-[13px] leading-relaxed text-ink-3">
         Staff only. Customers and professionals sign in on the main site with a code to their
         mobile.

@@ -44,7 +44,7 @@ export function SignAgreementButton({
         .
       </p>
       <p className="mt-2 text-[13px] sm:text-[12px] leading-relaxed text-ink-3">
-        Payments are made directly to the professional on the terms in this agreement. InterioBee
+        Payments are made directly to the professional on the terms in this agreement. Decora Shine
         records the terms and tracks the work but does not hold your money.
       </p>
       <div className="mt-4 flex flex-wrap gap-2">

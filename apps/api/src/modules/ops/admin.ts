@@ -723,7 +723,7 @@ export async function replyToTicket(userId: string, ticketId: string, body: stri
       authorUserId: userId,
       // From the session, not the request body — the previous implementation
       // took a display name from the caller.
-      authorName: `${user?.name ?? "InterioBee"} (InterioBee support)`,
+      authorName: `${user?.name ?? "Decora Shine"} (Decora Shine support)`,
       body,
     })
     .returning();

@@ -627,7 +627,7 @@ function DomainPanel({
                         <span className="grid h-4 w-4 place-items-center rounded-full bg-brand text-[9px] text-white">
                           A
                         </span>
-                        InterioBee team
+                        Decora Shine team
                       </div>
                     ) : null}
                     <div

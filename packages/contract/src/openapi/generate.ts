@@ -604,7 +604,7 @@ export function buildOpenApiDocument(): Record<string, unknown> {
   return {
     openapi: "3.0.3",
     info: {
-      title: "InterioBee API",
+      title: "Decora Shine API",
       version: "1.0.0",
       description:
         "Generated from the route manifest in `@repo/contract`. Do not edit by hand — " +

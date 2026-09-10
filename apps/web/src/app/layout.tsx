@@ -17,8 +17,8 @@ const display = DM_Serif_Display({
 
 export const metadata: Metadata = {
   title: {
-    default: "InterioBee — Interiors, Furniture, Fabrication & Painting",
-    template: "%s | InterioBee",
+    default: "Decora Shine — Interiors, Furniture, Fabrication & Painting",
+    template: "%s | Decora Shine",
   },
   description:
     "Tell us what you need, meet three verified professionals, compare their quotes side by side, and hire the one you trust. Interiors, furniture, fabrication and painting.",

@@ -44,7 +44,7 @@ export function SiteFooter() {
                   <path d="M10 2L2 8v10h5v-6h6v6h5V8l-8-6z" />
                 </svg>
               </span>
-              <span className="font-display text-[21px] leading-none">InterioBee</span>
+              <span className="font-display text-[21px] leading-none">Decora Shine</span>
             </div>
             <p className="mt-4 max-w-xs text-[14.5px] sm:text-[13.5px] leading-relaxed text-ink-3">
               One platform for interiors, furniture, fabrication and painting. Tell us what you
@@ -75,7 +75,7 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-12 flex flex-col gap-3 border-t border-line pt-6 text-[13.5px] sm:text-[12.5px] text-ink-4 sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} InterioBee. Prototype — all data on this site is sample data.</p>
+          <p>© {new Date().getFullYear()} Decora Shine. Prototype — all data on this site is sample data.</p>
           <div className="flex gap-5">
             <Link href="/how-it-works" className="hover:text-ink-2">
               Terms

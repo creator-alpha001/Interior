@@ -212,7 +212,7 @@ export default async function VendorLeadPage({ params }: { params: Promise<Param
                           fromMe ? "text-right" : "text-left",
                         )}
                       >
-                        {fromMe ? "You" : "InterioBee team"} · {formatDateTime(message.createdAt)}
+                        {fromMe ? "You" : "Decora Shine team"} · {formatDateTime(message.createdAt)}
                         {message.relayedFromMessageId ? " · from the customer" : ""}
                       </div>
                     </div>

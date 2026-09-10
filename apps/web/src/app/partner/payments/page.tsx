@@ -42,7 +42,7 @@ export default async function VendorPaymentsPage() {
         <div className="rounded-lg border border-brand-line bg-brand-soft p-4">
           <h2 className="text-[13px] font-semibold text-brand">How you get paid</h2>
           <p className="mt-1.5 text-[12.5px] leading-relaxed text-ink-2">
-            The customer pays you directly, on the terms written into your agreement. InterioBee does
+            The customer pays you directly, on the terms written into your agreement. Decora Shine does
             not hold your money. What you owe us is commission — calculated on the agreed price when
             the agreement was signed, at your rate for that trade, and invoiced once per agreement.
             A customer who hired you for two services under one contract is one invoice, not two.

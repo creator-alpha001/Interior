@@ -66,7 +66,7 @@ export function HeaderNav({
               <path d="M10 2L2 8v10h5v-6h6v6h5V8l-8-6z" />
             </svg>
           </span>
-          <span className="font-display text-[21px] leading-none tracking-tight">InterioBee</span>
+          <span className="font-display text-[21px] leading-none tracking-tight">Decora Shine</span>
         </Link>
 
         <nav className="hidden items-center gap-1 lg:flex">

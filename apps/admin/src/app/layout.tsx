@@ -10,8 +10,8 @@ const inter = Inter({
 
 export const metadata: Metadata = {
   title: {
-    default: "InterioBee Ops",
-    template: "%s · InterioBee Ops",
+    default: "Decora Shine Ops",
+    template: "%s · Decora Shine Ops",
   },
   description: "Internal operations panel — leads, assignment, relay, vendors and commission.",
   robots: { index: false, follow: false },

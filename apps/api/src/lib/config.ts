@@ -198,7 +198,7 @@ const schema = z.object({
   MOBILE_MIN_BUILD: z.coerce.number().int().nonnegative().default(0),
   MOBILE_UPGRADE_MESSAGE: z
     .string()
-    .default("A newer version of InterioBee is required. Please update to continue."),
+    .default("A newer version of Decora Shine is required. Please update to continue."),
 
   R2_ACCOUNT_ID: z.string().optional(),
   R2_ACCESS_KEY_ID: z.string().optional(),

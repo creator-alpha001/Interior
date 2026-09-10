@@ -1681,7 +1681,7 @@ export const supportTickets: SupportTicket[] = [
       {
         id: "trep-0a",
         authorRole: "platform",
-        authorName: "Kavita (InterioBee support)",
+        authorName: "Kavita (Decora Shine support)",
         body: "Good catch — we have asked all three to price the damp treatment as a separate line item so the base painting figure stays comparable between them. Revised quotes are due by tomorrow evening.",
         createdAt: daysAgo(3),
       },
@@ -1711,7 +1711,7 @@ export const supportTickets: SupportTicket[] = [
       {
         id: "trep-1",
         authorRole: "platform",
-        authorName: "Neha (InterioBee support)",
+        authorName: "Neha (Decora Shine support)",
         body: "We have spoken to the fabricator. Installation is scheduled for this Saturday and we will confirm the slot with you by Thursday.",
         createdAt: daysAgo(2),
       },

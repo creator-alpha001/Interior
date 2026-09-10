@@ -165,7 +165,7 @@ export default async function AgreementsPage({
                   {a.agreement.paymentTerms}
                 </p>
                 <p className="mt-2 text-[13px] sm:text-[12px] leading-relaxed text-ink-4">
-                  Payments are made directly to the professional. InterioBee records the terms and
+                  Payments are made directly to the professional. Decora Shine records the terms and
                   tracks the work, but does not hold your money.
                 </p>
               </div>
