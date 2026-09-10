@@ -79,9 +79,53 @@ export async function verifyOtp(input: {
   code: string;
   name?: string;
   cityId?: string;
+  /** Set only on the one code that finishes a first Google sign-in. */
+  linkToken?: string;
 }): Promise<SignedIn> {
   const { data, setCookie } = await post<Actor>("/auth/otp/verify", input);
   return { actor: data, setCookie };
+}
+
+/**
+ * The two ways a Google sign-in can end.
+ *
+ * `signed_in` is the ordinary case for anyone who has done this once before.
+ * `mobile_required` is the first time only: the account still needs a number,
+ * because ops ring every customer about their lead, and `linkToken` is what
+ * ties that number to this Google account when the code is verified.
+ */
+export type GoogleSignIn =
+  | { status: "signed_in"; actor: Actor; setCookie: string | null }
+  | { status: "mobile_required"; linkToken: string; email?: string; name?: string };
+
+interface GoogleResult {
+  status: "signed_in" | "mobile_required";
+  session?: Actor;
+  linkToken?: string;
+  email?: string;
+  name?: string;
+}
+
+export async function signInWithGoogle(idToken: string): Promise<GoogleSignIn> {
+  const { data, setCookie } = await post<GoogleResult>("/auth/google", { idToken });
+
+  if (data.status === "signed_in" && data.session) {
+    return { status: "signed_in", actor: data.session, setCookie };
+  }
+
+  if (data.status === "mobile_required" && data.linkToken) {
+    return {
+      status: "mobile_required",
+      linkToken: data.linkToken,
+      email: data.email,
+      name: data.name,
+    };
+  }
+
+  // The contract makes both fields optional because the response is one flat
+  // object rather than a union, so a status without its payload is possible on
+  // the wire and would otherwise become a confusing crash further up.
+  throw new ApiError(0, "bad_response", "That sign-in came back incomplete. Please try again.");
 }
 
 export async function staffLogin(input: {

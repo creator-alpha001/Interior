@@ -2,7 +2,14 @@
 
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ApiError, SESSION_COOKIE, requestOtp, signOut, verifyOtp } from "@repo/data";
+import {
+  ApiError,
+  SESSION_COOKIE,
+  requestOtp,
+  signInWithGoogle,
+  signOut,
+  verifyOtp,
+} from "@repo/data";
 
 /**
  * Sign-in runs as server actions rather than fetches from the browser.
@@ -33,46 +40,104 @@ export async function requestOtpAction(mobile: string): Promise<OtpState> {
   }
 }
 
+/**
+ * Copies the API's session cookie onto this domain.
+ *
+ * Shared by both sign-in paths. Written once because the alternative is two
+ * copies of "set an httpOnly cookie", and the copy that drifts is the one that
+ * silently stops marking it `secure`.
+ */
+async function adoptSession(setCookie: string | null): Promise<void> {
+  if (!setCookie) return;
+
+  // Parsed only far enough to hand the value to Next's cookie store; the
+  // attributes the API set are reapplied rather than reinvented.
+  const [pair] = setCookie.split(";");
+  const [name, ...rest] = (pair ?? "").split("=");
+  if (!name || rest.length === 0) return;
+
+  (await cookies()).set({
+    name: name.trim(),
+    value: rest.join("="),
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.NODE_ENV === "production",
+    path: "/",
+  });
+}
+
+/**
+ * Where to send somebody once they are in.
+ *
+ * `next` is only ever a path on this site, and only one inside the area their
+ * role belongs to. An open redirect here would let a phishing link send
+ * somebody through a genuine sign-in and straight out to another domain.
+ */
+function destinationFor(role: string, next?: string): string {
+  // A vendor signing in belongs in the portal, not the customer account area.
+  const home = role === "professional" ? "/partner" : "/account";
+
+  if (next?.startsWith("/") && !next.startsWith("//") && next.startsWith(home)) {
+    return next;
+  }
+  return home;
+}
+
 export async function verifyOtpAction(input: {
   challengeId: string;
   code: string;
   name?: string;
+  /** Present only on the code that completes a first Google sign-in. */
+  linkToken?: string;
   /** Where they were headed before being sent to sign in. */
   next?: string;
 }): Promise<{ error: string } | never> {
-  let destination = "/account";
+  let destination: string;
 
   try {
     const { actor, setCookie } = await verifyOtp(input);
-
-    if (setCookie) {
-      // Parsed only far enough to hand the value to Next's cookie store; the
-      // attributes the API set are reapplied rather than reinvented.
-      const [pair] = setCookie.split(";");
-      const [name, ...rest] = (pair ?? "").split("=");
-      if (name && rest.length > 0) {
-        (await cookies()).set({
-          name: name.trim(),
-          value: rest.join("="),
-          httpOnly: true,
-          sameSite: "lax",
-          secure: process.env.NODE_ENV === "production",
-          path: "/",
-        });
-      }
-    }
-
-    // A vendor signing in belongs in the portal, not the customer account area.
-    if (actor.role === "professional") destination = "/partner";
-
-    // Only ever a path on this site. An open redirect here would let a phishing
-    // link send somebody through a genuine sign-in and out to another domain.
-    if (input.next?.startsWith("/") && !input.next.startsWith("//")) {
-      const allowed = actor.role === "professional" ? "/partner" : "/account";
-      if (input.next.startsWith(allowed)) destination = input.next;
-    }
+    await adoptSession(setCookie);
+    destination = destinationFor(actor.role, input.next);
   } catch (error) {
     return { error: messageFor(error, "That code did not work.") };
+  }
+
+  redirect(destination);
+}
+
+export interface GoogleState {
+  /** Set when this Google account has no number against it yet. */
+  linkToken?: string;
+  email?: string;
+  name?: string;
+  error?: string;
+}
+
+/**
+ * Signs in with a Google ID token the browser obtained.
+ *
+ * Returns rather than redirects when the account is new, because there is a
+ * step left: `users.mobile` is NOT NULL and ops ring every customer about
+ * their lead, so a first-time Google user verifies one code and the two are
+ * linked for good.
+ */
+export async function googleSignInAction(
+  idToken: string,
+  next?: string,
+): Promise<GoogleState | never> {
+  let destination: string;
+
+  try {
+    const result = await signInWithGoogle(idToken);
+
+    if (result.status === "mobile_required") {
+      return { linkToken: result.linkToken, email: result.email, name: result.name };
+    }
+
+    await adoptSession(result.setCookie);
+    destination = destinationFor(result.actor.role, next);
+  } catch (error) {
+    return { error: messageFor(error, "That Google sign-in did not work.") };
   }
 
   redirect(destination);

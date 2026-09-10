@@ -3,10 +3,16 @@
 import { useEffect, useRef, useState, useTransition } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button, cn } from "@repo/ui";
-import { requestOtpAction, verifyOtpAction, type OtpState } from "@/app/(site)/login/actions";
+import {
+  requestOtpAction,
+  verifyOtpAction,
+  type GoogleState,
+  type OtpState,
+} from "@/app/(site)/login/actions";
+import { GoogleSignInButton } from "./google-button";
 
 /**
- * Mobile OTP is the only route in.
+ * A mobile number, always. Google, optionally, to skip the code next time.
  *
  * Most customers arrive on a phone and will not remember a password for a
  * service they use twice a year, and most vendors are tradespeople who would
@@ -14,6 +20,11 @@ import { requestOtpAction, verifyOtpAction, type OtpState } from "@/app/(site)/l
  * authenticator app — an ops account can see every customer's number and every
  * vendor's margin, so it should not be reachable by whoever ends up with a
  * recycled SIM.
+ *
+ * Google does not remove the number, and cannot: `users.mobile` is NOT NULL and
+ * ops ring every customer about their lead. What it removes is repeating the
+ * code. A Google account nobody has linked yet lands in the same OTP stage as
+ * everyone else, carrying a link token; after that one code, it is one tap.
  */
 export function LoginForm() {
   const nextPath = useSearchParams().get("next") ?? undefined;
@@ -23,6 +34,8 @@ export function LoginForm() {
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [seconds, setSeconds] = useState(0);
   const [challenge, setChallenge] = useState<OtpState>({});
+  /** Set while a Google account is waiting for its first mobile number. */
+  const [pendingGoogle, setPendingGoogle] = useState<GoogleState | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const inputs = useRef<Array<HTMLInputElement | null>>([]);
@@ -90,7 +103,10 @@ export function LoginForm() {
       const result = await verifyOtpAction({
         challengeId: challenge.challengeId!,
         code,
-        name: name.trim() || undefined,
+        // What they typed wins over the Google profile name: somebody
+        // correcting it on this screen means it.
+        name: name.trim() || pendingGoogle?.name || undefined,
+        linkToken: pendingGoogle?.linkToken,
         next: nextPath,
       });
       if (result?.error) {
@@ -105,9 +121,13 @@ export function LoginForm() {
     <div className="rounded-xl border border-line bg-surface p-6 sm:p-8">
       {stage === "mobile" ? (
         <>
-          <h2 className="font-display text-[24px]">Enter your mobile number</h2>
+          <h2 className="font-display text-[24px]">
+            {pendingGoogle ? "One last thing" : "Enter your mobile number"}
+          </h2>
           <p className="mt-2 text-[14.5px] sm:text-[13.5px] text-ink-3">
-            We will send a 6-digit code to verify it is you.
+            {pendingGoogle
+              ? `Signed in as ${pendingGoogle.email}. We need a number so we can ring you about your quotes — just this once.`
+              : "We will send a 6-digit code to verify it is you."}
           </p>
 
           <div className="mt-6">
@@ -154,6 +174,22 @@ export function LoginForm() {
           <Button onClick={sendCode} disabled={!mobileValid || pending} size="lg" className="mt-5 w-full">
             {pending ? "Sending…" : "Send code"}
           </Button>
+
+          {/* Hidden once a Google sign-in is already waiting on this number:
+              offering the same button again is an invitation to go round in a
+              circle rather than finish the one step that is left. */}
+          {pendingGoogle ? null : (
+            <GoogleSignInButton
+              next={nextPath}
+              onError={setError}
+              onMobileRequired={(state) => {
+                setError(null);
+                setPendingGoogle(state);
+                // Prefilled, not imposed — the field stays editable.
+                if (state.name) setName(state.name);
+              }}
+            />
+          )}
 
           <p className="mt-6 text-center text-[12.5px] sm:text-[11.5px] leading-relaxed text-ink-4">
             By continuing you agree to our terms and privacy policy. We never share your number with
