@@ -112,16 +112,20 @@ export const profileUpdateSchema = z.object({
 /**
  * Attaching a mobile number to an account that already exists.
  *
- * Separate from `/auth/otp/request` even though both send six digits to a
- * phone, because they answer different questions. That one asks "who is this",
- * and an unknown number becomes an account. This one asks "is this number
- * yours", on behalf of somebody already signed in — the session names the
- * account, so the number can never create or switch one.
+ * The *route* is separate from `/auth/otp/request` even though both send six
+ * digits to a phone, because they answer different questions. That one asks
+ * "who is this", and an unknown number becomes an account. This one asks "is
+ * this number yours", on behalf of somebody already signed in — the session
+ * names the account, so the number can never create or switch one.
+ *
+ * The *body* is deliberately `otpRequestSchema` itself rather than a second
+ * object of the same shape. Both are a mobile number and nothing else, and two
+ * structurally identical components collide in the OpenAPI document — where the
+ * first name alphabetically wins and the other disappears, which here would
+ * have silently renamed `RequestOtpBody` out from under the Dart client's
+ * sign-in path. Sharing the object is what the registry's identity de-duplication
+ * expects, and it is honest: there is one shape, so there is one component.
  */
-export const mobileVerificationRequestSchema = z.object({
-  mobile: mobileSchema,
-});
-
 export const mobileVerificationConfirmSchema = z.object({
   challengeId: z.string().uuid(),
   code: z.string().regex(/^\d{6}$/, "The code is six digits"),
@@ -257,7 +261,7 @@ export const authRoutes = {
     method: "POST",
     path: "/me/mobile/request",
     audience: "public",
-    body: mobileVerificationRequestSchema,
+    body: otpRequestSchema,
     summary: "Send a code to a number the signed-in person wants to add",
     response: otpChallengeSchema,
   }),

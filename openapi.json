@@ -5722,7 +5722,7 @@
         ],
         "additionalProperties": false
       },
-      "RequestMobileVerificationBody": {
+      "RequestOtpBody": {
         "type": "object",
         "properties": {
           "mobile": {
@@ -7362,7 +7362,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestMobileVerificationBody"
+                "$ref": "#/components/schemas/RequestOtpBody"
               }
             }
           }
@@ -7926,7 +7926,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/RequestMobileVerificationBody"
+                "$ref": "#/components/schemas/RequestOtpBody"
               }
             }
           }
