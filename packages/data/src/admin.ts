@@ -437,8 +437,13 @@ export interface DomainInput {
   materialsLabel: string;
   warrantyLabel: string;
   pricingBasis: string;
-  /** Public URL of an uploaded `catalogue_image`. */
-  bannerUrl?: string | null;
+  /**
+   * Id of an uploaded `catalogue_image`, not its URL.
+   *
+   * The server attaches the asset and derives the URL. A URL alone would leave
+   * the asset unowned, which is what the orphan sweep deletes.
+   */
+  bannerMediaId?: string | null;
 }
 
 /**
@@ -462,7 +467,7 @@ export async function createDomain(input: DomainInput): Promise<Domain> {
           warranty: input.warrantyLabel,
           pricingBasis: input.pricingBasis,
         },
-        bannerUrl: input.bannerUrl ?? null,
+        bannerMediaId: input.bannerMediaId ?? null,
       },
     });
   }
@@ -522,7 +527,7 @@ export async function updateDomain(
           ? { defaultCommissionPercent: patch.defaultCommissionPercent }
           : {}),
         ...(labels ? { labels } : {}),
-        ...(patch.bannerUrl !== undefined ? { bannerUrl: patch.bannerUrl } : {}),
+        ...(patch.bannerMediaId !== undefined ? { bannerMediaId: patch.bannerMediaId } : {}),
         ...(patch.isActive !== undefined ? { isActive: patch.isActive } : {}),
       },
     });
@@ -677,7 +682,8 @@ export interface CategoryInput {
   domainId: string;
   name: string;
   description: string;
-  imageUrl?: string | null;
+  /** Id of an uploaded `catalogue_image`. The server derives the URL. */
+  imageMediaId?: string | null;
   parentId?: string | null;
   sortOrder?: number;
 }

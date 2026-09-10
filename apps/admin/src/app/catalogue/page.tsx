@@ -10,6 +10,7 @@ import {
 } from "@repo/data";
 import { Badge } from "@repo/ui";
 import { DataTable, FilterBar, FilterGroup, Metric, PageBody, PageHeader, Panel } from "@/components/ops-ui";
+import { CatalogueEditor, EditRowButton } from "@/components/catalogue-editor";
 
 export const metadata = { title: "Catalogue" };
 
@@ -62,6 +63,8 @@ export default async function CataloguePage({
             hint="Badged in the catalogue"
           />
         </div>
+
+        <CatalogueEditor domains={domains} categories={categories} />
 
         <FilterBar>
           <FilterGroup
@@ -166,12 +169,42 @@ export default async function CataloguePage({
                 ),
               },
               {
+                key: "images",
+                header: "Images",
+                align: "right",
+                render: (row) => (
+                  // Zero is the number worth seeing at a glance: a card with no
+                  // photograph falls back to a gradient on the site and the app.
+                  <span
+                    className={
+                      row.product.media.length === 0
+                        ? "tnum text-[12.5px] text-danger"
+                        : "tnum text-[12.5px] text-ink-2"
+                    }
+                  >
+                    {row.product.media.length}
+                  </span>
+                ),
+              },
+              {
                 key: "live",
                 header: "Live",
                 render: (row) => (
                   <Badge tone={row.product.isActive ? "positive" : "neutral"}>
                     {row.product.isActive ? "Live" : "Hidden"}
                   </Badge>
+                ),
+              },
+              {
+                key: "edit",
+                header: "",
+                render: (row) => (
+                  <EditRowButton
+                    domains={domains}
+                    categories={categories}
+                    product={row.product}
+                    images={row.product.media.map((m: { id: string; url: string; caption?: string | null }) => ({ id: m.id, url: m.url, caption: m.caption ?? undefined }))}
+                  />
                 ),
               },
             ]}
@@ -244,6 +277,34 @@ export default async function CataloguePage({
                   <span className="tnum text-[12.5px] text-ink-2">
                     {row.servicePackage.durationDays}d
                   </span>
+                ),
+              },
+              {
+                key: "images",
+                header: "Images",
+                align: "right",
+                render: (row) => (
+                  <span
+                    className={
+                      row.servicePackage.media.length === 0
+                        ? "tnum text-[12.5px] text-danger"
+                        : "tnum text-[12.5px] text-ink-2"
+                    }
+                  >
+                    {row.servicePackage.media.length}
+                  </span>
+                ),
+              },
+              {
+                key: "edit",
+                header: "",
+                render: (row) => (
+                  <EditRowButton
+                    domains={domains}
+                    categories={categories}
+                    servicePackage={row.servicePackage}
+                    images={row.servicePackage.media.map((m: { id: string; url: string; caption?: string | null }) => ({ id: m.id, url: m.url, caption: m.caption ?? undefined }))}
+                  />
                 ),
               },
             ]}

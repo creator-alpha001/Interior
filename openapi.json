@@ -3077,10 +3077,9 @@
             "maxLength": 1000,
             "default": ""
           },
-          "imageUrl": {
+          "imageMediaId": {
             "type": "string",
-            "format": "uri",
-            "maxLength": 600,
+            "format": "uuid",
             "nullable": true
           },
           "parentId": {
@@ -3126,10 +3125,9 @@
           "labels": {
             "$ref": "#/components/schemas/DomainLabelsInput"
           },
-          "bannerUrl": {
+          "bannerMediaId": {
             "type": "string",
-            "format": "uri",
-            "maxLength": 600,
+            "format": "uuid",
             "nullable": true
           },
           "iconKey": {
@@ -3596,10 +3594,9 @@
             "maxLength": 1000,
             "default": ""
           },
-          "imageUrl": {
+          "imageMediaId": {
             "type": "string",
-            "format": "uri",
-            "maxLength": 600,
+            "format": "uuid",
             "nullable": true
           },
           "parentId": {
@@ -3644,10 +3641,9 @@
           "labels": {
             "$ref": "#/components/schemas/DomainLabelsInput"
           },
-          "bannerUrl": {
+          "bannerMediaId": {
             "type": "string",
-            "format": "uri",
-            "maxLength": 600,
+            "format": "uuid",
             "nullable": true
           },
           "iconKey": {

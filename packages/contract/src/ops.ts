@@ -79,15 +79,22 @@ export const domainInputSchema = z.object({
   defaultCommissionPercent: z.number().int().min(0).max(50),
   labels: domainLabelsInputSchema,
   /**
-   * The banner shown on the trade's own page.
+   * The banner shown on the trade's own page, as an uploaded asset id.
    *
    * `domains.banner_url` and `domains.icon_key` have existed since the first
    * migration and nothing could ever write them — a trade created here got a
    * derived icon key and no picture at all, which is why every trade card in
-   * the product falls back to a gradient. Uploaded as a `catalogue_image` and
-   * stored as its public URL.
+   * the product falls back to a gradient.
+   *
+   * An id rather than a URL, even though the column stores a URL. An asset that
+   * is never bound to an owner is precisely what the orphan sweep deletes, so
+   * accepting a URL here would give a banner that worked all afternoon and was
+   * gone by morning, with the column still pointing at it. The server attaches
+   * the asset and derives the URL from it.
+   *
+   * Null clears the banner. Undefined leaves it alone.
    */
-  bannerUrl: z.string().url().max(600).nullish(),
+  bannerMediaId: idSchema.nullish(),
   iconKey: z.string().trim().max(60).optional(),
 });
 
@@ -112,7 +119,7 @@ export const categoryInputSchema = z.object({
   name: shortText(80),
   description: z.string().trim().max(1000).default(""),
   /** A category is a browsing shelf, so a picture is most of its job. */
-  imageUrl: z.string().url().max(600).nullish(),
+  imageMediaId: idSchema.nullish(),
   /** For sub-categories. Null is a top-level shelf within the trade. */
   parentId: idSchema.nullish(),
   sortOrder: z.number().int().min(0).max(9999).optional(),

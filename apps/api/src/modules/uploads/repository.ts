@@ -183,6 +183,40 @@ export async function attachMedia(
 }
 
 /**
+ * Attaches one asset and returns the URL to store on the row.
+ *
+ * For the two places that keep a URL in a column rather than reading their
+ * media back — `domains.banner_url` and `product_categories.image_url`. Those
+ * columns predate `media_assets` and the whole product reads them, so they
+ * stay; what changes is that the asset behind the URL is now owned, which is
+ * the difference between a banner that lasts and one the orphan sweep removes
+ * overnight while the column goes on pointing at it.
+ *
+ * Null in, null out: clearing a banner is a thing somebody will want to do.
+ */
+export async function attachSingleImage(
+  tx: Tx,
+  assetId: string | null | undefined,
+  ownerType: string,
+  ownerId: string,
+  uploaderUserId?: string,
+): Promise<string | null | undefined> {
+  if (assetId === undefined) return undefined;
+  if (assetId === null) return null;
+
+  await attachMedia(tx, [assetId], ownerType, ownerId, "catalogue_image", uploaderUserId);
+
+  const [row] = await tx
+    .select({ storageKey: t.mediaAssets.storageKey })
+    .from(t.mediaAssets)
+    .where(eq(t.mediaAssets.id, assetId))
+    .limit(1);
+
+  if (!row) throw new ValidationError("That image is no longer available");
+  return publicUrlFor(row.storageKey);
+}
+
+/**
  * Makes the record's images exactly this list, in this order.
  *
  * Editing needs more than [attachMedia]: a form that can add a picture can also

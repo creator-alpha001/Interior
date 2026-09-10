@@ -248,17 +248,17 @@ export async function registerOpsRoutes(app: FastifyInstance) {
   });
 
   app.post(routes.opsCreateDomain.path, async (request, reply) => {
-    await requirePermission(request, "settings.manage");
+    const staffUserId = await requirePermission(request, "settings.manage");
     const input = routes.opsCreateDomain.body!.parse(request.body);
     reply.status(201);
-    return admin.createDomain(input);
+    return admin.createDomain(input, staffUserId);
   });
 
   app.patch<{ Params: { id: string } }>(routes.opsUpdateDomain.path, async (request) => {
-    await requirePermission(request, "settings.manage");
+    const staffUserId = await requirePermission(request, "settings.manage");
     const { id } = routes.opsUpdateDomain.params!.parse(request.params);
     const patch = routes.opsUpdateDomain.body!.parse(request.body);
-    return admin.updateDomain(id, patch);
+    return admin.updateDomain(id, patch, staffUserId);
   });
 
   app.get<{ Params: { id: string } }>(routes.opsDomainUsage.path, async (request) => {
@@ -284,17 +284,17 @@ export async function registerOpsRoutes(app: FastifyInstance) {
   });
 
   app.post(routes.opsCreateCategory.path, async (request, reply) => {
-    await requirePermission(request, "catalog.manage");
+    const staffUserId = await requirePermission(request, "catalog.manage");
     const input = routes.opsCreateCategory.body!.parse(request.body);
     reply.status(201);
-    return admin.createCategory(input);
+    return admin.createCategory(input, staffUserId);
   });
 
   app.patch<{ Params: { id: string } }>(routes.opsUpdateCategory.path, async (request) => {
-    await requirePermission(request, "catalog.manage");
+    const staffUserId = await requirePermission(request, "catalog.manage");
     const { id } = routes.opsUpdateCategory.params!.parse(request.params);
     const patch = routes.opsUpdateCategory.body!.parse(request.body);
-    return admin.updateCategory(id, patch);
+    return admin.updateCategory(id, patch, staffUserId);
   });
 
   app.get(routes.opsPackages.path, async (request) => {

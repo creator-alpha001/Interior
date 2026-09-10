@@ -15,8 +15,8 @@ import type {
   ProductOption,
   VendorRow,
 } from "@repo/types";
-import { attachMedia, replaceOwnedMedia } from "../uploads/repository";
-import { db, transaction } from "../../db/client";
+import { attachMedia, attachSingleImage, replaceOwnedMedia } from "../uploads/repository";
+import { db, transaction, type Tx } from "../../db/client";
 import * as t from "../../db/schema";
 import { ConflictError, NotFoundError, ValidationError } from "../../lib/errors";
 import { fromX10, toDomain, toProfessionalSummary } from "../../lib/mappers";
@@ -502,12 +502,12 @@ export interface DomainInput {
   description: string;
   defaultCommissionPercent: number;
   labels: { materials: string; warranty: string; pricingBasis: string };
-  /** Public URL of a `catalogue_image`. Null clears it; undefined leaves it. */
-  bannerUrl?: string | null;
+  /** Id of an uploaded `catalogue_image`. Null clears it; undefined leaves it. */
+  bannerMediaId?: string | null;
   iconKey?: string;
 }
 
-export async function createDomain(input: DomainInput) {
+export async function createDomain(input: DomainInput, staffUserId?: string) {
   const slug = input.name
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, "-")
@@ -517,26 +517,68 @@ export async function createDomain(input: DomainInput) {
     .select({ value: sql<number>`COALESCE(max(${t.domains.sortOrder}), 0)::int` })
     .from(t.domains);
 
-  const [domain] = await db
-    .insert(t.domains)
-    .values({
-      name: input.name,
-      slug,
-      tagline: input.tagline,
-      description: input.description,
-      iconKey: input.iconKey ?? slug,
-      bannerUrl: input.bannerUrl ?? null,
-      defaultCommissionPercent: input.defaultCommissionPercent,
-      sortOrder: (maxOrder?.value ?? 0) + 1,
-      labels: input.labels,
-    })
-    .returning();
+  return transaction(async (tx) => {
+    const [domain] = await tx
+      .insert(t.domains)
+      .values({
+        name: input.name,
+        slug,
+        tagline: input.tagline,
+        description: input.description,
+        iconKey: input.iconKey ?? slug,
+        defaultCommissionPercent: input.defaultCommissionPercent,
+        sortOrder: (maxOrder?.value ?? 0) + 1,
+        labels: input.labels,
+      })
+      .returning();
 
-  return toDomain(domain!);
+    // After the insert, because the asset is owned by a row that has to exist
+    // before it can own anything.
+    const bannerUrl = await attachSingleImage(
+      tx,
+      input.bannerMediaId,
+      "domain",
+      domain!.id,
+      staffUserId,
+    );
+
+    if (bannerUrl !== undefined) {
+      const [withBanner] = await tx
+        .update(t.domains)
+        .set({ bannerUrl })
+        .where(eq(t.domains.id, domain!.id))
+        .returning();
+      return toDomain(withBanner!);
+    }
+
+    return toDomain(domain!);
+  });
 }
 
-export async function updateDomain(domainId: string, patch: Partial<DomainInput> & { isActive?: boolean }) {
-  const rows = await db
+export async function updateDomain(
+  domainId: string,
+  patch: Partial<DomainInput> & { isActive?: boolean },
+  staffUserId?: string,
+) {
+  return transaction(async (tx) => {
+    const bannerUrl = await attachSingleImage(
+      tx,
+      patch.bannerMediaId,
+      "domain",
+      domainId,
+      staffUserId,
+    );
+    return updateDomainRow(tx, domainId, patch, bannerUrl);
+  });
+}
+
+async function updateDomainRow(
+  tx: Tx,
+  domainId: string,
+  patch: Partial<DomainInput> & { isActive?: boolean },
+  bannerUrl: string | null | undefined,
+) {
+  const rows = await tx
     .update(t.domains)
     .set({
       ...(patch.name !== undefined ? { name: patch.name } : {}),
@@ -546,10 +588,9 @@ export async function updateDomain(domainId: string, patch: Partial<DomainInput>
         ? { defaultCommissionPercent: patch.defaultCommissionPercent }
         : {}),
       ...(patch.labels !== undefined ? { labels: patch.labels } : {}),
-      // `?? null` rather than a truthiness check: clearing the banner is a
-      // thing somebody will want to do, and `undefined` is the only value that
-      // should mean "leave it alone".
-      ...(patch.bannerUrl !== undefined ? { bannerUrl: patch.bannerUrl ?? null } : {}),
+      // `undefined` is the only value that means "leave it alone"; null is a
+      // deliberate clear, which is a thing somebody will want to do.
+      ...(bannerUrl !== undefined ? { bannerUrl } : {}),
       ...(patch.iconKey !== undefined ? { iconKey: patch.iconKey } : {}),
       ...(patch.isActive !== undefined ? { isActive: patch.isActive } : {}),
       updatedAt: new Date().toISOString(),
@@ -782,7 +823,7 @@ export interface CategoryInput {
   domainId: string;
   name: string;
   description: string;
-  imageUrl?: string | null;
+  imageMediaId?: string | null;
   parentId?: string | null;
   sortOrder?: number;
 }
@@ -803,7 +844,7 @@ export async function listCategoriesForOps(domainId?: string) {
     .orderBy(asc(t.domains.sortOrder), asc(t.productCategories.sortOrder));
 }
 
-export async function createCategory(input: CategoryInput) {
+export async function createCategory(input: CategoryInput, staffUserId?: string) {
   const slug = await uniqueSlug(input.name, async (candidate) => {
     const [row] = await db
       .select({ id: t.productCategories.id })
@@ -818,32 +859,67 @@ export async function createCategory(input: CategoryInput) {
     .from(t.productCategories)
     .where(eq(t.productCategories.domainId, input.domainId));
 
-  const [row] = await db
-    .insert(t.productCategories)
-    .values({
-      domainId: input.domainId,
-      parentId: input.parentId ?? null,
-      name: input.name,
-      slug,
-      description: input.description,
-      imageUrl: input.imageUrl ?? null,
-      sortOrder: input.sortOrder ?? (maxOrder?.value ?? 0) + 1,
-    })
-    .returning();
+  return transaction(async (tx) => {
+    const [row] = await tx
+      .insert(t.productCategories)
+      .values({
+        domainId: input.domainId,
+        parentId: input.parentId ?? null,
+        name: input.name,
+        slug,
+        description: input.description,
+        sortOrder: input.sortOrder ?? (maxOrder?.value ?? 0) + 1,
+      })
+      .returning();
 
-  return row!;
+    const imageUrl = await attachSingleImage(
+      tx,
+      input.imageMediaId,
+      "product_category",
+      row!.id,
+      staffUserId,
+    );
+
+    if (imageUrl === undefined) return row!;
+
+    const [withImage] = await tx
+      .update(t.productCategories)
+      .set({ imageUrl })
+      .where(eq(t.productCategories.id, row!.id))
+      .returning();
+    return withImage!;
+  });
 }
 
 export async function updateCategory(
   categoryId: string,
   patch: Partial<CategoryInput> & { isActive?: boolean },
+  staffUserId?: string,
 ) {
-  const rows = await db
+  return transaction(async (tx) => {
+    const imageUrl = await attachSingleImage(
+      tx,
+      patch.imageMediaId,
+      "product_category",
+      categoryId,
+      staffUserId,
+    );
+    return updateCategoryRow(tx, categoryId, patch, imageUrl);
+  });
+}
+
+async function updateCategoryRow(
+  tx: Tx,
+  categoryId: string,
+  patch: Partial<CategoryInput> & { isActive?: boolean },
+  imageUrl: string | null | undefined,
+) {
+  const rows = await tx
     .update(t.productCategories)
     .set({
       ...(patch.name !== undefined ? { name: patch.name } : {}),
       ...(patch.description !== undefined ? { description: patch.description } : {}),
-      ...(patch.imageUrl !== undefined ? { imageUrl: patch.imageUrl ?? null } : {}),
+      ...(imageUrl !== undefined ? { imageUrl } : {}),
       ...(patch.parentId !== undefined ? { parentId: patch.parentId ?? null } : {}),
       ...(patch.sortOrder !== undefined ? { sortOrder: patch.sortOrder } : {}),
       ...(patch.isActive !== undefined ? { isActive: patch.isActive } : {}),
