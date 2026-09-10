@@ -78,6 +78,13 @@
       "when": 1788618316132,
       "tag": "0010_function_search_path",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1788621916132,
+      "tag": "0011_auth_identities",
+      "breakpoints": true
     }
   ]
 }

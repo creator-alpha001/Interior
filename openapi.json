@@ -1889,6 +1889,48 @@
         ],
         "additionalProperties": false
       },
+      "GoogleSignInBody": {
+        "type": "object",
+        "properties": {
+          "idToken": {
+            "type": "string",
+            "minLength": 20,
+            "maxLength": 8192
+          }
+        },
+        "required": [
+          "idToken"
+        ],
+        "additionalProperties": false
+      },
+      "GoogleSignInResult": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string",
+            "enum": [
+              "signed_in",
+              "mobile_required"
+            ]
+          },
+          "session": {
+            "$ref": "#/components/schemas/AuthSession"
+          },
+          "linkToken": {
+            "type": "string"
+          },
+          "email": {
+            "type": "string"
+          },
+          "name": {
+            "type": "string"
+          }
+        },
+        "required": [
+          "status"
+        ],
+        "additionalProperties": false
+      },
       "InvoiceRow": {
         "type": "object",
         "properties": {
@@ -6601,6 +6643,10 @@
           "cityId": {
             "type": "string",
             "format": "uuid"
+          },
+          "linkToken": {
+            "type": "string",
+            "maxLength": 2048
           }
         },
         "required": [
@@ -6696,6 +6742,79 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/RequestOtpBody"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/auth/google": {
+      "post": {
+        "operationId": "googleSignIn",
+        "tags": [
+          "public"
+        ],
+        "summary": "Sign in with a Google ID token, or be asked for a mobile number first",
+        "description": "Sign in with a Google ID token, or be asked for a mobile number first No session required.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GoogleSignInResult"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record — which also covers a record belonging to somebody else",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request body or query failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Retry after the stated time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/GoogleSignInBody"
               }
             }
           }

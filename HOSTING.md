@@ -147,6 +147,7 @@ it is annotated per variable. The ones with no safe default:
 | `DATABASE_POOL_MAX` | `5`. Supabase allows far fewer connections than Railway did |
 | `OPS_DATABASE_POOL_MAX` | `2` |
 | `DATABASE_POOLER_MAX_CLIENTS` | `15`, matching the pool size in the Supabase dashboard |
+| `GOOGLE_CLIENT_IDS` | Comma-separated OAuth client ids, or empty to disable Google sign-in |
 
 Do **not** set `OWNER_DATABASE_URL` here. The running API has no business
 holding a credential that can drop tables; it lives in your local `.env` only.

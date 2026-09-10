@@ -76,32 +76,48 @@ function buildReferralCode(name: string | undefined, mobile: string): string {
   return `${first.slice(0, 8) || "INTERIOBEE"}${mobile.slice(-4)}`;
 }
 
-export async function findActorByMobile(mobile: string): Promise<Actor | null> {
-  const [row] = await db
-    .select({
-      user: t.users,
-      clientId: t.clients.id,
-      professionalId: t.professionals.id,
-      salesAgentId: t.salesAgents.id,
-    })
-    .from(t.users)
-    .leftJoin(t.clients, eq(t.clients.userId, t.users.id))
-    .leftJoin(t.professionals, eq(t.professionals.userId, t.users.id))
-    .leftJoin(t.salesAgents, eq(t.salesAgents.userId, t.users.id))
-    .where(and(eq(t.users.mobile, mobile), isNull(t.users.deletedAt)))
-    .limit(1);
+/** The columns every sign-in path needs to decide what kind of actor this is. */
+const actorColumns = {
+  user: t.users,
+  clientId: t.clients.id,
+  professionalId: t.professionals.id,
+  salesAgentId: t.salesAgents.id,
+} as const;
 
+type ActorRow = {
+  user: typeof t.users.$inferSelect;
+  clientId: string | null;
+  professionalId: string | null;
+  salesAgentId: string | null;
+};
+
+/**
+ * Turns a joined row into an actor, applying the rules that hold for every
+ * sign-in method rather than just for SMS.
+ *
+ * Shared because Google sign-in must enforce exactly the same three: a blocked
+ * account cannot sign in, staff never arrive this way, and a role with no
+ * matching profile row is not a usable session. Left in `findActorByMobile`
+ * they would have been quietly absent from the Google path, and "an admin can
+ * sign in with Google and get a customer session" is not a bug anybody would
+ * notice from reading either function alone.
+ */
+function actorFromRow(row: ActorRow | undefined, method: "sms" | "provider"): Actor | null {
   if (!row) return null;
 
   // A blocked account must not be able to sign in at all — not even to a
   // read-only screen.
   if (row.user.status !== "active") throw new NotAuthenticatedError("This account is not active");
 
-  // Staff never sign in by SMS. Falling through to a client session for an
-  // admin whose mobile happens to be known would be a privilege downgrade at
-  // best and a confusing half-session at worst.
+  // Staff never sign in this way. Falling through to a client session for an
+  // admin whose mobile or Google address happens to be known would be a
+  // privilege downgrade at best and a confusing half-session at worst.
   if (row.user.role === "admin" || row.user.role === "sales_agent") {
-    throw new NotAuthenticatedError("Staff accounts sign in with a password");
+    throw new NotAuthenticatedError(
+      method === "sms"
+        ? "Staff accounts sign in with a password"
+        : "Staff accounts sign in with a password, not with Google",
+    );
   }
 
   if (row.user.role === "professional") {
@@ -113,6 +129,88 @@ export async function findActorByMobile(mobile: string): Promise<Actor | null> {
   return row.clientId
     ? { role: "client", userId: row.user.id, clientId: row.clientId }
     : null;
+}
+
+export async function findActorByMobile(mobile: string): Promise<Actor | null> {
+  const [row] = await db
+    .select(actorColumns)
+    .from(t.users)
+    .leftJoin(t.clients, eq(t.clients.userId, t.users.id))
+    .leftJoin(t.professionals, eq(t.professionals.userId, t.users.id))
+    .leftJoin(t.salesAgents, eq(t.salesAgents.userId, t.users.id))
+    .where(and(eq(t.users.mobile, mobile), isNull(t.users.deletedAt)))
+    .limit(1);
+
+  return actorFromRow(row, "sms");
+}
+
+/**
+ * The actor behind a provider's subject claim, or null if it is not linked yet.
+ *
+ * Looked up by `(provider, subject)` and never by email. The address on a
+ * Google account can be changed by its owner and can be reissued to somebody
+ * else years later; the subject is stable and belongs to one person. Matching
+ * on email here is the standard way accounts get taken over.
+ */
+export async function findActorByIdentity(
+  provider: "google" | "apple",
+  subject: string,
+): Promise<Actor | null> {
+  const [row] = await db
+    .select(actorColumns)
+    .from(t.authIdentities)
+    .innerJoin(t.users, eq(t.users.id, t.authIdentities.userId))
+    .leftJoin(t.clients, eq(t.clients.userId, t.users.id))
+    .leftJoin(t.professionals, eq(t.professionals.userId, t.users.id))
+    .leftJoin(t.salesAgents, eq(t.salesAgents.userId, t.users.id))
+    .where(
+      and(
+        eq(t.authIdentities.provider, provider),
+        eq(t.authIdentities.subject, subject),
+        isNull(t.authIdentities.deletedAt),
+        isNull(t.users.deletedAt),
+      ),
+    )
+    .limit(1);
+
+  const actor = actorFromRow(row, "provider");
+  if (actor) {
+    await db
+      .update(t.authIdentities)
+      .set({ lastUsedAt: new Date().toISOString() })
+      .where(
+        and(eq(t.authIdentities.provider, provider), eq(t.authIdentities.subject, subject)),
+      );
+  }
+  return actor;
+}
+
+/**
+ * Attaches a provider account to a user, after the mobile number has been
+ * proved by a code.
+ *
+ * Idempotent on `(provider, subject)`: pressing the button twice, or an SMS
+ * arriving late and the person starting again, must not fail. The conflict
+ * clause deliberately does not move an identity to a different user — that
+ * would let anyone who can complete an OTP on *their own* number claim a Google
+ * account already linked to somebody else's.
+ */
+export async function linkIdentity(
+  userId: string,
+  identity: { provider: "google" | "apple"; subject: string; email: string },
+): Promise<void> {
+  await db
+    .insert(t.authIdentities)
+    .values({
+      userId,
+      provider: identity.provider,
+      subject: identity.subject,
+      email: identity.email,
+      lastUsedAt: new Date().toISOString(),
+    })
+    .onConflictDoNothing({
+      target: [t.authIdentities.provider, t.authIdentities.subject],
+    });
 }
 
 /* ------------------------------------------------------------------ *

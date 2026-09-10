@@ -81,6 +81,20 @@ const schema = z.object({
    */
   DATABASE_POOLER_MAX_CLIENTS: z.coerce.number().int().positive().default(15),
 
+  /**
+   * Google OAuth client ids allowed to sign in, comma separated.
+   *
+   * A list because the website, the Android build and the iOS build each get
+   * their own client id from Google and all three sign in through one endpoint.
+   * It is an allowlist of `aud` claims: a token minted for somebody else's
+   * application is a valid Google token, and accepting it would let any app
+   * sign a person into this one.
+   *
+   * Empty means Google sign-in is off, which is the default and is not a
+   * failure — the mobile OTP path is unaffected.
+   */
+  GOOGLE_CLIENT_IDS: z.string().optional(),
+
   WEB_ORIGIN: z.string().url().default("http://localhost:3001"),
   ADMIN_ORIGIN: z.string().url().default("http://localhost:3002"),
 
@@ -437,6 +451,12 @@ function load() {
      * postgres.js is untouched by any of this and keeps the full URL.
      */
     databaseUrlForPg: env.DATABASE_URL.replace(/[?&]sslmode=[^&]*/i, ""),
+
+    /** GOOGLE_CLIENT_IDS split and cleaned. Empty when the feature is off. */
+    googleClientIds: (env.GOOGLE_CLIENT_IDS ?? "")
+      .split(",")
+      .map((id) => id.trim())
+      .filter(Boolean),
 
     warnings,
   };

@@ -28,6 +28,47 @@ export const otpVerifySchema = z.object({
   /** Set on first sign-in, when there is no account yet. */
   name: z.string().trim().min(2).max(80).optional(),
   cityId: z.string().uuid().optional(),
+  /**
+   * Returned by `/auth/google` when the Google account is not linked yet.
+   *
+   * Present only on the one OTP that finishes a Google sign-in. Verifying the
+   * code proves the number; this says which Google account to attach to it.
+   */
+  linkToken: z.string().max(2048).optional(),
+});
+
+/**
+ * An ID token from Google, obtained by the browser or the app.
+ *
+ * The token is the whole request: it is signed by Google, names the client id
+ * it was minted for, and carries the person's subject and verified email. The
+ * server checks the signature rather than trusting any of it.
+ */
+export const googleSignInSchema = z.object({
+  idToken: z.string().min(20).max(8192),
+});
+
+/**
+ * What happened, and what the caller has to do next.
+ *
+ * Two outcomes rather than one, because a Google account alone cannot finish
+ * signing somebody up. `users.mobile` is NOT NULL and ops ring every customer
+ * about their lead, so a first-time Google user still verifies a number once —
+ * after which `signed_in` is the only outcome they ever see again.
+ *
+ * A flat object with a `status` rather than a union of two shapes: this crosses
+ * into a generated OpenAPI document and a Dart client, and both handle one
+ * object with optional fields far better than they handle anyOf.
+ */
+export const googleSignInResultSchema = z.object({
+  status: z.enum(["signed_in", "mobile_required"]),
+  /** Present when `status` is `signed_in`. */
+  session: authSessionSchema.optional(),
+  /** Present when `status` is `mobile_required`. Pass it to `/auth/otp/verify`. */
+  linkToken: z.string().optional(),
+  /** From the Google account, so the next screen can greet them by name. */
+  email: z.string().optional(),
+  name: z.string().optional(),
 });
 
 export const staffLoginSchema = z.object({
@@ -90,6 +131,14 @@ export const authRoutes = {
     body: otpRequestSchema,
     summary: "Send a six-digit code to a mobile number",
     response: otpChallengeSchema,
+  }),
+  googleSignIn: route({
+    method: "POST",
+    path: "/auth/google",
+    audience: "public",
+    body: googleSignInSchema,
+    summary: "Sign in with a Google ID token, or be asked for a mobile number first",
+    response: googleSignInResultSchema,
   }),
   verifyOtp: route({
     method: "POST",

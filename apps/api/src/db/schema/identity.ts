@@ -20,6 +20,7 @@ import {
 import { fk, primaryId, timestamps, ts } from "./_shared";
 import { cities } from "./geo";
 import {
+  authProvider,
   devicePlatform,
   referralRewardStatus,
   userRole,
@@ -198,6 +199,53 @@ export const otpChallenges = pgTable(
   (t) => [
     index("ix_otp_mobile_created").on(t.mobile, t.createdAt),
     index("ix_otp_expiry").on(t.expiresAt),
+  ],
+);
+
+/**
+ * A sign-in that is not a mobile number.
+ *
+ * Its own table rather than a `google_id` column on `users`, because one person
+ * may hold several and the interesting queries are "who is this subject" and
+ * "what can this account sign in with" — both awkward against a widening row of
+ * nullable provider columns.
+ *
+ * `subject` is the provider's own immutable id for the person, never the email.
+ * A Google account's address can change, and two people can hold the same
+ * address years apart; the subject cannot and does not.
+ *
+ * Note what this table does *not* do: it never replaces `users.mobile`. Ops
+ * ring every customer for the scoping call, so an account nobody can telephone
+ * is not an account this business can serve. A person signing in with Google
+ * for the first time still verifies a number once, and the row here is what
+ * lets them skip the code every time after.
+ */
+export const authIdentities = pgTable(
+  "auth_identities",
+  {
+    id: primaryId(),
+    userId: fk("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    provider: authProvider("provider").notNull(),
+    /** The provider's immutable subject claim (`sub`), not an email address. */
+    subject: text("subject").notNull(),
+    /**
+     * What the provider said the address was when the link was made.
+     *
+     * Kept for support ("which Google account was this?") and never for
+     * lookups: matching on it is how one person ends up signed into another
+     * person's account after an address is recycled.
+     */
+    email: text("email"),
+    lastUsedAt: ts("last_used_at"),
+    ...timestamps,
+  },
+  (t) => [
+    // One subject belongs to one account. The unique index is what stops a
+    // second row quietly granting a second person the same sign-in.
+    uniqueIndex("uq_auth_identities_provider_subject").on(t.provider, t.subject),
+    index("ix_auth_identities_user").on(t.userId),
   ],
 );
 

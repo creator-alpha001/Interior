@@ -12,7 +12,14 @@ import { config } from "../lib/config";
 import { NotAuthenticatedError } from "../lib/errors";
 import { LIMITS, consume, reset } from "../lib/rate-limit";
 import { createChallenge, verifyChallenge } from "../modules/auth/otp";
-import { actorForMobile, authenticateStaff } from "../modules/auth/repository";
+import {
+  actorForMobile,
+  authenticateStaff,
+  findActorByIdentity,
+  linkIdentity,
+} from "../modules/auth/repository";
+import { issueLinkToken, readLinkToken } from "../modules/auth/link-token";
+import { verifyGoogleIdToken } from "../lib/google";
 import {
   SESSION_COOKIE,
   createSession,
@@ -56,13 +63,95 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     };
   });
 
+  /**
+   * Google sign-in.
+   *
+   * Ends in one of two places. A Google account already linked to somebody is a
+   * complete sign-in and behaves exactly like a verified OTP. One that is not
+   * gets a link token and a request for a mobile number, because `users.mobile`
+   * is NOT NULL and ops ring every customer about their lead — an account
+   * nobody can telephone is not one this business can serve.
+   *
+   * What it deliberately does not do is match on email. A Google address can be
+   * changed by its owner and can be reissued to a different person years later,
+   * and `users.email` here may have been typed in by ops rather than proved by
+   * anyone. Signing somebody in because two strings matched is the ordinary way
+   * accounts are taken over, so an unlinked Google account always costs one SMS
+   * — once, ever.
+   */
+  app.post(routes.googleSignIn.path, async (request, reply) => {
+    const { idToken } = routes.googleSignIn.body!.parse(request.body);
+
+    if (config.googleClientIds.length === 0) {
+      throw new NotAuthenticatedError("Google sign-in is not available");
+    }
+
+    // Rate limited by address like the OTP routes: verifying a signature is
+    // cheap but not free, and this endpoint is unauthenticated by definition.
+    await consume(`google:ip:${request.ip}`, LIMITS.otpVerifyPerIp);
+
+    const identity = await verifyGoogleIdToken(idToken, config.googleClientIds);
+    const actor = await findActorByIdentity("google", identity.subject);
+
+    if (!actor) {
+      reply.header("Cache-Control", "no-store");
+      return {
+        status: "mobile_required" as const,
+        linkToken: issueLinkToken({
+          provider: "google",
+          subject: identity.subject,
+          email: identity.email,
+          name: identity.name,
+        }),
+        email: identity.email,
+        name: identity.name,
+      };
+    }
+
+    const session = await createSession(actor.userId, {
+      userAgent: request.headers["user-agent"],
+      ip: request.ip,
+    });
+
+    reply.setCookie(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
+    reply.header("Cache-Control", "no-store");
+
+    return {
+      status: "signed_in" as const,
+      session: wantsTokenInBody(request)
+        ? { ...actor, sessionToken: session.token, expiresAt: session.expiresAt.toISOString() }
+        : actor,
+    };
+  });
+
   app.post(routes.verifyOtp.path, async (request, reply) => {
-    const { challengeId, code, name, cityId } = routes.verifyOtp.body!.parse(request.body);
+    const { challengeId, code, name, cityId, linkToken } = routes.verifyOtp.body!.parse(
+      request.body,
+    );
 
     await consume(`otp:verify:${request.ip}`, LIMITS.otpVerifyPerIp);
 
     const { mobile } = await verifyChallenge(challengeId, code);
-    const actor = await actorForMobile(mobile, { name, cityId });
+
+    /**
+     * A Google sign-in finishing its one-off mobile check.
+     *
+     * Read before the account is touched so a forged or expired token fails
+     * here rather than after a new user has been created. The name from Google
+     * is only a fallback: something typed into the form is a better answer than
+     * whatever the Google profile says.
+     */
+    const pending = linkToken ? readLinkToken(linkToken) : null;
+
+    const actor = await actorForMobile(mobile, { name: name ?? pending?.name, cityId });
+
+    if (pending) {
+      await linkIdentity(actor.userId, {
+        provider: pending.provider,
+        subject: pending.subject,
+        email: pending.email,
+      });
+    }
 
     const session = await createSession(actor.userId, {
       userAgent: request.headers["user-agent"],

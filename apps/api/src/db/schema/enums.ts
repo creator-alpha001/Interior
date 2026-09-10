@@ -25,6 +25,16 @@ export const referralRewardStatus = pgEnum("referral_reward_status", [
 ]);
 export const devicePlatform = pgEnum("device_platform", ["android", "ios", "web"]);
 
+/**
+ * Where a sign-in came from, other than a mobile number.
+ *
+ * `apple` is listed now though nothing issues it yet: adding a value to a
+ * Postgres enum later is a migration that cannot run inside a transaction with
+ * the code that uses it, and App Store rules make Apple the likely next one the
+ * moment Google ships on iOS.
+ */
+export const authProvider = pgEnum("auth_provider", ["google", "apple"]);
+
 /* ---- domains ---- */
 export const domainApprovalStatus = pgEnum("domain_approval_status", [
   "pending",
