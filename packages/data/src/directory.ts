@@ -14,6 +14,10 @@ export interface ProfessionalQuery {
   cityId?: string;
   search?: string;
   verifiedOnly?: boolean;
+  /** Stars, 0 to 5, against the vendor's overall rating. */
+  minRating?: number;
+  minExperience?: number;
+  sort?: "rating" | "experience" | "projects";
   limit?: number;
   cursor?: string | null;
 }
@@ -33,6 +37,9 @@ export async function listProfessionals(
         city: query.cityId,
         search: query.search,
         verifiedOnly: query.verifiedOnly,
+        minRating: query.minRating,
+        minExperience: query.minExperience,
+        sort: query.sort,
         limit: query.limit ?? DEFAULT_PAGE_SIZE,
         cursor: query.cursor,
       },
@@ -45,7 +52,12 @@ export async function listProfessionals(
   const search = query.search?.trim().toLowerCase();
 
   const eligible = store.professionals.filter((pro) => {
+    if (pro.verificationStatus === "suspended" || pro.verificationStatus === "blacklisted") {
+      return false;
+    }
     if (query.verifiedOnly && pro.verificationStatus !== "verified") return false;
+    if (query.minRating && pro.avgRating < query.minRating) return false;
+    if (query.minExperience && pro.experienceYears < query.minExperience) return false;
 
     if (domain) {
       const link = store.professionalDomains.find(
@@ -73,13 +85,22 @@ export async function listProfessionals(
     return true;
   });
 
+  // The same order the API gives: a sort key first when one was asked for,
+  // with the (per-trade, where a trade is in context) rating breaking ties.
+  const byRating = (a: ProfessionalSummary, b: ProfessionalSummary) =>
+    (b.domainRating?.avgRating ?? b.avgRating) - (a.domainRating?.avgRating ?? a.avgRating) ||
+    b.completedProjects - a.completedProjects;
+  const sorters = {
+    rating: byRating,
+    experience: (a: ProfessionalSummary, b: ProfessionalSummary) =>
+      b.experienceYears - a.experienceYears || byRating(a, b),
+    projects: (a: ProfessionalSummary, b: ProfessionalSummary) =>
+      b.completedProjects - a.completedProjects || byRating(a, b),
+  };
+
   const summaries = eligible
     .map((pro) => toProfessionalSummary(pro.id, domain?.id))
-    .sort(
-      (a, b) =>
-        (b.domainRating?.avgRating ?? b.avgRating) - (a.domainRating?.avgRating ?? a.avgRating) ||
-        b.completedProjects - a.completedProjects,
-    );
+    .sort(sorters[query.sort ?? "rating"]);
 
   return delay(paginate(summaries, query.limit ?? DEFAULT_PAGE_SIZE, query.cursor));
 }

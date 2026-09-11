@@ -83,7 +83,8 @@ export function ApplicationReview({
           <h2 className="text-[14px] font-semibold text-ink">Decide</h2>
           <p className="mt-0.5 text-[12.5px] text-ink-3">
             Approving creates the vendor, approves the trades you pick, and moves this account to
-            the professional portal.
+            the professional portal. They are not verified, and get no leads, until their signed
+            agreement, its original and their business documents are accepted.
           </p>
         </div>
 

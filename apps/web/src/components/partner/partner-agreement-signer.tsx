@@ -39,7 +39,7 @@ export function PartnerAgreementSigner({
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <p className="text-[13px] font-semibold uppercase tracking-wider text-positive">
-              Partner agreement signed
+              Partner terms accepted online
             </p>
             <p className="mt-1.5 text-[14px] text-ink">
               Version {agreement.termsVersion} · signed by {agreement.signatoryName}
@@ -76,7 +76,8 @@ export function PartnerAgreementSigner({
         <h2 className="mt-1 text-[17px] font-semibold text-ink">{terms.title}</h2>
         <p className="mt-1 text-[13px] leading-relaxed text-ink-2">{terms.summary}</p>
         <p className="mt-2 text-[12.5px] font-medium text-ink-2">
-          You will not be assigned any leads until this is signed.
+          This is the first step. You will also sign the printed agreement below, and receive
+          leads once our team has verified your paperwork.
         </p>
       </div>
 
@@ -148,9 +149,8 @@ export function PartnerAgreementSigner({
         </label>
 
         <p className="mt-2 text-[12px] leading-relaxed text-ink-4">
-          Typing your name here is a legally binding signature on version{" "}
-          {terms.version} of these terms. The date, time and each clause you ticked are recorded
-          with it.
+          Typing your name here records your acceptance of version {terms.version} of these terms.
+          The date, time and each clause you ticked are recorded with it.
         </p>
 
         <button
@@ -172,7 +172,7 @@ export function PartnerAgreementSigner({
             ? "Signing…"
             : !allTicked
               ? `Tick all ${terms.acknowledgements.length} acknowledgements`
-              : "Sign and start receiving leads"}
+              : "Accept the terms"}
         </button>
       </div>
     </div>

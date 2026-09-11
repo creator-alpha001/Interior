@@ -99,6 +99,13 @@
       "when": 1788629116132,
       "tag": "0013_professional_applications",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1788632716132,
+      "tag": "0014_vendor_verification",
+      "breakpoints": true
     }
   ]
 }

@@ -89,6 +89,32 @@ export const partnerTerms: PartnerTerms = {
       label: "I will honour the timeline, materials and warranty stated in the quotes I submit.",
     },
   ],
+  documentUrl: null,
+  hardcopyInstructions:
+    "Courier or post the signed original to the Decora Shine office, with every page signed and both witnesses' names and addresses filled in. Write your business name on the envelope. If you are close to the office you can hand it over in person instead — choose that below and our team will call to arrange a time.",
+};
+
+/**
+ * Paper not yet started.
+ *
+ * The seed's signed vendors accepted online before the paper agreement existed,
+ * which is exactly the position every live vendor is in on the day it arrives.
+ */
+const noPaperworkYet = {
+  signedCopyStatus: "not_submitted" as const,
+  signedCopySubmittedAt: null,
+  stampCertificateNumber: null,
+  signedCopyReviewedAt: null,
+  signedCopyReviewedByUserId: null,
+  signedCopyReviewNote: null,
+  hardcopyMethod: null,
+  hardcopyStatus: "not_sent" as const,
+  hardcopyCourier: null,
+  hardcopyTrackingNumber: null,
+  hardcopyDispatchedAt: null,
+  hardcopyReceivedAt: null,
+  hardcopyReceivedByUserId: null,
+  hardcopyNote: null,
 };
 
 interface SignedSeed {
@@ -126,6 +152,7 @@ export const partnerAgreements: PartnerAgreement[] = [
     signedFromIp: `49.36.${180 + i}.${20 + i * 3}`,
     signedUserAgent: "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36",
     documentUrl: `/mock/partner-agreements/${s.professionalId}-2026.1.pdf`,
+    ...noPaperworkYet,
   })),
   // Arif has been verified but never signed — so he is in no lead pool, which
   // is the rule made visible rather than an oversight in the data.
@@ -143,6 +170,7 @@ export const partnerAgreements: PartnerAgreement[] = [
     signedFromIp: null,
     signedUserAgent: null,
     documentUrl: null,
+    ...noPaperworkYet,
   },
   {
     ...rec(40, 40),
@@ -158,5 +186,6 @@ export const partnerAgreements: PartnerAgreement[] = [
     signedFromIp: null,
     signedUserAgent: null,
     documentUrl: null,
+    ...noPaperworkYet,
   },
 ];

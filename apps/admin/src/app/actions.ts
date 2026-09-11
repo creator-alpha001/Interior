@@ -26,8 +26,15 @@ import {
   updateCategory,
   updateDomain,
   updatePackage,
+  receiveHardcopy,
+  reviewSignedCopy,
+  reviewVendorDocument,
+  updatePartnerTerms,
 } from "@repo/data";
 import type {
+  HardcopyReceipt,
+  PartnerTermsInput,
+  VerificationDecision,
   ApplicationDecision,
   CallLogInput,
   CatalogueProductInput,
@@ -118,13 +125,89 @@ export async function scheduleVisitAction(
 
 /* ---------------- Vendors ---------------- */
 
+/**
+ * Returns `{ error }` rather than throwing, because "Verified" is now refused
+ * until the paperwork is complete, and the reviewer needs to read why rather
+ * than land on an error page.
+ */
 export async function setVendorStatusAction(
   professionalId: string,
   status: VerificationStatus,
-) {
-  await setVendorStatus(professionalId, status);
+): Promise<ActionResult> {
+  try {
+    await setVendorStatus(professionalId, status);
+  } catch (error) {
+    return explain(error, "That status could not be changed.");
+  }
   revalidatePath("/vendors");
   revalidatePath(`/vendors/${professionalId}`);
+  return {};
+}
+
+/* ---------------- Vendor verification ---------------- */
+
+function revalidateVendor(professionalId: string) {
+  revalidatePath("/vendors");
+  revalidatePath(`/vendors/${professionalId}`);
+}
+
+export async function reviewSignedCopyAction(
+  professionalId: string,
+  decision: VerificationDecision,
+  note: string | null,
+): Promise<ActionResult> {
+  try {
+    await reviewSignedCopy(professionalId, decision, note);
+  } catch (error) {
+    return explain(error, "That decision could not be recorded.");
+  }
+  revalidateVendor(professionalId);
+  return {};
+}
+
+export async function receiveHardcopyAction(
+  professionalId: string,
+  input: HardcopyReceipt,
+): Promise<ActionResult> {
+  try {
+    await receiveHardcopy(professionalId, input);
+  } catch (error) {
+    return explain(error, "That could not be recorded.");
+  }
+  revalidateVendor(professionalId);
+  return {};
+}
+
+export async function reviewVendorDocumentAction(
+  professionalId: string,
+  documentId: string,
+  decision: VerificationDecision,
+  note: string | null,
+): Promise<ActionResult> {
+  try {
+    await reviewVendorDocument(professionalId, documentId, decision, note);
+  } catch (error) {
+    return explain(error, "That decision could not be recorded.");
+  }
+  revalidateVendor(professionalId);
+  return {};
+}
+
+export async function updatePartnerTermsAction(input: PartnerTermsInput): Promise<ActionResult> {
+  try {
+    await updatePartnerTerms(input);
+  } catch (error) {
+    return explain(error, "The agreement could not be saved.");
+  }
+  revalidatePath("/agreements");
+  return {};
+}
+
+/** A client error's message, or a seed-store refusal's, for the form to show. */
+function explain(error: unknown, fallback: string): ActionResult {
+  if (error instanceof ApiError) return error.isClientError ? { error: error.message } : { error: fallback };
+  if (error instanceof Error) return { error: error.message };
+  return { error: fallback };
 }
 
 export async function setVendorDomainStatusAction(

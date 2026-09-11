@@ -150,7 +150,9 @@ export default async function VendorsPage({
               render: (row) => (
                 <div className="flex flex-col items-start gap-1">
                   <Badge tone={statusTone[row.professional.verificationStatus]}>
-                    {row.professional.verificationStatus}
+                    {row.professional.verificationStatus === "pending"
+                      ? "verification pending"
+                      : row.professional.verificationStatus}
                   </Badge>
                   {!row.hasSignedPartnerAgreement ? (
                     <Badge tone="warning">Agreement unsigned</Badge>

@@ -72,7 +72,7 @@ export default async function DomainCataloguePage({
       sort: (sort as "featured") ?? "featured",
     }),
     listPackages(slug),
-    listProfessionals({ domainSlug: slug, cityId: city?.id, verifiedOnly: true, limit: 3 }),
+    listProfessionals({ domainSlug: slug, cityId: city?.id, limit: 3 }),
     listPosts({ domainSlug: slug, limit: 3 }),
   ]);
 

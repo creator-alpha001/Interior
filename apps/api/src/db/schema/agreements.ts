@@ -20,10 +20,17 @@ import {
 } from "drizzle-orm/pg-core";
 import type { PartnerTerms } from "@repo/types";
 import { fk, primaryId, timestamps, ts } from "./_shared";
-import { clients, professionals } from "./identity";
+import { clients, professionals, users } from "./identity";
 import { leads, leadDomains } from "./leads";
 import { quotes } from "./flow";
-import { agreementStatus, partnerAgreementStatus } from "./enums";
+import { mediaAssets } from "./media";
+import {
+  agreementStatus,
+  partnerAgreementStatus,
+  partnerHardcopyMethod,
+  partnerHardcopyStatus,
+  partnerSignedCopyStatus,
+} from "./enums";
 
 export const agreements = pgTable(
   "agreements",
@@ -123,6 +130,14 @@ export const partnerTerms = pgTable(
      * Postgres treats NULLs as distinct, so any number of past versions coexist.
      */
     isCurrent: boolean("is_current"),
+    /**
+     * The standard agreement PDF for this version. The URL is kept on the row,
+     * like `domains.banner_url`, because vendors read it under row-level
+     * security and cannot read a media row a member of staff uploaded.
+     */
+    documentUrl: text("document_url"),
+    documentMediaId: fk("document_media_id").references(() => mediaAssets.id),
+    hardcopyInstructions: text("hardcopy_instructions").notNull().default(""),
     ...timestamps,
   },
   (t) => [
@@ -164,6 +179,22 @@ export const partnerAgreements = pgTable(
     signedFromIp: varchar("signed_from_ip", { length: 45 }),
     signedUserAgent: text("signed_user_agent"),
     documentUrl: text("document_url"),
+    /** The signed paper agreement, photographed. Pages are `media_assets` owned by this row. */
+    signedCopyStatus: partnerSignedCopyStatus("signed_copy_status").notNull().default("not_submitted"),
+    signedCopySubmittedAt: ts("signed_copy_submitted_at"),
+    stampCertificateNumber: varchar("stamp_certificate_number", { length: 60 }),
+    signedCopyReviewedAt: ts("signed_copy_reviewed_at"),
+    signedCopyReviewedByUserId: fk("signed_copy_reviewed_by_user_id").references(() => users.id),
+    signedCopyReviewNote: text("signed_copy_review_note"),
+    /** The signed original, on its way to us or in our hands. */
+    hardcopyMethod: partnerHardcopyMethod("hardcopy_method"),
+    hardcopyStatus: partnerHardcopyStatus("hardcopy_status").notNull().default("not_sent"),
+    hardcopyCourier: text("hardcopy_courier"),
+    hardcopyTrackingNumber: varchar("hardcopy_tracking_number", { length: 80 }),
+    hardcopyDispatchedAt: ts("hardcopy_dispatched_at"),
+    hardcopyReceivedAt: ts("hardcopy_received_at"),
+    hardcopyReceivedByUserId: fk("hardcopy_received_by_user_id").references(() => users.id),
+    hardcopyNote: text("hardcopy_note"),
     ...timestamps,
   },
   (t) => [

@@ -275,7 +275,8 @@ export async function decideProfessionalApplication(
     ratingCount: 0,
     completedProjects: 0,
     languages: [],
-    verificationStatus: "verified",
+    // Approved, not verified: that waits for the signed original and documents.
+    verificationStatus: "pending",
     avgResponseHours: 0,
     createdAt: nowIso(),
     updatedAt: nowIso(),

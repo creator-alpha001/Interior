@@ -1,6 +1,8 @@
 /** What a professional must complete before they are in any lead pool. */
 import type { z } from "zod";
 import type {
+  hardcopyMethodSchema,
+  hardcopyStatusSchema,
   onboardingStepKeySchema,
   onboardingStepSchema,
   partnerAgreementSchema,
@@ -8,7 +10,13 @@ import type {
   partnerAcknowledgementSchema,
   partnerTermsSchema,
   partnerTermsSectionSchema,
+  signedCopyStatusSchema,
+  vendorDocumentKindSchema,
+  vendorDocumentSchema,
+  vendorDocumentSlotSchema,
+  vendorDocumentStatusSchema,
   vendorOnboardingSchema,
+  vendorVerificationSchema,
 } from "./schema/onboarding";
 
 /**
@@ -38,3 +46,20 @@ export type OnboardingStepKey = z.infer<typeof onboardingStepKeySchema>;
 export type OnboardingStep = z.infer<typeof onboardingStepSchema>;
 
 export type VendorOnboarding = z.infer<typeof vendorOnboardingSchema>;
+
+export type SignedCopyStatus = z.infer<typeof signedCopyStatusSchema>;
+
+export type HardcopyMethod = z.infer<typeof hardcopyMethodSchema>;
+
+export type HardcopyStatus = z.infer<typeof hardcopyStatusSchema>;
+
+export type VendorDocumentKind = z.infer<typeof vendorDocumentKindSchema>;
+
+export type VendorDocumentStatus = z.infer<typeof vendorDocumentStatusSchema>;
+
+export type VendorDocument = z.infer<typeof vendorDocumentSchema>;
+
+export type VendorDocumentSlot = z.infer<typeof vendorDocumentSlotSchema>;
+
+/** Everything between an approved vendor and the verified tag. */
+export type VendorVerification = z.infer<typeof vendorVerificationSchema>;

@@ -19,6 +19,9 @@ import {
   vendorProjectViewSchema,
   vendorOnboardingSchema,
   vendorVisitViewSchema,
+  hardcopyMethodSchema,
+  vendorDocumentKindSchema,
+  vendorVerificationSchema,
 } from "@repo/types/schema";
 import { idSchema, mediaIdSchema, rupeesSchema, shortText } from "./common";
 import { messageSchema } from "./customer";
@@ -63,6 +66,32 @@ export const signPartnerAgreementSchema = z.object({
   /** Typed, and stored exactly as entered. */
   signatureText: z.string().trim().min(3).max(120),
   acknowledgedClauses: z.array(z.string().max(60)).min(1),
+});
+
+/** Every page of the paper agreement, signed, photographed or scanned. */
+export const submitSignedCopySchema = z.object({
+  files: z.array(mediaIdSchema).min(1, "Upload every signed page").max(20),
+  stampCertificateNumber: z.string().trim().max(60).nullish(),
+});
+
+/**
+ * How the signed original is reaching us.
+ *
+ * A courier needs its name and a tracking number; that rule is enforced by the
+ * API rather than here, because a refinement would stop this schema being
+ * described to the mobile client as a plain object.
+ */
+export const reportHardcopySchema = z.object({
+  method: hardcopyMethodSchema,
+  courier: z.string().trim().max(80).nullish(),
+  trackingNumber: z.string().trim().max(80).nullish(),
+  note: z.string().trim().max(500).nullish(),
+});
+
+export const submitVendorDocumentSchema = z.object({
+  kind: vendorDocumentKindSchema,
+  documentNumber: z.string().trim().max(40).nullish(),
+  files: z.array(mediaIdSchema).min(1, "Attach the document").max(6),
 });
 
 const idParam = z.object({ id: idSchema });
@@ -188,5 +217,35 @@ export const vendorRoutes = {
     body: signPartnerAgreementSchema,
     response: partnerAgreementSchema,
     successStatus: 201,
+  }),
+
+  /* ---- verification: the paperwork behind the verified tag ---- */
+  vendorVerification: route({
+    method: "GET",
+    path: "/vendor/verification",
+    audience: "professional",
+    query: z.object({}),
+    response: vendorVerificationSchema,
+  }),
+  submitSignedCopy: route({
+    method: "POST",
+    path: "/vendor/verification/signed-copy",
+    audience: "professional",
+    body: submitSignedCopySchema,
+    response: vendorVerificationSchema,
+  }),
+  reportHardcopy: route({
+    method: "POST",
+    path: "/vendor/verification/hardcopy",
+    audience: "professional",
+    body: reportHardcopySchema,
+    response: vendorVerificationSchema,
+  }),
+  submitVendorDocument: route({
+    method: "POST",
+    path: "/vendor/verification/documents",
+    audience: "professional",
+    body: submitVendorDocumentSchema,
+    response: vendorVerificationSchema,
   }),
 } as const;

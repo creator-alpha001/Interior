@@ -7,7 +7,7 @@
  * key becomes a URL.
  */
 import type { MediaAsset } from "@repo/types";
-import { publicUrlFor } from "./storage";
+import { publicUrlFor, readUrlFor } from "./storage";
 
 export interface MediaRow {
   id: string;
@@ -28,10 +28,17 @@ export interface MediaRow {
  */
 export const toPublicUrl = publicUrlFor;
 
+/**
+ * A file as a view carries it.
+ *
+ * `readUrlFor` rather than the public URL, so a private file — a vendor's PAN
+ * card, a signed agreement — comes back with a link that expires, from every
+ * view that includes it, without each one having to remember.
+ */
 export function toMediaAsset(row: MediaRow): MediaAsset {
   return {
     id: row.id,
-    url: toPublicUrl(row.storageKey),
+    url: readUrlFor(row.storageKey),
     type: row.type,
     ...(row.caption ? { caption: row.caption } : {}),
   };

@@ -29,6 +29,7 @@ import type * as customerWrite from "../modules/customer/mutations";
 import type * as vendor from "../modules/vendor/repository";
 import type * as vendorWrite from "../modules/vendor/mutations";
 import type * as onboarding from "../modules/vendor/onboarding";
+import type * as verification from "../modules/vendor/verification";
 import type * as uploads from "../modules/uploads/repository";
 import type * as sessions from "../modules/auth/sessions";
 import type * as closure from "../modules/auth/closure";
@@ -282,4 +283,20 @@ export type _vendorOnboarding = Assert<Check<
 export type _signPartnerAgreement = Assert<Check<
   typeof routes.signPartnerAgreement,
   typeof vendorWrite.signPartnerAgreement
+>>;
+export type _vendorVerification = Assert<Check<
+  typeof routes.vendorVerification,
+  typeof verification.getVerification
+>>;
+export type _submitSignedCopy = Assert<Check<
+  typeof routes.submitSignedCopy,
+  typeof verification.submitSignedCopy
+>>;
+export type _reportHardcopy = Assert<Check<
+  typeof routes.reportHardcopy,
+  typeof verification.reportHardcopy
+>>;
+export type _submitVendorDocument = Assert<Check<
+  typeof routes.submitVendorDocument,
+  typeof verification.submitDocument
 >>;

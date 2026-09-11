@@ -6,7 +6,8 @@
  * commission rate. The permission each one needs is named beside it.
  */
 import { z } from "zod";
-import { idSchema, longText, paginationSchema, shortText, slugSchema } from "./common";
+import { hardcopyMethodSchema } from "@repo/types/schema";
+import { idSchema, longText, mediaIdSchema, paginationSchema, shortText, slugSchema } from "./common";
 import { route } from "./http";
 
 export const leadQueueSchema = paginationSchema.extend({
@@ -46,6 +47,24 @@ export const visitOutcomeSchema = z.object({
   outcome: longText(4000),
   /** Whether it changed the scope enough that quotes need revising. */
   changedScope: z.boolean().default(false),
+});
+
+/** Accepting or refusing something a vendor sent. A refusal must say why. */
+export const verificationReviewSchema = z.object({
+  decision: z.enum(["accept", "reject"]),
+  note: z.string().trim().max(1000).nullish(),
+});
+
+export const receiveHardcopySchema = z.object({
+  method: hardcopyMethodSchema,
+  receivedOn: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "Use YYYY-MM-DD"),
+  note: z.string().trim().max(500).nullish(),
+});
+
+export const partnerTermsDocumentSchema = z.object({
+  /** An uploaded `agreement_template` PDF; null removes the current one. */
+  documentMediaId: mediaIdSchema.nullish(),
+  hardcopyInstructions: z.string().trim().max(2000).optional(),
 });
 
 export const relaySchema = z.object({
@@ -328,6 +347,51 @@ export const opsRoutes = {
     path: "/ops/vendors/:id/onboarding",
     audience: "staff",
     params: idParam,
+  }),
+  opsVendorVerification: route({
+    method: "GET",
+    path: "/ops/vendors/:id/verification",
+    audience: "staff",
+    params: idParam,
+    summary: "vendors.view — the paperwork behind the verified tag",
+  }),
+  opsReviewSignedCopy: route({
+    method: "POST",
+    path: "/ops/vendors/:id/verification/signed-copy",
+    audience: "staff",
+    params: idParam,
+    body: verificationReviewSchema,
+    summary: "vendors.verify",
+  }),
+  opsReceiveHardcopy: route({
+    method: "POST",
+    path: "/ops/vendors/:id/verification/hardcopy",
+    audience: "staff",
+    params: idParam,
+    body: receiveHardcopySchema,
+    summary: "vendors.verify — the signed original is in our hands",
+  }),
+  opsReviewVendorDocument: route({
+    method: "POST",
+    path: "/ops/vendors/:id/verification/documents/:documentId",
+    audience: "staff",
+    params: z.object({ id: idSchema, documentId: idSchema }),
+    body: verificationReviewSchema,
+    summary: "vendors.verify",
+  }),
+  opsPartnerTerms: route({
+    method: "GET",
+    path: "/ops/partner-terms",
+    audience: "staff",
+    query: z.object({}),
+    summary: "agreements.view",
+  }),
+  opsUpdatePartnerTerms: route({
+    method: "PATCH",
+    path: "/ops/partner-terms",
+    audience: "staff",
+    body: partnerTermsDocumentSchema,
+    summary: "agreements.manage — the standard agreement PDF and where originals go",
   }),
   opsSetVendorStatus: route({
     method: "PATCH",

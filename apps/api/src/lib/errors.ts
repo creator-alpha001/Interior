@@ -81,6 +81,7 @@ const CONSTRAINT_MESSAGES: Record<string, string> = {
   uq_agreement_lead_professional: "An agreement already exists for this professional on this lead",
   uq_agreement_lead_domain: "This service is already covered by an agreement",
   uq_partner_agreement_live: "This vendor already has a live partner agreement",
+  uq_vendor_documents_live: "That document was just submitted. Reload to see it.",
   uq_users_mobile: "An account already exists for that mobile number",
   // Two tabs finishing the same first Google sign-in at once. Signing in is the
   // right next move, and it is what pressing the button again now does.

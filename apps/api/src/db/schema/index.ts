@@ -13,6 +13,7 @@ export * from "./content";
 export * from "./leads";
 export * from "./flow";
 export * from "./agreements";
+export * from "./verification";
 export * from "./execution";
 export * from "./media";
 export * from "./notifications";

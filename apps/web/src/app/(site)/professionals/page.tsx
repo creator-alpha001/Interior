@@ -13,7 +13,7 @@ import { cn } from "@repo/ui";
 export const metadata: Metadata = {
   title: "Professionals",
   description:
-    "Verified interior designers, furniture makers, fabricators and painters — rated per trade, not on a single blended average.",
+    "Interior designers, furniture makers, fabricators and painters — rated per trade, not on a single blended average, and badged once their paperwork is verified.",
 };
 
 export default async function ProfessionalsPage({
@@ -25,7 +25,7 @@ export default async function ProfessionalsPage({
   const [domains, cities, proPage] = await Promise.all([
     listDomains(),
     listCities(),
-    listProfessionals({ domainSlug, cityId, verifiedOnly: true, limit: 48 }),
+    listProfessionals({ domainSlug, cityId, limit: 48 }),
   ]);
 
   const pros = proPage.items;
@@ -47,7 +47,7 @@ export default async function ProfessionalsPage({
         <Container width="wide" className="py-10">
           <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Professionals" }]} />
           <h1 className="mt-4 max-w-3xl text-[36px] leading-tight sm:text-[44px]">
-            Verified, and rated per trade
+            Rated per trade, badged when verified
           </h1>
           <p className="mt-4 max-w-2xl text-[15.5px] leading-relaxed text-ink-2">
             A vendor who is excellent at painting and average at carpentry shows exactly that here.

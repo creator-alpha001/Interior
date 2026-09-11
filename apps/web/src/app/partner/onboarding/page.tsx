@@ -1,16 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getVendorDashboard, getVendorOnboarding } from "@repo/data";
+import { getMyVerification, getVendorDashboard, getVendorOnboarding } from "@repo/data";
 import { Badge, cn } from "@repo/ui";
 import { PartnerAgreementSigner } from "@/components/partner/partner-agreement-signer";
+import { VerificationPanel } from "@/components/partner/verification-panel";
 import { PageBody, PageHeader, Panel } from "@/components/partner/panel-ui";
 
 export const metadata = { title: "Getting set up" };
 
 export default async function OnboardingPage() {
-  const [onboarding, dashboard] = await Promise.all([
+  const [onboarding, dashboard, verification] = await Promise.all([
     getVendorOnboarding(),
     getVendorDashboard(),
+    getMyVerification(),
   ]);
   if (!onboarding) notFound();
 
@@ -67,6 +69,9 @@ export default async function OnboardingPage() {
           agreement={onboarding.agreement}
           defaultName={dashboard.displayName}
         />
+
+        {/* Accepting online is step one; the paper agreement and documents are what verify. */}
+        <VerificationPanel verification={verification} />
 
         <Panel title="Your steps" bodyClassName="p-0">
           <ul className="divide-y divide-line">

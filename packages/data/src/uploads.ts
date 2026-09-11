@@ -20,7 +20,9 @@ export type UploadPurpose =
   | "portfolio_item"
   | "vendor_document"
   /** Catalogue photography, uploaded from the ops panel. Staff only. */
-  | "catalogue_image";
+  | "catalogue_image"
+  /** The standard partner agreement PDF. Staff only. */
+  | "agreement_template";
 
 /** Per-purpose limits, enforced before a byte is sent. */
 const RULES: Record<UploadPurpose, { maxBytes: number; accept: string[]; maxFiles: number }> = {
@@ -33,6 +35,7 @@ const RULES: Record<UploadPurpose, { maxBytes: number; accept: string[]; maxFile
     maxFiles: 10,
   },
   catalogue_image: { maxBytes: 15_000_000, accept: ["image/"], maxFiles: 12 },
+  agreement_template: { maxBytes: 20_000_000, accept: ["application/pdf"], maxFiles: 1 },
 };
 
 export class UploadError extends Error {

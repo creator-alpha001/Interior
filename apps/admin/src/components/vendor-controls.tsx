@@ -12,11 +12,15 @@ import {
 export function VendorStatusControl({
   professionalId,
   status,
+  canBeVerified = true,
 }: {
   professionalId: string;
   status: VerificationStatus;
+  /** False while paperwork is outstanding. The API refuses anyway; this says so first. */
+  canBeVerified?: boolean;
 }) {
   const [pending, startTransition] = useTransition();
+  const [error, setError] = useState<string>();
 
   const options: Array<{ value: VerificationStatus; label: string }> = [
     { value: "verified", label: "Verified" },
@@ -26,14 +30,28 @@ export function VendorStatusControl({
   ];
 
   return (
+    <div className="flex flex-col items-end gap-1">
     <div className="flex flex-wrap gap-1.5">
       {options.map((option) => (
         <button
           key={option.value}
           type="button"
-          disabled={pending || option.value === status}
+          disabled={
+            pending ||
+            option.value === status ||
+            (option.value === "verified" && !canBeVerified)
+          }
+          title={
+            option.value === "verified" && !canBeVerified && status !== "verified"
+              ? "Paperwork is outstanding — see Verification paperwork below"
+              : undefined
+          }
           onClick={() =>
-            startTransition(async () => setVendorStatusAction(professionalId, option.value))
+            startTransition(async () => {
+              setError(undefined);
+              const result = await setVendorStatusAction(professionalId, option.value);
+              if (result.error) setError(result.error);
+            })
           }
           className={cn(
             "rounded-md px-2.5 py-1 text-[12.5px] transition-colors disabled:cursor-default",
@@ -47,6 +65,12 @@ export function VendorStatusControl({
           {option.label}
         </button>
       ))}
+    </div>
+    {error ? (
+      <p role="alert" className="max-w-[320px] text-right text-[12px] text-danger">
+        {error}
+      </p>
+    ) : null}
     </div>
   );
 }

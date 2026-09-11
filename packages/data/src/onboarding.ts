@@ -84,8 +84,9 @@ export async function getVendorOnboardingFor(
     },
     {
       key: "identity",
-      label: "Identity and business proof",
-      description: "Government ID, and GST registration where you are registered.",
+      label: "Verified by our team",
+      description:
+        "Your signed agreement, the original copy and your business documents, checked by our team.",
       done: pro.verificationStatus === "verified",
       blocking: true,
       hint:
@@ -201,6 +202,21 @@ export async function signPartnerAgreement(
     signedFromIp: "recorded at signing",
     signedUserAgent: input.userAgent ?? null,
     documentUrl: `/mock/partner-agreements/${professionalId}-${partnerTerms.version}.pdf`,
+    // Accepting online starts the paper agreement; it does not complete it.
+    signedCopyStatus: "not_submitted",
+    signedCopySubmittedAt: null,
+    stampCertificateNumber: null,
+    signedCopyReviewedAt: null,
+    signedCopyReviewedByUserId: null,
+    signedCopyReviewNote: null,
+    hardcopyMethod: null,
+    hardcopyStatus: "not_sent",
+    hardcopyCourier: null,
+    hardcopyTrackingNumber: null,
+    hardcopyDispatchedAt: null,
+    hardcopyReceivedAt: null,
+    hardcopyReceivedByUserId: null,
+    hardcopyNote: null,
     createdAt: nowIso(),
     updatedAt: nowIso(),
     deletedAt: null,

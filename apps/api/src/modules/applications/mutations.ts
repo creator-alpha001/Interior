@@ -254,10 +254,11 @@ export async function decideApplication(
  *
  * Kept in one function taking a transaction so there is exactly one place that
  * knows what "a vendor exists" consists of. `verification_status` starts at
- * `verified`, not `pending`: a human has just read the application and said
- * yes, and leaving the vendor pending would mean approving twice, once here and
- * once on the vendors screen, with the vendor waiting in between for a second
- * decision nobody knew they owed.
+ * `pending`. Approval says this person may work here; verification says we hold
+ * the signed original of the agreement and the documents behind it, which
+ * cannot exist yet — the portal they are sent from opens at this moment. Until
+ * then they are in no lead pool, because `eligible_vendors` requires `verified`.
+ * See `modules/vendor/verification.ts`.
  */
 async function approveInto(
   tx: Tx,
@@ -278,7 +279,7 @@ async function approveInto(
       gstNumber: application.gstNumber,
       experienceYears: application.experienceYears,
       bio: application.bio,
-      verificationStatus: "verified",
+      verificationStatus: "pending",
     })
     .returning({ id: t.professionals.id });
 

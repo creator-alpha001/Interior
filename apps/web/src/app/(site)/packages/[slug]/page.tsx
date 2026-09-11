@@ -37,7 +37,7 @@ export default async function PackagePage({ params }: { params: Promise<Params> 
 
   const { servicePackage: pkg, domain, items } = view;
   const [proPage, siblings] = await Promise.all([
-    listProfessionals({ domainSlug: domain.slug, verifiedOnly: true, limit: 3 }),
+    listProfessionals({ domainSlug: domain.slug, limit: 3 }),
     listPackages(domain.slug),
   ]);
 

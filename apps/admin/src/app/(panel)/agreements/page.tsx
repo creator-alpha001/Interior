@@ -1,7 +1,8 @@
 import Link from "next/link";
-import { formatRupees, listAllAgreements, listDomains } from "@repo/data";
+import { formatRupees, getPartnerTermsForOps, listAllAgreements, listDomains } from "@repo/data";
 import { Badge, agreementStatus, formatDate } from "@repo/ui";
 import { DataTable, FilterBar, FilterGroup, Metric, PageBody, PageHeader } from "@/components/ops-ui";
+import { PartnerTermsDocument } from "@/components/partner-terms-document";
 
 export const metadata = { title: "Agreements" };
 
@@ -11,10 +12,11 @@ export default async function AgreementsPage({
   searchParams: Promise<{ status?: string; domain?: string }>;
 }) {
   const sp = await searchParams;
-  const [domains, all, rows] = await Promise.all([
+  const [domains, all, rows, terms] = await Promise.all([
     listDomains(),
     listAllAgreements(),
     listAllAgreements({ status: sp.status, domainSlug: sp.domain }),
+    getPartnerTermsForOps(),
   ]);
 
   const href = (patch: Record<string, string | undefined>) => {
@@ -37,6 +39,8 @@ export default async function AgreementsPage({
       />
 
       <PageBody className="space-y-4">
+        <PartnerTermsDocument terms={terms} />
+
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
           <Metric label="Agreements" value={all.length} hint={`${combined} combined`} />
           <Metric label="Total value" value={formatRupees(totalValue)} hint="Across all statuses" />

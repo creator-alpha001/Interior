@@ -19,7 +19,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     collectAll((cursor) => listProducts({ cursor })),
     listPackages(),
     collectAll((cursor) => listPosts({ cursor })),
-    collectAll((cursor) => listProfessionals({ verifiedOnly: true, cursor })),
+    collectAll((cursor) => listProfessionals({ cursor })),
   ]);
 
   const staticRoutes = [

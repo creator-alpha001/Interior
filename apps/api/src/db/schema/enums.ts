@@ -160,6 +160,30 @@ export const partnerAgreementStatus = pgEnum("partner_agreement_status", [
   "superseded",
   "withdrawn",
 ]);
+export const partnerSignedCopyStatus = pgEnum("partner_signed_copy_status", [
+  "not_submitted",
+  "submitted",
+  "accepted",
+  "rejected",
+]);
+export const partnerHardcopyMethod = pgEnum("partner_hardcopy_method", ["courier", "in_person"]);
+export const partnerHardcopyStatus = pgEnum("partner_hardcopy_status", [
+  "not_sent",
+  "dispatched",
+  "received",
+]);
+export const vendorDocumentKind = pgEnum("vendor_document_kind", [
+  "pan",
+  "gst_certificate",
+  "business_registration",
+  "signatory_id",
+  "address_proof",
+]);
+export const vendorDocumentStatus = pgEnum("vendor_document_status", [
+  "submitted",
+  "accepted",
+  "rejected",
+]);
 
 /* ---- execution ---- */
 export const projectStatus = pgEnum("project_status", [
@@ -238,4 +262,5 @@ export const uploadPurpose = pgEnum("upload_purpose", [
   "vendor_document",
   "catalogue_image",
   "blog_image",
+  "agreement_template",
 ]);

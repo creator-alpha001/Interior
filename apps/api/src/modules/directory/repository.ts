@@ -6,7 +6,7 @@
  * conversation, so there is no shape here that could carry a phone number even
  * by accident.
  */
-import { and, asc, count, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, asc, count, desc, eq, gte, inArray, isNull, or, sql } from "drizzle-orm";
 import type { Paginated, PortfolioItem, ProfessionalProfile, ProfessionalSummary } from "@repo/types";
 import { db } from "../../db/client";
 import * as t from "../../db/schema";
@@ -20,6 +20,9 @@ export interface ProfessionalQuery {
   city?: string;
   search?: string;
   verifiedOnly?: boolean;
+  minRating?: number;
+  minExperience?: number;
+  sort?: "rating" | "experience" | "projects";
   limit: number;
   cursor?: string;
 }
@@ -58,8 +61,24 @@ export async function listProfessionals(
 ): Promise<Paginated<ProfessionalSummary>> {
   const offset = decodeCursor(query.cursor);
 
-  const conditions = [isNull(t.professionals.deletedAt)];
+  // Approved vendors awaiting verification are listed, without the badge.
+  // Suspended and blacklisted ones never are: those are decisions to stop
+  // customers finding somebody, not states of paperwork.
+  const conditions = [
+    isNull(t.professionals.deletedAt),
+    sql`${t.professionals.verificationStatus} NOT IN ('suspended', 'blacklisted')`,
+  ];
   if (query.verifiedOnly) conditions.push(eq(t.professionals.verificationStatus, "verified"));
+
+  // The rating filter reads the vendor's overall rating. The per-trade figure
+  // lives on a join the count query below does not make, and filtering one
+  // query on it but not the other would make the total disagree with the page.
+  if (query.minRating !== undefined) {
+    conditions.push(gte(t.professionals.avgRatingX10, Math.round(query.minRating * 10)));
+  }
+  if (query.minExperience !== undefined) {
+    conditions.push(gte(t.professionals.experienceYears, query.minExperience));
+  }
 
   if (query.search) {
     const term = `%${query.search.toLowerCase()}%`;
@@ -95,6 +114,19 @@ export async function listProfessionals(
 
   const where = and(...conditions);
 
+  // When a trade is in context, its per-trade rating is what should rank — a
+  // painter's carpentry average is not the answer to "who should paint my
+  // flat". The other sorts fall back to that same order to break ties.
+  const byRating = [
+    desc(sql`COALESCE(${t.professionalDomains.avgRatingX10}, ${t.professionals.avgRatingX10})`),
+    desc(t.professionals.completedProjects),
+  ];
+  const order = {
+    rating: byRating,
+    experience: [desc(t.professionals.experienceYears), ...byRating],
+    projects: [desc(t.professionals.completedProjects), ...byRating],
+  }[query.sort ?? "rating"];
+
   const [rows, [totals]] = await Promise.all([
     db
       .select({
@@ -106,9 +138,7 @@ export async function listProfessionals(
       .from(t.professionals)
       .innerJoin(t.users, eq(t.users.id, t.professionals.userId))
       .leftJoin(t.cities, vendorCityJoin)
-      // When a trade is in context, its per-trade rating is what should rank
-      // and display — a painter's carpentry average is not the answer to
-      // "who should paint my flat".
+      // The per-trade rating, joined when a trade is in context — see `order`.
       .leftJoin(
         t.professionalDomains,
         query.domain
@@ -119,11 +149,7 @@ export async function listProfessionals(
           : sql`false`,
       )
       .where(where)
-      .orderBy(
-        desc(sql`COALESCE(${t.professionalDomains.avgRatingX10}, ${t.professionals.avgRatingX10})`),
-        desc(t.professionals.completedProjects),
-        asc(t.professionals.id),
-      )
+      .orderBy(...order, asc(t.professionals.id))
       .limit(query.limit)
       .offset(offset),
     db
@@ -154,7 +180,13 @@ export async function getProfessional(id: string): Promise<ProfessionalProfile |
     .from(t.professionals)
     .innerJoin(t.users, eq(t.users.id, t.professionals.userId))
     .leftJoin(t.cities, vendorCityJoin)
-    .where(and(eq(t.professionals.id, id), isNull(t.professionals.deletedAt)))
+    .where(
+      and(
+        eq(t.professionals.id, id),
+        isNull(t.professionals.deletedAt),
+        sql`${t.professionals.verificationStatus} NOT IN ('suspended', 'blacklisted')`,
+      ),
+    )
     .limit(1);
 
   if (!row) return null;

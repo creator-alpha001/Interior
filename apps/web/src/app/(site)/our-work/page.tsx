@@ -39,7 +39,7 @@ export default async function OurWorkPage({
   const pros: ProfessionalSummary[] = [];
   let cursor: string | undefined;
   do {
-    const page = await listProfessionals({ verifiedOnly: true, limit: 100, cursor });
+    const page = await listProfessionals({ limit: 100, cursor });
     pros.push(...page.items);
     cursor = page.nextCursor ?? undefined;
   } while (cursor);

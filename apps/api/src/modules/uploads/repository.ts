@@ -16,7 +16,7 @@ import type { UploadPurpose } from "@repo/contract";
 import { db, type Tx } from "../../db/client";
 import * as t from "../../db/schema";
 import { ForbiddenError, ValidationError } from "../../lib/errors";
-import { presignPut, publicUrlFor } from "../../lib/storage";
+import { presignPut, publicUrlFor, readUrlFor } from "../../lib/storage";
 
 /** Limits per purpose, enforced here as well as in the browser. */
 export const RULES: Record<UploadPurpose, { maxBytes: number; accept: string[] }> = {
@@ -27,6 +27,9 @@ export const RULES: Record<UploadPurpose, { maxBytes: number; accept: string[] }
   // Larger than the rest: these are the photographs the catalogue is sold on,
   // and they are shot properly rather than taken on a phone at a site visit.
   catalogue_image: { maxBytes: 15_000_000, accept: ["image/"] },
+  // The agreement vendors print. A PDF, because that is what prints the same on
+  // every printer in every shop it is taken to.
+  agreement_template: { maxBytes: 20_000_000, accept: ["application/pdf"] },
 };
 
 export interface UploadTicket {
@@ -80,6 +83,17 @@ export async function createUploadTicket(
     throw new ForbiddenError("Only staff can upload catalogue images");
   }
 
+  // Every vendor downloads this file and signs it. A customer able to upload
+  // one would be a stranger writing the contract.
+  if (input.purpose === "agreement_template" && role !== "admin" && role !== "sales_agent") {
+    throw new ForbiddenError("Only staff can upload the partner agreement");
+  }
+
+  // Business documents are a vendor's own, and nobody else's to supply.
+  if (input.purpose === "vendor_document" && role !== "professional") {
+    throw new ForbiddenError("Only a vendor can upload business documents");
+  }
+
   const rule = RULES[input.purpose];
   if (!rule) throw new ValidationError("Unknown upload purpose");
 
@@ -111,7 +125,9 @@ export async function createUploadTicket(
   return {
     ...(await presignPut(storageKey, input.contentType)),
     assetId,
-    publicUrl: publicUrlFor(storageKey),
+    // A private file's "public" URL is a link that expires, so the form can
+    // preview what was just uploaded without the file ever being public.
+    publicUrl: readUrlFor(storageKey),
   };
 }
 

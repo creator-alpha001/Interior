@@ -12,6 +12,16 @@ import { DEFAULT_PAGE_SIZE } from "@repo/types";
 /** A UUID primary key. */
 export const idSchema = z.string().uuid();
 
+/**
+ * Where a one-time code is sent.
+ *
+ * WhatsApp first: an authentication template costs less than a DLT SMS in
+ * India and arrives with a copy button. SMS for the people it does not reach.
+ * The server may send on the other one — `apps/api/src/lib/otp-delivery.ts`
+ * says when — and the response names the channel it actually used.
+ */
+export const otpChannelSchema = z.enum(["whatsapp", "sms"]);
+
 /** A slug in a URL path. Bounded so a pathological value cannot reach the database. */
 export const slugSchema = z
   .string()
@@ -67,6 +77,36 @@ export const csvSchema = z
   .string()
   .optional()
   .transform((value) => (value ? value.split(",").map((part) => part.trim()).filter(Boolean) : undefined));
+
+/**
+ * Permanent Account Number: five letters, four digits, one letter.
+ *
+ * Upper-cased first, because people type it however they like. The format is
+ * checked; whether the PAN was really issued is what the document review is for.
+ */
+export const panSchema = z
+  .string()
+  .trim()
+  .transform((value) => value.replace(/\s/g, "").toUpperCase())
+  .refine((value) => /^[A-Z]{5}[0-9]{4}[A-Z]$/.test(value), "Not a valid PAN");
+
+/**
+ * GSTIN: two-digit state code, the holder's PAN, an entity number, "Z", and a
+ * check character. The check character's checksum is not verified here.
+ */
+export const gstinSchema = z
+  .string()
+  .trim()
+  .transform((value) => value.replace(/\s/g, "").toUpperCase())
+  .refine(
+    (value) => /^[0-9]{2}[A-Z]{5}[0-9]{4}[A-Z][1-9A-Z]Z[0-9A-Z]$/.test(value),
+    "Not a valid GSTIN",
+  );
+
+/** Characters 3 to 12 of a GSTIN are the PAN it was issued against. */
+export function gstinMatchesPan(gstin: string, pan: string): boolean {
+  return gstin.toUpperCase().slice(2, 12) === pan.toUpperCase();
+}
 
 /** Coerces "true"/"false" query strings, which arrive as text. */
 export const boolQuerySchema = z

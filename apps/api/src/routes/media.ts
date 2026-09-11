@@ -24,8 +24,10 @@ import * as t from "../db/schema";
 import { config } from "../lib/config";
 import { NotFoundError, ValidationError } from "../lib/errors";
 import {
+  isPrivateKey,
   localObjectPath,
   localObjectSize,
+  verifyLocalReadSignature,
   verifyLocalSignature,
   writeLocalObject,
 } from "../lib/storage";
@@ -88,13 +90,19 @@ export async function registerMediaRoutes(app: FastifyInstance) {
     /**
      * Serves a stored file.
      *
-     * Public, which matches how the same file reads from R2's public base —
-     * the URL is an unguessable uuid and nothing else links to it. Making
-     * `vendor_document` genuinely private needs signed *read* URLs in both
-     * drivers, and is noted in MOBILE.md rather than half-done here.
+     * Public for photographs, which matches how they read from R2's public
+     * base. Private purposes — vendor documents and signed agreements — need
+     * the signed, expiring link `readUrlFor` issues, and are never cached.
      */
     media.get<{ Params: { "*": string } }>("/media/*", async (request, reply) => {
       const storageKey = request.params["*"];
+      const privateFile = isPrivateKey(storageKey);
+
+      if (privateFile) {
+        const { expires, signature } = request.query as { expires?: string; signature?: string };
+        verifyLocalReadSignature(storageKey, expires, signature);
+      }
+
       const size = await localObjectSize(storageKey);
       if (size === null) throw new NotFoundError("That file is not available");
 
@@ -104,7 +112,10 @@ export async function registerMediaRoutes(app: FastifyInstance) {
         // Keys are content-addressed by a uuid that is never reused, so this
         // can be cached hard. It is the difference between a catalogue screen
         // costing one round trip and costing thirty.
-        .header("Cache-Control", "public, max-age=31536000, immutable");
+        .header(
+          "Cache-Control",
+          privateFile ? "private, no-store" : "public, max-age=31536000, immutable",
+        );
 
       return reply.send(createReadStream(localObjectPath(storageKey)));
     });

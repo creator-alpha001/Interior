@@ -35,6 +35,11 @@ export const uploadPurposeSchema = z.enum([
   "portfolio_item",
   "vendor_document",
   /**
+   * The standard partner agreement PDF vendors print and sign. Staff only,
+   * enforced in `createUploadTicket`.
+   */
+  "agreement_template",
+  /**
    * A picture of a product, package, category or trade, uploaded by staff.
    *
    * `upload_purpose` in the database has listed this since the first migration

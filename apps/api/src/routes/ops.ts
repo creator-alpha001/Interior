@@ -15,6 +15,7 @@ import * as admin from "../modules/ops/admin";
 import { getOnboarding } from "../modules/vendor/onboarding";
 import * as applications from "../modules/applications/repository";
 import * as applicationWrite from "../modules/applications/mutations";
+import * as verification from "../modules/vendor/verification";
 
 export async function registerOpsRoutes(app: FastifyInstance) {
   /**
@@ -194,6 +195,49 @@ export async function registerOpsRoutes(app: FastifyInstance) {
     await requirePermission(request, "vendors.view");
     const { id } = routes.opsVendorOnboarding.params!.parse(request.params);
     return getOnboarding(id);
+  });
+
+  /* ---------------- vendor verification ---------------- */
+
+  app.get<{ Params: { id: string } }>(routes.opsVendorVerification.path, async (request) => {
+    await requirePermission(request, "vendors.view");
+    const { id } = routes.opsVendorVerification.params!.parse(request.params);
+    return verification.getVerification(id);
+  });
+
+  app.post<{ Params: { id: string } }>(routes.opsReviewSignedCopy.path, async (request) => {
+    const staffUserId = await requirePermission(request, "vendors.verify");
+    const { id } = routes.opsReviewSignedCopy.params!.parse(request.params);
+    const { decision, note } = routes.opsReviewSignedCopy.body!.parse(request.body);
+    return verification.reviewSignedCopy(staffUserId, id, decision, note ?? null);
+  });
+
+  app.post<{ Params: { id: string } }>(routes.opsReceiveHardcopy.path, async (request) => {
+    const staffUserId = await requirePermission(request, "vendors.verify");
+    const { id } = routes.opsReceiveHardcopy.params!.parse(request.params);
+    const input = routes.opsReceiveHardcopy.body!.parse(request.body);
+    return verification.receiveHardcopy(staffUserId, id, input);
+  });
+
+  app.post<{ Params: { id: string; documentId: string } }>(
+    routes.opsReviewVendorDocument.path,
+    async (request) => {
+      const staffUserId = await requirePermission(request, "vendors.verify");
+      const { id, documentId } = routes.opsReviewVendorDocument.params!.parse(request.params);
+      const { decision, note } = routes.opsReviewVendorDocument.body!.parse(request.body);
+      return verification.reviewDocument(staffUserId, id, documentId, decision, note ?? null);
+    },
+  );
+
+  app.get(routes.opsPartnerTerms.path, async (request) => {
+    await requirePermission(request, "agreements.view");
+    return verification.getPartnerTermsForOps();
+  });
+
+  app.patch(routes.opsUpdatePartnerTerms.path, async (request) => {
+    const staffUserId = await requirePermission(request, "agreements.manage");
+    const input = routes.opsUpdatePartnerTerms.body!.parse(request.body);
+    return verification.updatePartnerTerms(staffUserId, input);
   });
 
   app.patch<{ Params: { id: string } }>(routes.opsSetVendorStatus.path, async (request) => {

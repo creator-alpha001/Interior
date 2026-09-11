@@ -24,6 +24,7 @@ import type {
 } from "@repo/types";
 import { domainById, toAgreementView, toProfessionalSummary } from "./mappers";
 import { hasSignedPartnerAgreementSync } from "./onboarding";
+import { verificationGapsFor } from "./verification";
 import { ApiError, api, nullWhenMissing } from "./client";
 import { callingApiAsUser } from "./session";
 import { delay, nextId, nowIso, store } from "./store";
@@ -265,6 +266,15 @@ export async function setVendorStatus(
 
   const pro = store.professionals.find((p) => p.id === professionalId);
   if (!pro) throw new Error("Unknown professional");
+
+  // Mirrors the API: verified is earned by the paperwork, not granted by a button.
+  if (status === "verified" && pro.verificationStatus !== "verified") {
+    const outstanding = verificationGapsFor(professionalId);
+    if (outstanding.length > 0) {
+      throw new Error(`This vendor cannot be verified yet: ${outstanding[0]}`);
+    }
+  }
+
   pro.verificationStatus = status;
   pro.updatedAt = nowIso();
 

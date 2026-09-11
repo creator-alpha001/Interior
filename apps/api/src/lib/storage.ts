@@ -81,6 +81,48 @@ export function publicUrlFor(storageKey: string): string {
   return `${apiBaseUrl()}/media/${key}`;
 }
 
+/**
+ * Purposes whose files are nobody's business but the uploader's and ours.
+ *
+ * A PAN card behind an unguessable URL is still a PAN card that anyone holding
+ * the link can open, for ever — and links end up in chat threads and browser
+ * histories. These are read through links that expire instead, and the local
+ * driver refuses them without one.
+ *
+ * On R2 the bucket's public domain is outside this process: block this prefix
+ * there too (a WAF rule on the custom domain), or the object stays reachable to
+ * anyone who learns its key.
+ */
+const PRIVATE_PREFIXES = ["vendor_document/"];
+
+export function isPrivateKey(storageKey: string): boolean {
+  const key = storageKey.replace(/^\//, "");
+  return PRIVATE_PREFIXES.some((prefix) => key.startsWith(prefix));
+}
+
+/** Long enough to review a document, too short to be worth forwarding. */
+const READ_SECONDS = 1800;
+
+/**
+ * Where a stored file can be read from by whoever is being shown it now.
+ *
+ * Public files get their permanent URL. Private ones get a signed link that
+ * lapses, which is why no private URL is ever stored on a row.
+ */
+export function readUrlFor(storageKey: string): string {
+  if (!isPrivateKey(storageKey)) return publicUrlFor(storageKey);
+
+  const key = storageKey.replace(/^\//, "");
+  if (config.storageDriver === "r2") return signR2Url("GET", key, READ_SECONDS);
+
+  const expiresAt = Math.floor(Date.now() / 1000) + READ_SECONDS;
+  const query = new URLSearchParams({
+    expires: String(expiresAt),
+    signature: signLocalRead(key, expiresAt),
+  });
+  return `${apiBaseUrl()}/media/${key}?${query.toString()}`;
+}
+
 /* ------------------------------------------------------------------ *
  * The local driver
  * ------------------------------------------------------------------ */
@@ -111,6 +153,39 @@ export function localPathFor(storageKey: string): string {
 
 function signLocal(storageKey: string, expiresAt: number): string {
   return createHmac("sha256", signingKey).update(`${storageKey}\n${expiresAt}`).digest("hex");
+}
+
+/**
+ * Signs a *read* of a private file.
+ *
+ * Signs different input from `signLocal`, so a link handed out for viewing a
+ * document cannot be replayed as an upload ticket to overwrite it.
+ */
+function signLocalRead(storageKey: string, expiresAt: number): string {
+  return createHmac("sha256", signingKey)
+    .update(`read\n${storageKey}\n${expiresAt}`)
+    .digest("hex");
+}
+
+/** Checks a private read link. Constant-time, and expiry first. */
+export function verifyLocalReadSignature(
+  storageKey: string,
+  expires: string | undefined,
+  signature: string | undefined,
+): void {
+  if (!expires || !signature) throw new ForbiddenError("That file is not available");
+
+  const expiresAt = Number(expires);
+  if (!Number.isFinite(expiresAt) || expiresAt * 1000 < Date.now()) {
+    throw new ForbiddenError("This link has expired. Reload the page for a new one.");
+  }
+
+  const expected = Buffer.from(signLocalRead(storageKey, expiresAt), "hex");
+  const supplied = Buffer.from(signature, "hex");
+
+  if (expected.length !== supplied.length || !timingSafeEqual(expected, supplied)) {
+    throw new ForbiddenError("That file is not available");
+  }
 }
 
 function presignLocal(storageKey: string, contentType: string): PresignedPut {
@@ -257,7 +332,11 @@ function presignR2(storageKey: string, contentType: string): PresignedPut {
  * request, the scope, the derived key — is identical, so both callers share it
  * rather than keeping two copies of SigV4 in step by hand.
  */
-function signR2Url(method: "PUT" | "DELETE", storageKey: string): string {
+function signR2Url(
+  method: "PUT" | "DELETE" | "GET",
+  storageKey: string,
+  expiresSeconds = TICKET_SECONDS,
+): string {
   const { R2_ACCOUNT_ID, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_BUCKET } = config;
 
   if (!R2_ACCOUNT_ID || !R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_BUCKET) {
@@ -277,7 +356,7 @@ function signR2Url(method: "PUT" | "DELETE", storageKey: string): string {
     "X-Amz-Algorithm": "AWS4-HMAC-SHA256",
     "X-Amz-Credential": `${R2_ACCESS_KEY_ID}/${scope}`,
     "X-Amz-Date": amzDate,
-    "X-Amz-Expires": String(TICKET_SECONDS),
+    "X-Amz-Expires": String(expiresSeconds),
     "X-Amz-SignedHeaders": "host",
   });
 

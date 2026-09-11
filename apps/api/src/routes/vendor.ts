@@ -12,6 +12,7 @@ import { requireProfessional } from "../lib/guard";
 import * as vendor from "../modules/vendor/repository";
 import * as write from "../modules/vendor/mutations";
 import { getOnboarding } from "../modules/vendor/onboarding";
+import * as verification from "../modules/vendor/verification";
 
 export async function registerVendorRoutes(app: FastifyInstance) {
   /**
@@ -133,5 +134,29 @@ export async function registerVendorRoutes(app: FastifyInstance) {
       ip: request.ip,
       userAgent: request.headers["user-agent"],
     });
+  });
+
+  /* ---------------- verification ---------------- */
+
+  app.get(routes.vendorVerification.path, async (request) =>
+    verification.getVerification(await requireProfessional(request)),
+  );
+
+  app.post(routes.submitSignedCopy.path, async (request) => {
+    const professionalId = await requireProfessional(request);
+    const input = routes.submitSignedCopy.body!.parse(request.body);
+    return verification.submitSignedCopy(professionalId, input);
+  });
+
+  app.post(routes.reportHardcopy.path, async (request) => {
+    const professionalId = await requireProfessional(request);
+    const input = routes.reportHardcopy.body!.parse(request.body);
+    return verification.reportHardcopy(professionalId, input);
+  });
+
+  app.post(routes.submitVendorDocument.path, async (request) => {
+    const professionalId = await requireProfessional(request);
+    const input = routes.submitVendorDocument.body!.parse(request.body);
+    return verification.submitDocument(professionalId, input);
   });
 }

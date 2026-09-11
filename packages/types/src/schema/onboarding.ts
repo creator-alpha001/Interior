@@ -1,5 +1,12 @@
 import { z } from "zod";
-import { baseRecordSchema, dateOnlySchema, idSchema, timestampSchema } from "./common";
+import {
+  baseRecordSchema,
+  dateOnlySchema,
+  idSchema,
+  mediaAssetSchema,
+  timestampSchema,
+} from "./common";
+import { verificationStatusSchema } from "./identity";
 
 /**
  * The terms a professional accepts to work through the platform.
@@ -35,6 +42,13 @@ export const partnerTermsSchema = z.object({
    * "I agree". These are the ones vendors most often claim not to have seen.
    */
   acknowledgements: z.array(partnerAcknowledgementSchema),
+  /**
+   * The standard agreement to print, sign and return, as uploaded by our team.
+   * Null until one has been uploaded for this version.
+   */
+  documentUrl: z.string().nullable(),
+  /** Where to send the signed original, or how to arrange handing it over. */
+  hardcopyInstructions: z.string(),
 });
 
 export const partnerAgreementStatusSchema = z.enum([
@@ -43,6 +57,14 @@ export const partnerAgreementStatusSchema = z.enum([
   "superseded",
   "withdrawn",
 ]);
+
+/** Where the photographed pages of the paper agreement have got to. */
+export const signedCopyStatusSchema = z.enum(["not_submitted", "submitted", "accepted", "rejected"]);
+
+/** How the signed original reaches us. */
+export const hardcopyMethodSchema = z.enum(["courier", "in_person"]);
+
+export const hardcopyStatusSchema = z.enum(["not_sent", "dispatched", "received"]);
 
 /**
  * A vendor's signature against one version of the terms. Signing is what
@@ -64,6 +86,30 @@ export const partnerAgreementSchema = baseRecordSchema.extend({
   signedFromIp: z.string().nullable(),
   signedUserAgent: z.string().nullable(),
   documentUrl: z.string().nullable(),
+  /**
+   * The printed agreement, signed on paper.
+   *
+   * Accepting online is the first step, not the last. What holds up in an
+   * Indian court is the signed original, so the photographed pages are
+   * reviewed here and the original itself is tracked by the hardcopy fields.
+   */
+  signedCopyStatus: signedCopyStatusSchema,
+  signedCopySubmittedAt: timestampSchema.nullable(),
+  /** The e-stamp certificate number, when the original was stamped. */
+  stampCertificateNumber: z.string().nullable(),
+  signedCopyReviewedAt: timestampSchema.nullable(),
+  signedCopyReviewedByUserId: idSchema.nullable(),
+  /** Shown to the vendor, so written for them. Required on a rejection. */
+  signedCopyReviewNote: z.string().nullable(),
+  /** Null until the vendor tells us how the original is coming. */
+  hardcopyMethod: hardcopyMethodSchema.nullable(),
+  hardcopyStatus: hardcopyStatusSchema,
+  hardcopyCourier: z.string().nullable(),
+  hardcopyTrackingNumber: z.string().nullable(),
+  hardcopyDispatchedAt: timestampSchema.nullable(),
+  hardcopyReceivedAt: timestampSchema.nullable(),
+  hardcopyReceivedByUserId: idSchema.nullable(),
+  hardcopyNote: z.string().nullable(),
 });
 
 /**
@@ -105,4 +151,75 @@ export const vendorOnboardingSchema = z.object({
   blockedReason: z.string().nullable(),
   agreement: partnerAgreementSchema.nullable(),
   terms: partnerTermsSchema,
+});
+
+/* ------------------------------------------------------------------ *
+ * Verification
+ *
+ * Separate from onboarding's steps on purpose. The mobile app decodes step keys
+ * into a closed enum, so a new key would break every installed build; these
+ * shapes are new, and additive to everything that already exists.
+ * ------------------------------------------------------------------ */
+
+export const vendorDocumentKindSchema = z.enum([
+  "pan",
+  "gst_certificate",
+  "business_registration",
+  "signatory_id",
+  "address_proof",
+]);
+
+export const vendorDocumentStatusSchema = z.enum(["submitted", "accepted", "rejected"]);
+
+/**
+ * One business document a vendor has submitted.
+ *
+ * A replacement is a new row and the one it replaces is soft-deleted, so what a
+ * vendor showed us, and when, stays reconstructable.
+ */
+export const vendorDocumentSchema = baseRecordSchema.extend({
+  id: idSchema,
+  professionalId: idSchema,
+  kind: vendorDocumentKindSchema,
+  /** PAN, GSTIN or registration number. Never a full Aadhaar number. */
+  documentNumber: z.string().nullable(),
+  status: vendorDocumentStatusSchema,
+  submittedAt: timestampSchema,
+  reviewedAt: timestampSchema.nullable(),
+  reviewedByUserId: idSchema.nullable(),
+  /** Shown to the vendor. Required on a rejection. */
+  reviewNote: z.string().nullable(),
+});
+
+/** A document the vendor is asked for, and what they have sent against it. */
+export const vendorDocumentSlotSchema = z.object({
+  kind: vendorDocumentKindSchema,
+  label: z.string(),
+  description: z.string(),
+  required: z.boolean(),
+  /** What to call the number field, or null when the document has none. */
+  numberLabel: z.string().nullable(),
+  document: vendorDocumentSchema.nullable(),
+  /** Private, short-lived links. */
+  files: z.array(mediaAssetSchema),
+});
+
+/**
+ * Everything between an approved vendor and the verified tag.
+ *
+ * One shape for the vendor and for ops, because the vendor's checklist and the
+ * reviewer's are the same facts. `outstanding` is computed on the server by the
+ * same function that refuses a premature verification.
+ */
+export const vendorVerificationSchema = z.object({
+  professionalId: idSchema,
+  verificationStatus: verificationStatusSchema,
+  /** True when nothing is outstanding; ops may then mark the vendor verified. */
+  canBeVerified: z.boolean(),
+  outstanding: z.array(z.string()),
+  terms: partnerTermsSchema,
+  agreement: partnerAgreementSchema.nullable(),
+  /** The photographed or scanned signed pages. Private, short-lived links. */
+  signedCopy: z.array(mediaAssetSchema),
+  documents: z.array(vendorDocumentSlotSchema),
 });

@@ -22,6 +22,7 @@ import { ConflictError, NotFoundError, ValidationError } from "../../lib/errors"
 import { fromX10, toDomain, toProfessionalSummary } from "../../lib/mappers";
 import { decodeCursor, page } from "../../lib/pagination";
 import { vendorCityJoin } from "../../lib/vendor-city";
+import { verificationGaps } from "../vendor/verification";
 
 /* ------------------------------------------------------------------ *
  * The business dashboard
@@ -314,6 +315,24 @@ export async function setVendorStatus(
   professionalId: string,
   status: (typeof t.professionals.$inferSelect)["verificationStatus"],
 ): Promise<void> {
+  /*
+   * Verified is earned, not set. The tag tells customers we hold a signed
+   * original and documents for this business, and it is what puts them in a
+   * lead pool, so nobody can grant it with a button while anything is missing.
+   * Suspending, blacklisting and moving back to pending stay unconditional.
+   */
+  if (status === "verified") {
+    const outstanding = await verificationGaps(professionalId);
+    if (outstanding.length > 0) {
+      throw new ConflictError(
+        `This vendor cannot be verified yet: ${outstanding[0]!.charAt(0).toLowerCase()}${outstanding[0]!.slice(1)}${
+          outstanding.length > 1 ? `, and ${outstanding.length - 1} more` : ""
+        }.`,
+        { outstanding },
+      );
+    }
+  }
+
   return transaction(async (tx) => {
     const rows = await tx
       .update(t.professionals)

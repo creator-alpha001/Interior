@@ -31,6 +31,8 @@ export async function getCurrentTerms(): Promise<PartnerTerms> {
     summary: row.summary,
     sections: row.sections,
     acknowledgements: row.acknowledgements,
+    documentUrl: row.documentUrl,
+    hardcopyInstructions: row.hardcopyInstructions,
   };
 }
 
@@ -97,13 +99,14 @@ export async function getOnboarding(professionalId: string): Promise<VendorOnboa
     },
     {
       key: "identity",
-      label: "Identity verified",
-      description: "Our team confirms who you are before any customer sees your name.",
+      label: "Verified by our team",
+      description:
+        "Your signed agreement, the original copy and your business documents, checked by our team.",
       done: pro.professional.verificationStatus === "verified",
       blocking: true,
       hint:
         pro.professional.verificationStatus === "pending"
-          ? "With our team. We will call if anything is unclear."
+          ? "Upload the signed agreement and your business documents on the setup page."
           : null,
     },
     {
