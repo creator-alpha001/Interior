@@ -1,5 +1,5 @@
 import { DEFAULT_PAGE_SIZE, type PackageView, type Paginated, type ProductCategory, type ProductView } from "@repo/types";
-import { USING_API, api, paginate, readThrough } from "./client";
+import { USING_API, api, nullWhenMissing, paginate, readThrough } from "./client";
 import { toPackageView, toProductView } from "./mappers";
 import { delay, store } from "./store";
 
@@ -78,10 +78,16 @@ export async function getProductBySlug(
   slug: string,
   cityId?: string,
 ): Promise<ProductView | null> {
-  return readThrough(`/products/${slug}`, { tags: ["products"], query: { city: cityId } }, () => {
-    const product = store.products.find((p) => p.slug === slug);
-    return delay(product ? toProductView(product.id, cityId) : null);
-  });
+  return nullWhenMissing(
+    readThrough(
+      `/products/${encodeURIComponent(slug)}`,
+      { tags: ["products"], query: { city: cityId } },
+      () => {
+        const product = store.products.find((p) => p.slug === slug);
+        return delay(product ? toProductView(product.id, cityId) : null);
+      },
+    ),
+  );
 }
 
 export async function listRelatedProducts(
@@ -143,10 +149,12 @@ export async function listPackages(domainSlug?: string): Promise<PackageView[]> 
 }
 
 export async function getPackageBySlug(slug: string): Promise<PackageView | null> {
-  return readThrough(`/packages/${slug}`, { tags: ["packages"] }, () => {
-    const pkg = store.servicePackages.find((p) => p.slug === slug);
-    return delay(pkg ? toPackageView(pkg.id) : null);
-  });
+  return nullWhenMissing(
+    readThrough(`/packages/${encodeURIComponent(slug)}`, { tags: ["packages"] }, () => {
+      const pkg = store.servicePackages.find((p) => p.slug === slug);
+      return delay(pkg ? toPackageView(pkg.id) : null);
+    }),
+  );
 }
 
 export async function listFeaturedPackages(limit = 6): Promise<PackageView[]> {

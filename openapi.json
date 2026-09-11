@@ -4058,6 +4058,38 @@
         ],
         "additionalProperties": false
       },
+      "OpsVisitRow": {
+        "type": "object",
+        "properties": {
+          "meeting": {
+            "$ref": "#/components/schemas/Meeting"
+          },
+          "professional": {
+            "$ref": "#/components/schemas/ProfessionalSummary"
+          },
+          "leadId": {
+            "type": "string"
+          },
+          "leadReference": {
+            "type": "string"
+          },
+          "domain": {
+            "$ref": "#/components/schemas/Domain"
+          },
+          "city": {
+            "$ref": "#/components/schemas/City"
+          }
+        },
+        "required": [
+          "meeting",
+          "professional",
+          "leadId",
+          "leadReference",
+          "domain",
+          "city"
+        ],
+        "additionalProperties": false
+      },
       "OtpChallenge": {
         "type": "object",
         "properties": {
@@ -15733,6 +15765,90 @@
             "application/json": {
               "schema": {
                 "$ref": "#/components/schemas/OpsVisitOutcomeBody"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/ops/visits": {
+      "get": {
+        "operationId": "opsVisits",
+        "tags": [
+          "staff"
+        ],
+        "summary": "leads.view — every visit, soonest first, for the site visits screen",
+        "description": "leads.view — every visit, soonest first, for the site visits screen Requires staff credentials. Not available to the mobile apps.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success (response shape not yet declared in the manifest)"
+          },
+          "401": {
+            "description": "Not signed in, or the session was revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record — which also covers a record belonging to somebody else",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request body or query failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Retry after the stated time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
               }
             }
           }

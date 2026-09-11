@@ -5,7 +5,7 @@ import {
   type ProfessionalProfile,
   type ProfessionalSummary,
 } from "@repo/types";
-import { USING_API, api, paginate, readThrough } from "./client";
+import { USING_API, api, nullWhenMissing, paginate, readThrough } from "./client";
 import { toProfessionalProfile, toProfessionalSummary } from "./mappers";
 import { delay, store } from "./store";
 
@@ -85,10 +85,12 @@ export async function listProfessionals(
 }
 
 export async function getProfessional(id: string): Promise<ProfessionalProfile | null> {
-  return readThrough(`/professionals/${id}`, { tags: ["professionals"] }, () => {
-    const exists = store.professionals.some((p) => p.id === id);
-    return delay(exists ? toProfessionalProfile(id) : null);
-  });
+  return nullWhenMissing(
+    readThrough(`/professionals/${encodeURIComponent(id)}`, { tags: ["professionals"] }, () => {
+      const exists = store.professionals.some((p) => p.id === id);
+      return delay(exists ? toProfessionalProfile(id) : null);
+    }),
+  );
 }
 
 /** Portfolio gallery for the public "Browse work" screen, filterable by domain. */

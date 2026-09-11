@@ -288,6 +288,24 @@ async function request<T>(path: string, options: ApiOptions): Promise<T> {
   return payload as T;
 }
 
+/**
+ * Null for "there is no such record", so a screen can call `notFound()`.
+ *
+ * Every by-id and by-slug reader in this package returns null for a missing
+ * record on seed data, and its screen is written against that. The API answers
+ * the same situation with a 404 — and with a 422 for an id that could never
+ * exist, since ids are validated as UUIDs before anything is looked up — and a
+ * reader that let either escape turned a stale link into a server error page.
+ */
+export async function nullWhenMissing<T>(request: Promise<T>): Promise<T | null> {
+  try {
+    return await request;
+  } catch (error) {
+    if (error instanceof ApiError && (error.isNotFound || error.status === 422)) return null;
+    throw error;
+  }
+}
+
 function safeJson(text: string): unknown {
   try {
     return JSON.parse(text);

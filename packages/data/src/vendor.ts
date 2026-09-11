@@ -43,7 +43,7 @@ export type {
   VendorPerformance,
   VendorProjectView,
 };
-import { api } from "./client";
+import { api, nullWhenMissing } from "./client";
 import { callingApiAsUser, currentProfessionalId } from "./session";
 import { delay, nextId, nowIso, seedRow, store } from "./store";
 
@@ -131,7 +131,9 @@ export async function listVendorLeads(
 
 export async function getVendorLead(leadDomainId: string): Promise<VendorLeadCard | null> {
   if (await callingApiAsUser()) {
-    return api<VendorLeadCard>(`/vendor/leads/${encodeURIComponent(leadDomainId)}`);
+    return nullWhenMissing(
+      api<VendorLeadCard>(`/vendor/leads/${encodeURIComponent(leadDomainId)}`),
+    );
   }
 
   const professionalId = await currentProfessionalId();

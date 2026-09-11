@@ -36,6 +36,7 @@ import type {
   meetingViewSchema,
   myDayViewSchema,
   opsLeadRowSchema,
+  opsVisitRowSchema,
   packageLineSchema,
   packageViewSchema,
   productViewSchema,
@@ -187,6 +188,8 @@ export type VendorVisitView = z.infer<typeof vendorVisitViewSchema>;
  * ------------------------------------------------------------------ */
 
 export type OpsLeadRow = z.infer<typeof opsLeadRowSchema>;
+
+export type OpsVisitRow = z.infer<typeof opsVisitRowSchema>;
 
 export type RelayThread = z.infer<typeof relayThreadSchema>;
 

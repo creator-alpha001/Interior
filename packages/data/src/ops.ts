@@ -15,13 +15,14 @@ import type {
   Meeting,
   MeetingType,
   Message,
+  OpsVisitRow,
   ProfessionalSummary,
   Urgency,
 } from "@repo/types";
 import { cityById, domainById, toLeadView, toProfessionalSummary } from "./mappers";
 import { hasSignedPartnerAgreementSync } from "./onboarding";
 import { recomputeLeadStatus } from "./leads";
-import { api } from "./client";
+import { api, nullWhenMissing } from "./client";
 import { callingApiAsUser, currentAgentId } from "./session";
 import { delay, nextId, nowIso, store } from "./store";
 
@@ -151,7 +152,7 @@ function toOpsLeadRow(leadId: string): OpsLeadRow {
 
 export async function getOpsLead(leadId: string): Promise<OpsLeadRow | null> {
   if (await callingApiAsUser()) {
-    return api<OpsLeadRow>(`/ops/leads/${encodeURIComponent(leadId)}`);
+    return nullWhenMissing(api<OpsLeadRow>(`/ops/leads/${encodeURIComponent(leadId)}`));
   }
 
   const exists = store.leads.some((l) => l.id === leadId);
@@ -185,7 +186,9 @@ export interface RelayView {
  */
 export async function getRelay(leadDomainId: string): Promise<RelayView | null> {
   if (await callingApiAsUser()) {
-    return api<RelayView>(`/ops/services/${encodeURIComponent(leadDomainId)}/relay`);
+    return nullWhenMissing(
+      api<RelayView>(`/ops/services/${encodeURIComponent(leadDomainId)}/relay`),
+    );
   }
 
   const leadDomain = store.leadDomains.find((ld) => ld.id === leadDomainId);
@@ -405,6 +408,13 @@ export async function setLeadDomainStatus(
   leadDomainId: string,
   status: LeadDomainStatus,
 ): Promise<void> {
+  if (await callingApiAsUser()) {
+    // The API has no endpoint for this: a service's status follows from what
+    // happened to it — assignment, quotes, selection, completion — and is not
+    // set by hand. Refuse rather than appear to save into the seed store.
+    throw new Error("A service's status cannot be set directly against the live API.");
+  }
+
   const leadDomain = store.leadDomains.find((ld) => ld.id === leadDomainId);
   if (!leadDomain) throw new Error("Unknown lead domain");
   leadDomain.status = status;
@@ -532,16 +542,9 @@ export async function scheduleVisit(input: ScheduleVisitInput): Promise<Meeting>
   return delay(meeting);
 }
 
-export async function listVisitsForAgent(): Promise<
-  Array<{
-    meeting: Meeting;
-    professional: ProfessionalSummary;
-    leadId: string;
-    leadReference: string;
-    domain: Domain;
-    city: City;
-  }>
-> {
+export async function listVisitsForAgent(): Promise<OpsVisitRow[]> {
+  if (await callingApiAsUser()) return api<OpsVisitRow[]>("/ops/visits");
+
   return delay(
     store.meetings
       .sort((a, b) => a.scheduledAt.localeCompare(b.scheduledAt))

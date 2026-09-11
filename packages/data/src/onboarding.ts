@@ -13,7 +13,7 @@ import type {
   VendorOnboarding,
 } from "@repo/types";
 import { partnerTerms } from "@repo/mock";
-import { api } from "./client";
+import { api, nullWhenMissing } from "./client";
 import { callingApiAsUser, currentProfessionalId, currentStaffUserId } from "./session";
 import { delay, nextId, nowIso, store } from "./store";
 
@@ -58,6 +58,12 @@ export async function hasSignedPartnerAgreement(professionalId: string): Promise
 export async function getVendorOnboardingFor(
   professionalId: string,
 ): Promise<VendorOnboarding | null> {
+  if (await callingApiAsUser()) {
+    return nullWhenMissing(
+      api<VendorOnboarding>(`/ops/vendors/${encodeURIComponent(professionalId)}/onboarding`),
+    );
+  }
+
   const pro = store.professionals.find((p) => p.id === professionalId);
   if (!pro) return delay(null);
 
@@ -289,6 +295,19 @@ export async function reviewMilestoneProof(
   approve: boolean,
   note: string | null,
 ): Promise<void> {
+  if (await callingApiAsUser()) {
+    // This is the write that moves a customer's progress bar. Without this
+    // branch the button changed the seed store of one server process and the
+    // customer, the vendor and the database never heard about it.
+    await api(
+      `/ops/projects/${encodeURIComponent(projectId)}/stages/${encodeURIComponent(
+        milestoneId,
+      )}/review`,
+      { method: "POST", body: { approve, note } },
+    );
+    return;
+  }
+
   const reviewerUserId = await currentStaffUserId();
   const project = store.projects.find((p) => p.id === projectId);
   if (!project) throw new Error("Unknown project");

@@ -17,13 +17,17 @@ export default async function VendorDetailPage({ params }: { params: Promise<Par
   const { id } = await params;
   const [row, profile, domains, invoices, onboarding] = await Promise.all([
     getVendor(id),
-    getProfessional(id),
+    // The public profile only adds the mobile and reviews. It is the directory's
+    // view of a vendor, so it can refuse one ops still needs to look at — that
+    // must not take the ops record down with it.
+    getProfessional(id).catch(() => null),
     listDomains(),
     listCommissionInvoices(),
     getVendorOnboardingFor(id),
   ]);
-  if (!row || !profile) notFound();
+  if (!row) notFound();
 
+  const reviews = profile?.reviews ?? [];
   const theirInvoices = invoices.filter((i) => i.invoice.professionalId === id);
   const unlinkedDomains = domains.filter(
     (d) => !row.domainLinks.some((l) => l.domain.id === d.id),
@@ -156,7 +160,7 @@ export default async function VendorDetailPage({ params }: { params: Promise<Par
               <dl className="space-y-2">
                 {[
                   ["Contact", row.summary.name],
-                  ["Mobile", profile.user.mobile],
+                  ["Mobile", profile?.user.mobile ?? "—"],
                   ["GST", row.professional.gstNumber ?? "Not registered"],
                   ["Experience", `${row.professional.experienceYears} years`],
                   ["Languages", row.professional.languages.join(", ")],
@@ -227,12 +231,12 @@ export default async function VendorDetailPage({ params }: { params: Promise<Par
           )}
         </Panel>
 
-        <Panel title={`Reviews (${profile.reviews.length})`} bodyClassName="p-0">
-          {profile.reviews.length === 0 ? (
+        <Panel title={`Reviews (${reviews.length})`} bodyClassName="p-0">
+          {reviews.length === 0 ? (
             <p className="px-4 py-8 text-center text-[13px] text-ink-3">No reviews yet.</p>
           ) : (
             <ul className="divide-y divide-line">
-              {profile.reviews.map(({ review, clientName, domain }) => (
+              {reviews.map(({ review, clientName, domain }) => (
                 <li key={review.id} className="px-4 py-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <div className="flex items-center gap-2">

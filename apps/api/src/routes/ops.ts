@@ -132,6 +132,11 @@ export async function registerOpsRoutes(app: FastifyInstance) {
     return { ok: true };
   });
 
+  app.get(routes.opsVisits.path, async (request) => {
+    await requirePermission(request, "leads.view");
+    return ops.listVisits();
+  });
+
   /* ---------------- execution ---------------- */
 
   app.post<{ Params: { id: string; stageId: string } }>(

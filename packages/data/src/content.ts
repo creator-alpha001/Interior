@@ -9,7 +9,7 @@ import {
   type Paginated,
   type Testimonial,
 } from "@repo/types";
-import { USING_API, api, paginate, readThrough } from "./client";
+import { USING_API, api, nullWhenMissing, paginate, readThrough } from "./client";
 import { domainById } from "./mappers";
 import { delay, store } from "./store";
 
@@ -20,8 +20,10 @@ export async function listDomains(): Promise<Domain[]> {
 }
 
 export async function getDomainBySlug(slug: string): Promise<Domain | null> {
-  return readThrough(`/domains/${slug}`, { tags: ["domains"] }, () =>
-    delay(store.domains.find((d) => d.slug === slug) ?? null),
+  return nullWhenMissing(
+    readThrough(`/domains/${encodeURIComponent(slug)}`, { tags: ["domains"] }, () =>
+      delay(store.domains.find((d) => d.slug === slug) ?? null),
+    ),
   );
 }
 
@@ -101,10 +103,12 @@ export async function listPosts(query: PostQuery = {}): Promise<Paginated<BlogPo
 }
 
 export async function getPostBySlug(slug: string): Promise<BlogPostView | null> {
-  return readThrough(`/posts/${slug}`, { tags: ["posts"] }, () => {
-    const post = store.blogPosts.find((p) => p.slug === slug && p.status === "published");
-    return delay(post ? toPostView(post.id) : null);
-  });
+  return nullWhenMissing(
+    readThrough(`/posts/${encodeURIComponent(slug)}`, { tags: ["posts"] }, () => {
+      const post = store.blogPosts.find((p) => p.slug === slug && p.status === "published");
+      return delay(post ? toPostView(post.id) : null);
+    }),
+  );
 }
 
 export async function listRelatedPosts(postId: string, limit = 3): Promise<BlogPostView[]> {

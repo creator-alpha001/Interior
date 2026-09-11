@@ -155,6 +155,15 @@ export async function relayToVendors(
   body: string,
   sourceMessageId?: string,
 ): Promise<Message[]> {
+  if (await callingApiAsUser()) {
+    // Both relay writes used to have no API branch. The console cleared the
+    // draft as if it had sent, and the vendors never received anything.
+    return api<Message[]>(`/ops/services/${encodeURIComponent(leadDomainId)}/relay/vendors`, {
+      method: "POST",
+      body: { body, sourceMessageId },
+    });
+  }
+
   const agentId = await currentAgentId();
   const vendorIds = store.leadDomainAssignments
     .filter((a) => a.leadDomainId === leadDomainId && a.responseStatus === "accepted")
@@ -180,6 +189,13 @@ export async function replyToClient(
   body: string,
   sourceMessageId?: string,
 ): Promise<Message> {
+  if (await callingApiAsUser()) {
+    return api<Message>(`/ops/services/${encodeURIComponent(leadDomainId)}/relay/client`, {
+      method: "POST",
+      body: { body, sourceMessageId },
+    });
+  }
+
   const agentId = await currentAgentId();
   return delay(
     push({

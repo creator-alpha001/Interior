@@ -539,6 +539,21 @@ export const myDayViewSchema = z.object({
   commission: commissionSummarySchema,
 });
 
+/**
+ * One visit on the site visits screen.
+ *
+ * Staff-facing, so `professional` is the full summary; the lead's own city
+ * rather than the vendor's, because that is where the visit happens.
+ */
+export const opsVisitRowSchema = z.object({
+  meeting: meetingSchema,
+  professional: professionalSummarySchema,
+  leadId: idSchema,
+  leadReference: z.string(),
+  domain: domainSchema,
+  city: citySchema,
+});
+
 export const domainSliceSchema = z.object({
   domain: domainSchema,
   leads: z.number().int(),

@@ -15,7 +15,7 @@ import type {
   ProfessionalApplicationStatus,
   ProfessionalApplicationView,
 } from "@repo/types";
-import { api } from "./client";
+import { api, nullWhenMissing } from "./client";
 import { callingApiAsUser, currentUserId } from "./session";
 import { delay, nextId, nowIso, store } from "./store";
 
@@ -198,8 +198,8 @@ export async function getProfessionalApplication(
   id: string,
 ): Promise<ProfessionalApplicationView | null> {
   if (await callingApiAsUser()) {
-    return api<ProfessionalApplicationView>(
-      `/ops/professional-applications/${encodeURIComponent(id)}`,
+    return nullWhenMissing(
+      api<ProfessionalApplicationView>(`/ops/professional-applications/${encodeURIComponent(id)}`),
     );
   }
 

@@ -274,6 +274,13 @@ export const opsRoutes = {
     body: visitOutcomeSchema,
     summary: "leads.manage",
   }),
+  opsVisits: route({
+    method: "GET",
+    path: "/ops/visits",
+    audience: "staff",
+    query: z.object({}),
+    summary: "leads.view — every visit, soonest first, for the site visits screen",
+  }),
 
   /* ---- execution ---- */
   opsReviewProof: route({

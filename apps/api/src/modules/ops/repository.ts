@@ -18,6 +18,7 @@ import type {
   LeadStatus,
   MyDayView,
   OpsLeadRow,
+  OpsVisitRow,
   Paginated,
   RelayView,
   SalesDashboard,
@@ -28,7 +29,7 @@ import type {
 import { db } from "../../db/client";
 import * as t from "../../db/schema";
 import { NotFoundError } from "../../lib/errors";
-import { toDomain, toProfessionalSummary } from "../../lib/mappers";
+import { toCity, toDomain, toProfessionalSummary } from "../../lib/mappers";
 import { decodeCursor, page } from "../../lib/pagination";
 import { buildLeadViews } from "../customer/views";
 import { vendorCityJoin } from "../../lib/vendor-city";
@@ -799,6 +800,59 @@ export async function getSalesDashboard(agentId: string | null): Promise<SalesDa
     byUrgency: urgency.map((u) => ({ urgency: u.urgency, count: u.value })),
     byDomain: byDomain.map((d) => ({ domain: toDomain(d.domain), count: d.value })),
   };
+}
+
+/**
+ * Every visit, soonest first, for the site visits screen.
+ *
+ * There was no endpoint behind that screen at all, so it showed the seed's
+ * visits against a live database. Two queries rather than one: the visit's city
+ * is the lead's, the vendor's is resolved through `vendor-city`, and both reach
+ * `cities` — one statement would need the table joined twice under an alias.
+ */
+export async function listVisits(): Promise<OpsVisitRow[]> {
+  const rows = await db
+    .select({
+      meeting: t.meetings,
+      domain: t.domains,
+      leadId: t.leads.id,
+      leadReference: t.leads.reference,
+      city: t.cities,
+    })
+    .from(t.meetings)
+    .innerJoin(t.leadDomains, eq(t.leadDomains.id, t.meetings.leadDomainId))
+    .innerJoin(t.domains, eq(t.domains.id, t.leadDomains.domainId))
+    .innerJoin(t.leads, eq(t.leads.id, t.leadDomains.leadId))
+    .innerJoin(t.cities, eq(t.cities.id, t.leads.cityId))
+    .where(isNull(t.leads.deletedAt))
+    .orderBy(asc(t.meetings.scheduledAt));
+
+  if (rows.length === 0) return [];
+
+  const professionalIds = [...new Set(rows.map((r) => r.meeting.professionalId))];
+  const professionals = await db
+    .select({ professional: t.professionals, user: t.users, city: t.cities })
+    .from(t.professionals)
+    .innerJoin(t.users, eq(t.users.id, t.professionals.userId))
+    .leftJoin(t.cities, vendorCityJoin)
+    .where(inArray(t.professionals.id, professionalIds));
+
+  const professionalById = new Map(professionals.map((p) => [p.professional.id, p]));
+
+  return rows.flatMap((row) => {
+    const pro = professionalById.get(row.meeting.professionalId);
+    if (!pro) return [];
+    return [
+      {
+        meeting: row.meeting as unknown as OpsVisitRow["meeting"],
+        professional: toProfessionalSummary({ ...pro, domains: [row.domain] }),
+        leadId: row.leadId,
+        leadReference: row.leadReference,
+        domain: toDomain(row.domain),
+        city: toCity(row.city),
+      },
+    ];
+  });
 }
 
 /**

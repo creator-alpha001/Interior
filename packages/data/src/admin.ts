@@ -24,7 +24,7 @@ import type {
 } from "@repo/types";
 import { domainById, toAgreementView, toProfessionalSummary } from "./mappers";
 import { hasSignedPartnerAgreementSync } from "./onboarding";
-import { ApiError, api } from "./client";
+import { ApiError, api, nullWhenMissing } from "./client";
 import { callingApiAsUser } from "./session";
 import { delay, nextId, nowIso, store } from "./store";
 
@@ -162,6 +162,22 @@ export async function listVendors(filters: {
   cityId?: string;
   search?: string;
 } = {}): Promise<VendorRow[]> {
+  if (await callingApiAsUser()) {
+    // Without this branch a signed-in panel listed the seed vendors against a
+    // real backend, and opening one asked the API for an id like `pro-ganesh`
+    // that no database has — which took the vendor page down.
+    const result = await api<{ items: VendorRow[] }>("/ops/vendors", {
+      query: {
+        status: filters.status && filters.status !== "all" ? filters.status : undefined,
+        domain: filters.domainSlug,
+        city: filters.cityId,
+        search: filters.search?.trim() || undefined,
+        limit: 100,
+      },
+    });
+    return result.items;
+  }
+
   const domain = filters.domainSlug
     ? store.domains.find((d) => d.slug === filters.domainSlug)
     : undefined;
@@ -228,7 +244,7 @@ function toVendorRow(professionalId: string): VendorRow {
 
 export async function getVendor(professionalId: string): Promise<VendorRow | null> {
   if (await callingApiAsUser()) {
-    return api<VendorRow>(`/ops/vendors/${encodeURIComponent(professionalId)}`);
+    return nullWhenMissing(api<VendorRow>(`/ops/vendors/${encodeURIComponent(professionalId)}`));
   }
 
   const exists = store.professionals.some((p) => p.id === professionalId);
@@ -333,7 +349,22 @@ export async function setCommissionOverride(
  * Agreements and commission
  * ------------------------------------------------------------------ */
 
-export async function listAllAgreements(filters: { status?: string; domainSlug?: string } = {}) {
+export async function listAllAgreements(
+  filters: { status?: string; domainSlug?: string } = {},
+): Promise<AgreementView[]> {
+  if (await callingApiAsUser()) {
+    // The endpoint pages and does not filter, so both filters are applied to
+    // the page here. An agreement covers a trade when any of its lines does.
+    const result = await api<{ items: AgreementView[] }>("/ops/agreements", {
+      query: { limit: 100 },
+    });
+    return result.items.filter(
+      (view) =>
+        (!filters.status || filters.status === "all" || view.agreement.status === filters.status) &&
+        (!filters.domainSlug || view.lines.some((line) => line.domain.slug === filters.domainSlug)),
+    );
+  }
+
   const domain = filters.domainSlug
     ? store.domains.find((d) => d.slug === filters.domainSlug)
     : undefined;
@@ -369,6 +400,13 @@ export interface InvoiceRow {
 export async function listCommissionInvoices(
   status: InvoiceStatus | "all" = "all",
 ): Promise<InvoiceRow[]> {
+  if (await callingApiAsUser()) {
+    const result = await api<{ items: InvoiceRow[] }>("/ops/invoices", {
+      query: { status: status === "all" ? undefined : status, limit: 100 },
+    });
+    return result.items;
+  }
+
   const today = nowIso().slice(0, 10);
 
   return delay(
@@ -593,6 +631,13 @@ export interface AdminTicketRow {
 export async function listAllTickets(
   status: SupportTicket["status"] | "all" = "all",
 ): Promise<AdminTicketRow[]> {
+  if (await callingApiAsUser()) {
+    const result = await api<{ items: AdminTicketRow[] }>("/ops/tickets", {
+      query: { status: status === "all" ? undefined : status, limit: 100 },
+    });
+    return result.items;
+  }
+
   const weight: Record<SupportTicket["priority"], number> = {
     urgent: 0,
     high: 1,
