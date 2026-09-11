@@ -26,11 +26,14 @@ export function VendorShell({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-30 border-b border-line bg-surface">
         <div className="mx-auto flex h-14 w-full max-w-5xl items-center gap-3 px-4">
           <Link href="/partner" className="flex items-center gap-2">
-            <span className="grid h-7 w-7 place-items-center rounded-md bg-brand text-white">
-              <svg viewBox="0 0 20 20" className="h-3.5 w-3.5 fill-current" aria-hidden="true">
-                <path d="M10 2L2 8v10h5v-6h6v6h5V8l-8-6z" />
-              </svg>
-            </span>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/brand/decora-shine-mark.png"
+              alt=""
+              width={231}
+              height={256}
+              className="h-8 w-auto"
+            />
             <div>
               <div className="text-[14px] font-semibold leading-none">Decora Shine</div>
               <div className="mt-0.5 text-[10.5px] uppercase tracking-wider text-ink-4">

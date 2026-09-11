@@ -26,7 +26,10 @@ export function AccountMenu({
   accountName,
   completingSignIn,
   demoMode,
+  tone = "light",
 }: {
+  /** `dark` for the header's green utility bar. */
+  tone?: "light" | "dark";
   /** Somebody is actually signed in as a customer — not the seeded stand-in. */
   signedInAsClient: boolean;
   /** Their name, so the header says who rather than the word "Account". */
@@ -61,12 +64,19 @@ export function AccountMenu({
     setOpen(false);
   }
 
+  const dark = tone === "dark";
+
   if (signedOut) {
     return (
       <div className="flex shrink-0 items-center gap-1">
         <Link
           href="/login"
-          className="flex h-11 items-center whitespace-nowrap rounded-full px-3 text-[14.5px] text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink sm:text-[13.5px]"
+          className={cn(
+            "flex items-center whitespace-nowrap rounded-full px-3 transition-colors",
+            dark
+              ? "h-9 text-[13px] text-white/85 hover:bg-white/10 hover:text-white"
+              : "h-11 text-[14.5px] text-ink-2 hover:bg-surface-2 hover:text-ink sm:text-[13.5px]",
+          )}
         >
           Sign in
         </Link>
@@ -77,7 +87,12 @@ export function AccountMenu({
         */}
         <Link
           href="/login?mode=signup"
-          className="flex h-11 items-center whitespace-nowrap rounded-full border border-line-strong px-3.5 text-[14.5px] font-medium text-ink transition-colors hover:border-ink-4 hover:bg-surface-2 sm:text-[13.5px]"
+          className={cn(
+            "flex items-center whitespace-nowrap rounded-full border px-3.5 font-medium transition-colors",
+            dark
+              ? "h-8 border-white/40 text-[13px] text-white hover:bg-white/10"
+              : "h-11 border-line-strong text-[14.5px] text-ink hover:border-ink-4 hover:bg-surface-2 sm:text-[13.5px]",
+          )}
         >
           Sign up
         </Link>
@@ -94,14 +109,23 @@ export function AccountMenu({
         aria-haspopup="menu"
         aria-label={signedInAsClient ? "Your account" : "Finish signing in"}
         className={cn(
-          "flex h-11 items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 text-[14.5px] transition-colors hover:bg-surface-2 hover:text-ink sm:text-[13.5px]",
-          open ? "bg-surface-2 text-ink" : "text-ink-2",
+          "flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 transition-colors",
+          dark
+            ? cn("h-9 text-[13px] hover:bg-white/10 hover:text-white", open ? "bg-white/15 text-white" : "text-white/85")
+            : cn(
+                "h-11 text-[14.5px] hover:bg-surface-2 hover:text-ink sm:text-[13.5px]",
+                open ? "bg-surface-2 text-ink" : "text-ink-2",
+              ),
         )}
       >
-        <svg viewBox="0 0 20 20" className="h-4 w-4 fill-ink-4" aria-hidden="true">
+        <svg
+          viewBox="0 0 20 20"
+          className={cn("h-4 w-4", dark ? "fill-white/60" : "fill-ink-4")}
+          aria-hidden="true"
+        >
           <path d="M10 10a3 3 0 100-6 3 3 0 000 6zm0 2c-3 0-6 1.5-6 4v1h12v-1c0-2.5-3-4-6-4z" />
         </svg>
-        <span className="hidden lg:inline">
+        <span className={dark ? "hidden sm:inline" : "hidden lg:inline"}>
           {signedInAsClient
             ? // The first name, because a header is not the place for "Priya
               // Sharma Kulkarni" and the full name is on the account page.

@@ -178,25 +178,26 @@ export function ProfessionalCard({
         ) : null}
       </div>
 
-      <div className="flex flex-1 flex-col p-5 pt-0">
-        <div className="-mt-7 flex items-end gap-3">
-          <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full border-[3px] border-surface bg-brand-soft text-[19px] font-semibold text-brand shadow-sm">
-            {pro.avatarUrl ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={pro.avatarUrl} alt="" className="h-full w-full object-cover" />
-            ) : (
-              pro.name.charAt(0)
-            )}
-          </div>
-          <div className="min-w-0 flex-1 pb-0.5">
-            <h3 className="truncate text-[15px] font-semibold text-ink transition-colors group-hover:text-brand">
-              {pro.name}
-            </h3>
-            <p className="truncate text-[14px] sm:text-[13px] text-ink-3">
-              {pro.companyName}
-              {pro.city ? ` · ${pro.city.name}` : ""}
-            </p>
-          </div>
+      <div className="flex flex-1 flex-col px-5 pb-5">
+        {/* Only the avatar overlaps the photograph, and it is lifted above it.
+            The name used to be pulled up beside it, where the cover — which is
+            positioned, so it paints later — was drawn over the text. */}
+        <div className="relative z-10 -mt-7 grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full border-[3px] border-surface bg-brand-soft text-[19px] font-semibold text-brand shadow-sm">
+          {pro.avatarUrl ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={pro.avatarUrl} alt="" className="h-full w-full object-cover" />
+          ) : (
+            pro.name.charAt(0)
+          )}
+        </div>
+        <div className="mt-2.5 min-w-0">
+          <h3 className="truncate text-[16px] font-semibold text-ink transition-colors group-hover:text-brand">
+            {pro.name}
+          </h3>
+          <p className="mt-0.5 truncate text-[14px] text-ink-3 sm:text-[13px]">
+            {pro.companyName}
+            {pro.city ? ` · ${pro.city.name}` : ""}
+          </p>
         </div>
 
         <div className="mt-4 flex flex-wrap gap-1.5">

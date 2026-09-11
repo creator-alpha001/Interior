@@ -17,7 +17,16 @@ import { cn } from "@repo/ui";
  * first-class option here, both as the label and as something you can switch
  * back to.
  */
-export function CitySwitcher({ cities, selected }: { cities: City[]; selected: City | null }) {
+export function CitySwitcher({
+  cities,
+  selected,
+  tone = "light",
+}: {
+  cities: City[];
+  selected: City | null;
+  /** `dark` for the header's green utility bar. */
+  tone?: "light" | "dark";
+}) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [pending, startTransition] = useTransition();
@@ -37,12 +46,21 @@ export function CitySwitcher({ cities, selected }: { cities: City[]; selected: C
         type="button"
         onClick={() => setOpen((v) => !v)}
         disabled={pending}
-        className="flex h-11 items-center gap-1.5 rounded-full px-2.5 text-[14.5px] sm:text-[13.5px] text-ink-2 transition-colors hover:bg-surface-2 hover:text-ink"
+        className={cn(
+          "flex items-center gap-1.5 whitespace-nowrap rounded-full px-2.5 transition-colors",
+          tone === "dark"
+            ? "h-9 text-[13px] text-white/85 hover:bg-white/10 hover:text-white"
+            : "h-11 text-[14.5px] text-ink-2 hover:bg-surface-2 hover:text-ink sm:text-[13.5px]",
+        )}
         aria-label={
           selected ? `Change city, currently ${selected.name}` : "Choose your city, showing all cities"
         }
       >
-        <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 fill-ink-4" aria-hidden="true">
+        <svg
+          viewBox="0 0 16 16"
+          className={cn("h-3.5 w-3.5", tone === "dark" ? "fill-white/60" : "fill-ink-4")}
+          aria-hidden="true"
+        >
           <path d="M8 1a4.5 4.5 0 00-4.5 4.5C3.5 9 8 15 8 15s4.5-6 4.5-9.5A4.5 4.5 0 008 1zm0 6.2a1.7 1.7 0 110-3.4 1.7 1.7 0 010 3.4z" />
         </svg>
         <span className="hidden sm:inline">{selected?.name ?? "All cities"}</span>
