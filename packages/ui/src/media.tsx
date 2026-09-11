@@ -3,10 +3,16 @@ import { cn } from "./cn";
 /**
  * Renders catalogue and portfolio imagery.
  *
- * Real photography is not wired up yet, so `ph:<domain>:<seed>` tokens render a
- * designed, deterministic tile instead of a broken image. Swapping in real
- * photos later means changing the URLs in the data layer — this component
- * already handles anything that is not a `ph:` token as a normal image.
+ * Real photography is not wired up yet, so `ph:<domain>:<seed>` tokens stand in
+ * for it. A token resolves to a licence-free stock photograph from a small pool
+ * per trade (Unsplash licence, kept in the web app's `public/images/stock`),
+ * picked by the seed — so the same product always shows the same photograph,
+ * and a real upload replaces it simply by being a real URL.
+ *
+ * The drawn tile is still rendered underneath. An app that does not carry the
+ * pool — the ops panel — or a file that has gone missing shows the tile rather
+ * than a broken image: the photograph has an empty alt, so a failed load paints
+ * nothing, and the tile's own label says what the image is.
  */
 
 const domainTint: Record<string, [string, string, string]> = {
@@ -17,6 +23,21 @@ const domainTint: Record<string, [string, string, string]> = {
   default: ["#7c756a", "#b7b0a4", "#eae6de"],
 };
 
+/** How many photographs each pool holds, numbered 1..n under `/images/stock/<pool>/`. */
+const photoPools: Record<string, number> = {
+  interior: 8,
+  furniture: 8,
+  fabrication: 8,
+  painting: 8,
+  default: 8,
+};
+
+/** Domain slugs as tokens spell them. Interior design predates its slug by one name. */
+function poolFor(domain: string): string {
+  if (domain === "interior-design") return "interior";
+  return domain in photoPools ? domain : "default";
+}
+
 function hash(seed: string): number {
   let h = 2166136261;
   for (let i = 0; i < seed.length; i += 1) {
@@ -26,18 +47,31 @@ function hash(seed: string): number {
   return Math.abs(h);
 }
 
+/**
+ * The stock photograph a placeholder token stands for.
+ *
+ * Exported so a page can put the same photograph somewhere `Media` does not
+ * render, such as a CSS background.
+ */
+export function stockPhotoFor(domain: string, seed: string): string {
+  const pool = poolFor(domain);
+  const n = (hash(seed) % photoPools[pool]!) + 1;
+  return `/images/stock/${pool}/${n}.jpg`;
+}
+
 export interface MediaProps {
   /** A `ph:domain:seed` token or a normal image URL. */
   src: string;
   alt: string;
   className?: string;
-  /** Overlay label drawn on placeholder tiles. */
+  /** Overlay label drawn on the tile, seen only where no photograph loads. */
   label?: string;
   rounded?: boolean;
+  /** Load straight away rather than when scrolled near: for the first screen. */
   priority?: boolean;
 }
 
-export function Media({ src, alt, className, label, rounded = true }: MediaProps) {
+export function Media({ src, alt, className, label, rounded = true, priority = false }: MediaProps) {
   const isPlaceholder = src.startsWith("ph:");
 
   if (!isPlaceholder) {
@@ -46,13 +80,15 @@ export function Media({ src, alt, className, label, rounded = true }: MediaProps
       <img
         src={src}
         alt={alt}
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
         className={cn("h-full w-full object-cover", rounded && "rounded-xl", className)}
       />
     );
   }
 
   const [, domain = "default", seed = "x"] = src.split(":");
-  const [dark, mid, light] = domainTint[domain] ?? domainTint.default;
+  const [dark, mid, light] = domainTint[poolFor(domain)] ?? domainTint.default!;
   const h = hash(seed);
   const angle = 120 + (h % 110);
   const x1 = 18 + (h % 46);
@@ -111,6 +147,16 @@ export function Media({ src, alt, className, label, rounded = true }: MediaProps
           </span>
         </div>
       ) : null}
+      {/* The photograph, over the tile. Empty alt on purpose: the wrapper already
+          names the image, and a failed load then paints nothing at all. */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        src={stockPhotoFor(domain, seed)}
+        alt=""
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
+        className="absolute inset-0 h-full w-full object-cover"
+      />
     </div>
   );
 }

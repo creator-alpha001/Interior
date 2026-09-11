@@ -233,7 +233,12 @@ export async function buildApp(): Promise<FastifyInstance> {
    * at boot is what makes that visible.
    */
   app.log.info(
-    { storage: storageDescription(), sms: config.smsDriver, push: config.pushDriver },
+    {
+      storage: storageDescription(),
+      sms: config.smsDriver,
+      whatsapp: config.whatsappDriver,
+      push: config.pushDriver,
+    },
     "delivery drivers",
   );
   for (const warning of config.warnings) app.log.warn(warning);

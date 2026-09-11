@@ -7,7 +7,7 @@
  * account settings screen make when somebody comes back to them.
  */
 import type { SessionUser } from "@repo/types";
-import type { OtpRequested } from "./auth";
+import type { OtpChannel, OtpRequested } from "./auth";
 import { api } from "./client";
 
 /**
@@ -26,8 +26,11 @@ export async function setMyName(name: string): Promise<SessionUser> {
 }
 
 /** Sends a code to a number the signed-in person wants to add. */
-export async function requestMyMobileCode(mobile: string): Promise<OtpRequested> {
-  return api<OtpRequested>("/me/mobile/request", { method: "POST", body: { mobile } });
+export async function requestMyMobileCode(
+  mobile: string,
+  channel?: OtpChannel,
+): Promise<OtpRequested> {
+  return api<OtpRequested>("/me/mobile/request", { method: "POST", body: { mobile, channel } });
 }
 
 /** Proves it and attaches it. Returns the session with the number now on it. */

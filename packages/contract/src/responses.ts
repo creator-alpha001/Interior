@@ -26,6 +26,7 @@ import {
   timestampSchema,
   vendorLeadCardSchema,
 } from "@repo/types/schema";
+import { otpChannelSchema } from "./common";
 
 export { paginatedSchema };
 
@@ -46,6 +47,14 @@ export const countSchema = z.object({ count: z.number().int() });
 export const otpChallengeSchema = z.object({
   challengeId: idSchema,
   expiresInSeconds: z.number().int(),
+  /**
+   * Where the code actually went, which may not be where it was asked to go.
+   *
+   * Optional only because an API older than the WhatsApp channel does not send
+   * it, and a mobile build pinned to this contract must still parse that
+   * response. Every current handler sets it.
+   */
+  channel: otpChannelSchema.optional(),
   /**
    * Present only when OTP_DEV_ECHO is on, which the config refuses to allow in
    * production. Documented because a mobile client in development reads it.

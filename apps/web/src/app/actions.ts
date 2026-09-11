@@ -21,7 +21,7 @@ import {
   submitReview,
   verifyOtp,
 } from "@repo/data";
-import type { RequirementInput, ReviewInput, TicketInput } from "@repo/data";
+import type { OtpChannel, RequirementInput, ReviewInput, TicketInput } from "@repo/data";
 import { applyCityCookie } from "./(site)/login/actions";
 
 /**
@@ -38,7 +38,9 @@ export interface RequirementResult {
    */
   needsVerification?: true;
   challengeId?: string;
-  /** Development only, when the API echoes the code instead of texting it. */
+  /** Where the code went, so the form can say where to look. */
+  channel?: OtpChannel;
+  /** Development only, when the API echoes the code instead of sending it. */
   devCode?: string;
   error?: string;
 }
@@ -56,17 +58,21 @@ export interface RequirementResult {
 export async function createRequirementAction(
   input: RequirementInput,
   verification?: { challengeId: string; code: string },
+  /** Asked for only when the visitor switches channel; omitted means WhatsApp. */
+  channel?: OtpChannel,
 ): Promise<RequirementResult | never> {
   let cookie: string | undefined;
 
   if (authenticationRequired() && !(await getActor())) {
     if (!verification) {
-      // First pass: send the code and let the form ask for it.
+      // First pass, or a switch of channel: send the code and let the form ask
+      // for it.
       try {
-        const challenge = await requestOtp(input.mobile);
+        const challenge = await requestOtp(input.mobile, channel);
         return {
           needsVerification: true,
           challengeId: challenge.challengeId,
+          channel: challenge.channel,
           devCode: challenge.devCode,
         };
       } catch (error) {

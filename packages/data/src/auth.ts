@@ -11,9 +11,16 @@ import { API_BASE_URL, ApiError, USING_API } from "./client";
 // Re-exported from here too, since this is where sign-in sets it.
 export { SESSION_COOKIE } from "./client";
 
+export type OtpChannel = "whatsapp" | "sms";
+
 export interface OtpRequested {
   challengeId: string;
   expiresInSeconds: number;
+  /**
+   * Where the code actually went. The server swaps a channel that is not live
+   * for one that is, so this is not always the one asked for.
+   */
+  channel?: OtpChannel;
   /** Present only when the API is running with OTP_DEV_ECHO on. */
   devCode?: string;
 }
@@ -69,8 +76,9 @@ async function post<T>(path: string, body: unknown): Promise<{ data: T; setCooki
   return { data: payload as T, setCookie: response.headers.get("set-cookie") };
 }
 
-export async function requestOtp(mobile: string): Promise<OtpRequested> {
-  const { data } = await post<OtpRequested>("/auth/otp/request", { mobile });
+/** `channel` omitted means WhatsApp. */
+export async function requestOtp(mobile: string, channel?: OtpChannel): Promise<OtpRequested> {
+  const { data } = await post<OtpRequested>("/auth/otp/request", { mobile, channel });
   return data;
 }
 

@@ -10,6 +10,7 @@ import {
   signInWithGoogle,
   signOut,
   verifyOtp,
+  type OtpChannel,
 } from "@repo/data";
 
 /**
@@ -23,17 +24,21 @@ import {
 export interface OtpState {
   challengeId?: string;
   expiresInSeconds?: number;
-  /** Shown in development only, when the API echoes the code instead of texting it. */
+  /** Where the code went, so the form can say where to look. */
+  channel?: OtpChannel;
+  /** Shown in development only, when the API echoes the code instead of sending it. */
   devCode?: string;
   error?: string;
 }
 
-export async function requestOtpAction(mobile: string): Promise<OtpState> {
+/** `channel` omitted means WhatsApp; the other one is offered on the code screen. */
+export async function requestOtpAction(mobile: string, channel?: OtpChannel): Promise<OtpState> {
   try {
-    const result = await requestOtp(mobile);
+    const result = await requestOtp(mobile, channel);
     return {
       challengeId: result.challengeId,
       expiresInSeconds: result.expiresInSeconds,
+      channel: result.channel,
       devCode: result.devCode,
     };
   } catch (error) {

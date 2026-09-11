@@ -141,6 +141,24 @@ const schema = z.object({
   MSG91_SENDER_ID: z.string().optional(),
 
   /**
+   * How a one-time code reaches WhatsApp.
+   *
+   * `auto` picks msg91 once the connected number and an approved authentication
+   * template are both set, and `console` until then — so the WhatsApp path runs
+   * on a laptop with no Meta Business account. There is no `file` driver: the
+   * fallback for WhatsApp is SMS, which `otp-delivery.ts` switches to itself.
+   */
+  WHATSAPP_DRIVER: z.enum(["auto", "msg91", "console"]).default("auto"),
+  /** The WhatsApp number connected in MSG91, with the country code: 91XXXXXXXXXX. */
+  MSG91_WHATSAPP_NUMBER: z.string().optional(),
+  /** The approved authentication template's name. */
+  MSG91_WHATSAPP_OTP_TEMPLATE: z.string().optional(),
+  /** The language the template was approved in. */
+  MSG91_WHATSAPP_OTP_LANGUAGE: z.string().default("en"),
+  /** The namespace MSG91 shows beside the template. */
+  MSG91_WHATSAPP_NAMESPACE: z.string().optional(),
+
+  /**
    * Whether this process also runs the scheduled jobs.
    *
    * On by default: pg-boss coordinates through Postgres, so several API
@@ -249,12 +267,17 @@ function load() {
    * through a provider outage at four in the morning.
    */
   const msg91Ready = Boolean(env.MSG91_AUTH_KEY && env.MSG91_TEMPLATE_ID);
+  const whatsappReady = Boolean(
+    env.MSG91_AUTH_KEY && env.MSG91_WHATSAPP_NUMBER && env.MSG91_WHATSAPP_OTP_TEMPLATE,
+  );
   const r2Ready = Boolean(
     env.R2_ACCOUNT_ID && env.R2_ACCESS_KEY_ID && env.R2_SECRET_ACCESS_KEY && env.R2_BUCKET,
   );
   const fcmReady = Boolean(env.FCM_SERVICE_ACCOUNT && env.FCM_PROJECT_ID);
 
   const smsDriver = env.SMS_DRIVER === "auto" ? (msg91Ready ? "msg91" : "console") : env.SMS_DRIVER;
+  const whatsappDriver =
+    env.WHATSAPP_DRIVER === "auto" ? (whatsappReady ? "msg91" : "console") : env.WHATSAPP_DRIVER;
   const storageDriver = env.STORAGE_DRIVER === "auto" ? (r2Ready ? "r2" : "local") : env.STORAGE_DRIVER;
   const pushDriver = env.PUSH_DRIVER === "auto" ? (fcmReady ? "fcm" : "log") : env.PUSH_DRIVER;
 
@@ -396,18 +419,34 @@ function load() {
     }
 
     /*
-     * SMS is a warning rather than a failure, which is a change.
+     * Codes not reaching phones is a warning rather than a failure, which is a
+     * change.
      *
      * It used to refuse to boot without MSG91, on the reasoning that nobody
      * could sign in — true, and the wrong response to it. A provider whose DLT
-     * registration is still pending, or one that has gone down, should leave a
-     * running platform that an operator can work through, not a service that
-     * will not start.
+     * registration or Meta verification is still pending, or one that has gone
+     * down, should leave a running platform that an operator can work through,
+     * not a service that will not start.
+     *
+     * Either channel being live is enough for sign-in, because a request for the
+     * other one is sent on the live one instead.
      */
-    if (smsDriver !== "msg91") {
+    if (smsDriver !== "msg91" && whatsappDriver !== "msg91") {
       warnings.push(
-        `SMS driver is '${smsDriver}', not msg91. One-time codes will not reach phones. ` +
-          "Set MSG91_AUTH_KEY and MSG91_TEMPLATE_ID once DLT registration completes.",
+        `Neither WhatsApp ('${whatsappDriver}') nor SMS ('${smsDriver}') is live. One-time ` +
+          "codes will not reach phones. Set MSG91_AUTH_KEY with MSG91_WHATSAPP_NUMBER and " +
+          "MSG91_WHATSAPP_OTP_TEMPLATE, or with MSG91_TEMPLATE_ID once DLT registration completes.",
+      );
+    } else if (whatsappDriver !== "msg91") {
+      warnings.push(
+        `WhatsApp driver is '${whatsappDriver}'. One-time codes go by SMS only. Set ` +
+          "MSG91_WHATSAPP_NUMBER and MSG91_WHATSAPP_OTP_TEMPLATE once the template is approved.",
+      );
+    } else if (smsDriver !== "msg91") {
+      warnings.push(
+        `SMS driver is '${smsDriver}'. One-time codes go on WhatsApp only — "send by SMS ` +
+          "instead\" sends on WhatsApp — and notifications are not texted. Set MSG91_TEMPLATE_ID " +
+          "once DLT registration completes.",
       );
     }
     if (pushDriver !== "fcm") {
@@ -424,6 +463,7 @@ function load() {
     isTest: env.NODE_ENV === "test",
     /** The driver actually in use, with `auto` already resolved. */
     smsDriver,
+    whatsappDriver,
     storageDriver,
     pushDriver,
 

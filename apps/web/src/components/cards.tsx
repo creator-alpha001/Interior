@@ -3,6 +3,17 @@ import type { BlogPostView, PackageView, ProductView, ProfessionalSummary } from
 import { formatRupees, formatRupeesShort, priceUnitLabel } from "@repo/data";
 import { Badge, Media, RatingLine, VerifiedBadge, cn } from "@repo/ui";
 
+/**
+ * The placeholder for something with no photograph of its own.
+ *
+ * Carries the trade and the record's id rather than a shared `ph:default:x`, so
+ * the stock photograph standing in is from the right trade and stays the same
+ * for that record on every page.
+ */
+function placeholderFor(domainSlug: string | undefined, id: string): string {
+  return `ph:${domainSlug ?? "default"}:${id}`;
+}
+
 export function ProductCard({ view, className }: { view: ProductView; className?: string }) {
   const { product, domain, effectivePrice } = view;
   return (
@@ -14,15 +25,14 @@ export function ProductCard({ view, className }: { view: ProductView; className?
       )}
     >
       <div className="relative aspect-[4/3] overflow-hidden">
-        {/* `label` names the piece on a placeholder tile, so an item without a
-            photograph reads as a designed card rather than an image that failed
-            to load. Real photography ignores it. */}
-        <Media
-          src={product.media[0]?.url ?? "ph:default:x"}
-          alt={product.name}
-          label={product.name}
-          rounded={false}
-        />
+        <div className="h-full w-full transition-transform duration-500 group-hover:scale-[1.04]">
+          <Media
+            src={product.media[0]?.url ?? placeholderFor(domain.slug, product.id)}
+            alt={product.name}
+            label={product.name}
+            rounded={false}
+          />
+        </div>
         {product.tags.includes("bestseller") ? (
           <span className="absolute left-3 top-3 rounded-full bg-white/95 px-2.5 py-1 text-[12px] sm:text-[11px] font-semibold text-clay shadow-sm">
             Bestseller
@@ -33,7 +43,7 @@ export function ProductCard({ view, className }: { view: ProductView; className?
         <p className="text-[12px] sm:text-[11px] font-medium uppercase tracking-[0.1em] text-ink-4">
           {domain.name}
         </p>
-        <h3 className="mt-1.5 font-sans text-[15px] font-semibold leading-snug text-ink transition-colors group-hover:text-brand">
+        <h3 className="mt-1.5 text-[15px] font-semibold leading-snug text-ink transition-colors group-hover:text-brand">
           {product.name}
         </h3>
         <p className="mt-1.5 line-clamp-2 text-[14px] sm:text-[13px] leading-relaxed text-ink-3">
@@ -42,9 +52,9 @@ export function ProductCard({ view, className }: { view: ProductView; className?
         <div className="mt-auto flex items-end justify-between gap-3 pt-4">
           <div>
             <div className="text-[12.5px] sm:text-[11.5px] text-ink-4">Starting at</div>
-            <div className="font-display text-[21px] leading-none text-ink">
+            <div className="font-display text-[19px] leading-none text-ink">
               {formatRupees(effectivePrice)}
-              <span className="ml-1 font-sans text-[12.5px] sm:text-[11.5px] text-ink-4">
+              <span className="ml-1 font-sans text-[12.5px] font-normal sm:text-[11.5px] text-ink-4">
                 {priceUnitLabel[product.priceUnit]}
               </span>
             </div>
@@ -67,12 +77,14 @@ export function PackageCard({ view, className }: { view: PackageView; className?
       )}
     >
       <div className="relative aspect-[16/10] overflow-hidden">
-        <Media
-          src={pkg.media[0]?.url ?? "ph:default:x"}
-          alt={pkg.name}
-          label={pkg.name}
-          rounded={false}
-        />
+        <div className="h-full w-full transition-transform duration-500 group-hover:scale-[1.04]">
+          <Media
+            src={pkg.media[0]?.url ?? placeholderFor(domain.slug, pkg.id)}
+            alt={pkg.name}
+            label={pkg.name}
+            rounded={false}
+          />
+        </div>
         {pkg.badge ? (
           <span className="absolute left-3 top-3 rounded-full bg-clay px-2.5 py-1 text-[12px] sm:text-[11px] font-semibold text-white">
             {pkg.badge}
@@ -83,7 +95,7 @@ export function PackageCard({ view, className }: { view: PackageView; className?
         <p className="text-[12px] sm:text-[11px] font-medium uppercase tracking-[0.1em] text-ink-4">
           {domain.name}
         </p>
-        <h3 className="mt-1.5 font-display text-[20px] leading-tight text-ink transition-colors group-hover:text-brand">
+        <h3 className="mt-1.5 text-[18px] leading-tight text-ink transition-colors group-hover:text-brand">
           {pkg.name}
         </h3>
         <p className="mt-2 line-clamp-2 text-[14.5px] sm:text-[13.5px] leading-relaxed text-ink-3">
@@ -113,7 +125,7 @@ export function PackageCard({ view, className }: { view: PackageView; className?
 
         <div className="mt-auto flex items-end justify-between gap-3 border-t border-line pt-4">
           <div>
-            <div className="font-display text-[22px] leading-none text-ink">
+            <div className="font-display text-[20px] leading-none text-ink">
               {formatRupeesShort(pkg.price)}
             </div>
             <div className="mt-1 text-[12.5px] sm:text-[11.5px] text-ink-4">{pkg.priceBasis}</div>
@@ -137,58 +149,88 @@ export function ProfessionalCard({
   const rating = pro.domainRating?.avgRating ?? pro.avgRating;
   const count = pro.domainRating?.ratingCount ?? pro.ratingCount;
 
+  // The work, not the person, carries the card: a photograph from the trade in
+  // context, else their first one. Their own avatar sits over it when they
+  // have uploaded one.
+  const coverTrade =
+    pro.domains.find((d) => d.name === contextDomain)?.slug ?? pro.domains[0]?.slug;
+
   return (
     <Link
       href={`/professionals/${pro.id}`}
       className={cn(
-        "group flex flex-col rounded-xl border border-line bg-surface p-5 transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]",
+        "group flex flex-col overflow-hidden rounded-xl border border-line bg-surface transition-all duration-200 hover:-translate-y-0.5 hover:shadow-[var(--shadow-lift)]",
         className,
       )}
     >
-      <div className="flex items-start gap-3.5">
-        <div className="grid h-12 w-12 shrink-0 place-items-center rounded-full bg-brand-soft font-display text-[19px] text-brand">
-          {pro.name.charAt(0)}
+      <div className="relative aspect-[16/9] overflow-hidden">
+        <div className="h-full w-full transition-transform duration-500 group-hover:scale-[1.04]">
+          <Media
+            src={placeholderFor(coverTrade, pro.id)}
+            alt={`Work by ${pro.companyName}`}
+            rounded={false}
+          />
         </div>
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate font-sans text-[15px] font-semibold text-ink transition-colors group-hover:text-brand">
-            {pro.name}
-          </h3>
-          <p className="truncate text-[14px] sm:text-[13px] text-ink-3">{pro.companyName}</p>
-        </div>
-        {pro.isVerified ? <VerifiedBadge /> : null}
+        {pro.isVerified ? (
+          <span className="absolute right-3 top-3">
+            <VerifiedBadge />
+          </span>
+        ) : null}
       </div>
 
-      <div className="mt-4 flex flex-wrap gap-1.5">
-        {pro.domains.map((d) => (
-          <Badge key={d.id} tone={d.name === contextDomain ? "brand" : "neutral"}>
-            {d.name}
-          </Badge>
-        ))}
-      </div>
+      <div className="flex flex-1 flex-col p-5 pt-0">
+        <div className="-mt-7 flex items-end gap-3">
+          <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full border-[3px] border-surface bg-brand-soft text-[19px] font-semibold text-brand shadow-sm">
+            {pro.avatarUrl ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={pro.avatarUrl} alt="" className="h-full w-full object-cover" />
+            ) : (
+              pro.name.charAt(0)
+            )}
+          </div>
+          <div className="min-w-0 flex-1 pb-0.5">
+            <h3 className="truncate text-[15px] font-semibold text-ink transition-colors group-hover:text-brand">
+              {pro.name}
+            </h3>
+            <p className="truncate text-[14px] sm:text-[13px] text-ink-3">
+              {pro.companyName}
+              {pro.city ? ` · ${pro.city.name}` : ""}
+            </p>
+          </div>
+        </div>
 
-      <dl className="mt-4 grid grid-cols-3 gap-2 border-t border-line pt-4 text-center">
-        <div>
-          <dt className="text-[12px] sm:text-[11px] text-ink-4">Rating</dt>
-          {/* An unreviewed vendor has no rating. "0.0" would claim they have a
-              terrible one, and their experience below is the honest thing to
-              read instead. */}
-          <dd className="mt-0.5 text-[15px] sm:text-[14px] font-semibold text-ink">
-            {count === 0 ? <span className="text-ink-4">—</span> : rating.toFixed(1)}
-          </dd>
+        <div className="mt-4 flex flex-wrap gap-1.5">
+          {pro.domains.map((d) => (
+            <Badge key={d.id} tone={d.name === contextDomain ? "brand" : "neutral"}>
+              {d.name}
+            </Badge>
+          ))}
         </div>
-        <div className="border-x border-line">
-          <dt className="text-[12px] sm:text-[11px] text-ink-4">Experience</dt>
-          <dd className="mt-0.5 text-[15px] sm:text-[14px] font-semibold text-ink">{pro.experienceYears} yrs</dd>
-        </div>
-        <div>
-          <dt className="text-[12px] sm:text-[11px] text-ink-4">Projects</dt>
-          <dd className="mt-0.5 text-[15px] sm:text-[14px] font-semibold text-ink">{pro.completedProjects}</dd>
-        </div>
-      </dl>
 
-      <div className="mt-3 flex items-center justify-between text-[13.5px] sm:text-[12.5px] text-ink-3">
-        <RatingLine value={rating} count={count} />
-        <span>Replies in ~{pro.avgResponseHours}h</span>
+        <dl className="mt-auto grid grid-cols-3 gap-2 border-t border-line pt-4 text-center [margin-top:max(1rem,auto)]">
+          <div>
+            <dt className="text-[12px] sm:text-[11px] text-ink-4">Rating</dt>
+            {/* An unreviewed vendor has no rating. "0.0" would claim they have a
+                terrible one, and their experience beside it is the honest thing
+                to read instead. */}
+            <dd className="mt-0.5 text-[15px] sm:text-[14px] font-semibold text-ink">
+              {count === 0 ? <span className="text-ink-4">—</span> : rating.toFixed(1)}
+            </dd>
+          </div>
+          <div className="border-x border-line">
+            <dt className="text-[12px] sm:text-[11px] text-ink-4">Experience</dt>
+            <dd className="mt-0.5 text-[15px] sm:text-[14px] font-semibold text-ink">{pro.experienceYears} yrs</dd>
+          </div>
+          <div>
+            <dt className="text-[12px] sm:text-[11px] text-ink-4">Projects</dt>
+            <dd className="mt-0.5 text-[15px] sm:text-[14px] font-semibold text-ink">{pro.completedProjects}</dd>
+          </div>
+        </dl>
+
+        <div className="mt-3 flex items-center justify-between text-[13.5px] sm:text-[12.5px] text-ink-3">
+          <RatingLine value={rating} count={count} />
+          <span>Replies in ~{pro.avgResponseHours}h</span>
+        </div>
       </div>
     </Link>
   );
@@ -213,7 +255,14 @@ export function PostCard({
       )}
     >
       <div className={cn("relative overflow-hidden", featured ? "aspect-[16/9]" : "aspect-[16/10]")}>
-        <Media src={post.coverImageUrl} alt={post.title} rounded={false} />
+        <div className="h-full w-full transition-transform duration-500 group-hover:scale-[1.04]">
+          {/* A post with no cover gets one from its trade rather than a blank box. */}
+          <Media
+            src={post.coverImageUrl || placeholderFor(undefined, post.id)}
+            alt={post.title}
+            rounded={false}
+          />
+        </div>
       </div>
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-center gap-2 text-[12.5px] sm:text-[11.5px] text-ink-4">
@@ -223,8 +272,8 @@ export function PostCard({
         </div>
         <h3
           className={cn(
-            "mt-2 font-display leading-tight text-ink transition-colors group-hover:text-brand",
-            featured ? "text-[26px]" : "text-[19px]",
+            "mt-2 leading-tight text-ink transition-colors group-hover:text-brand",
+            featured ? "text-[24px]" : "text-[17px]",
           )}
         >
           {post.title}

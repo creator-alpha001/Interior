@@ -98,7 +98,9 @@ export interface ProductQuery {
   search?: string;
   tags?: string[];
   city?: string;
+  minPrice?: number;
   maxPrice?: number;
+  minRating?: number;
   sort: "featured" | "price_asc" | "price_desc" | "rating";
   limit: number;
   cursor?: string;
@@ -112,6 +114,11 @@ export async function listProducts(query: ProductQuery): Promise<Paginated<Produ
   if (query.domain) conditions.push(eq(t.domains.slug, query.domain));
   if (query.category) conditions.push(eq(t.productCategories.slug, query.category));
   if (query.maxPrice !== undefined) conditions.push(lte(t.products.basePrice, query.maxPrice));
+  // No SQL bound for minPrice: a city price above the base price would be cut
+  // by a base-price floor, so it is applied to the effective price below.
+  if (query.minRating !== undefined) {
+    conditions.push(gte(t.products.ratingX10, Math.round(query.minRating * 10)));
+  }
 
   if (query.search) {
     // Trigram similarity over the name, plus a plain substring match on the
@@ -189,9 +196,10 @@ export async function listProducts(query: ProductQuery): Promise<Paginated<Produ
     .map((r) =>
       toProductView(r.product, r.domain, r.category, media.get(r.product.id) ?? [], r.cityPrice),
     )
-    // maxPrice filters the effective price, which only exists after the city
-    // override is applied, so it cannot be done in SQL alongside the rest.
-    .filter((v) => (query.maxPrice === undefined ? true : v.effectivePrice <= query.maxPrice));
+    // Both price bounds filter the effective price, which only exists after the
+    // city override is applied, so they cannot be done in SQL alongside the rest.
+    .filter((v) => (query.maxPrice === undefined ? true : v.effectivePrice <= query.maxPrice))
+    .filter((v) => (query.minPrice === undefined ? true : v.effectivePrice >= query.minPrice));
 
   return page(views, totals?.value ?? 0, offset, query.limit);
 }

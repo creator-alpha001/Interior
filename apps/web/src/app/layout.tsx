@@ -1,17 +1,17 @@
 import type { Metadata } from "next";
-import { DM_Serif_Display, Inter } from "next/font/google";
+import { Inter } from "next/font/google";
 import "./globals.css";
 
+/**
+ * One family for the whole site.
+ *
+ * Headings used to be set in a display serif. It read as editorial and heavy
+ * beside photography, so every heading is Inter now, carried by weight rather
+ * than by a second typeface.
+ */
 const inter = Inter({
   subsets: ["latin"],
   variable: "--font-inter",
-  display: "swap",
-});
-
-const display = DM_Serif_Display({
-  subsets: ["latin"],
-  weight: "400",
-  variable: "--font-display",
   display: "swap",
 });
 
@@ -30,7 +30,7 @@ export const metadata: Metadata = {
  */
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${inter.variable} ${display.variable}`}>
+    <html lang="en" className={inter.variable}>
       <body className="min-h-screen bg-paper antialiased">{children}</body>
     </html>
   );

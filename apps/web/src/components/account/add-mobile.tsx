@@ -1,12 +1,14 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import type { OtpChannel } from "@repo/data";
 import { Button, cn } from "@repo/ui";
 import {
   confirmMyMobileAction,
   requestMyMobileCodeAction,
   type MobileCodeState,
 } from "@/app/(site)/account/profile-actions";
+import { OtherChannelButton, sentVia } from "@/components/auth/otp-channel";
 
 /**
  * Adding a mobile number to an account that already exists, and proving it.
@@ -53,16 +55,19 @@ export function AddMobile({
   const mobileValid = /^[0-9]{10}$/.test(mobile);
   const code = otp.join("");
 
-  function sendCode() {
+  /** `channel` omitted means WhatsApp. A resend keeps the channel it was on. */
+  function sendCode(channel?: OtpChannel) {
     if (!mobileValid || pending) return;
     setError(null);
 
     startTransition(async () => {
-      const result = await requestMyMobileCodeAction(mobile);
+      const result = await requestMyMobileCodeAction(mobile, channel);
       if (result.error) {
         setError(result.error);
         return;
       }
+      // A new code retires the last one, so digits typed from it are now wrong.
+      setOtp(["", "", "", "", "", ""]);
       setChallenge(result);
       setStage("otp");
       setSeconds(30);
@@ -129,7 +134,8 @@ export function AddMobile({
         </button>
 
         <p className="mt-4 text-[14.5px] text-ink-3 sm:text-[13.5px]">
-          We sent a code to <span className="font-medium text-ink">+91 {mobile}</span>
+          {`We sent a code ${sentVia(challenge.channel)}to`}{" "}
+          <span className="font-medium text-ink">+91 {mobile}</span>
         </p>
 
         {challenge.devCode ? (
@@ -186,13 +192,20 @@ export function AddMobile({
         </Button>
 
         <div className="mt-4 flex items-center justify-between text-[14px] text-ink-3 sm:text-[13px]">
-          {seconds > 0 ? (
-            <span>Resend code in {seconds}s</span>
-          ) : (
-            <button type="button" onClick={sendCode} className="font-medium text-brand">
-              Send the code again
-            </button>
-          )}
+          <span className="flex flex-wrap items-center gap-x-4 gap-y-1">
+            {seconds > 0 ? (
+              <span>Resend code in {seconds}s</span>
+            ) : (
+              <button
+                type="button"
+                onClick={() => sendCode(challenge.channel)}
+                className="font-medium text-brand"
+              >
+                Send the code again
+              </button>
+            )}
+            <OtherChannelButton channel={challenge.channel} disabled={pending} onSwitch={sendCode} />
+          </span>
 
           {onSkip ? (
             <button type="button" onClick={onSkip} className="hover:text-ink">
@@ -224,7 +237,7 @@ export function AddMobile({
         />
       </div>
       <p className="mt-1.5 text-[12.5px] text-ink-4">
-        We send one code to check it is yours. It is how we ring you about your quotes, and it is
+        We send one code on WhatsApp, or by SMS if you would rather, to check it is yours. It is how we ring you about your quotes, and it is
         never given to a professional.
       </p>
 
@@ -238,7 +251,7 @@ export function AddMobile({
       ) : null}
 
       <Button
-        onClick={sendCode}
+        onClick={() => sendCode()}
         disabled={!mobileValid || pending}
         size="lg"
         className="mt-4 w-full"

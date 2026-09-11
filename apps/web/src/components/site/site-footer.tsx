@@ -75,7 +75,16 @@ export function SiteFooter() {
         </div>
 
         <div className="mt-12 flex flex-col gap-3 border-t border-line pt-6 text-[13.5px] sm:text-[12.5px] text-ink-4 sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} Decora Shine. Prototype — all data on this site is sample data.</p>
+          {/*
+           * The legal entity, named beside the brand. Meta's business verification
+           * checks that the name on the registration documents and the name on the
+           * site are visibly the same business, so this line is load-bearing: keep
+           * it in step with the GST certificate if either ever changes.
+           */}
+          <p>
+            © {new Date().getFullYear()} Decora Shine, a brand of Intellihive Solutions. Prototype —
+            all data on this site is sample data.
+          </p>
           <div className="flex gap-5">
             <Link href="/how-it-works" className="hover:text-ink-2">
               Terms

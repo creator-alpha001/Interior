@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import type { OtpChannel } from "@repo/data";
 import type { City } from "@repo/types";
 import { Button, cn } from "@repo/ui";
 import {
@@ -12,6 +13,7 @@ import {
   type SignInIntent,
 } from "@/app/(site)/login/actions";
 import { GoogleSignInButton } from "./google-button";
+import { OtherChannelButton, sentVia } from "./otp-channel";
 
 /**
  * A mobile number, always. Google, optionally, to skip the code next time.
@@ -92,16 +94,19 @@ export function LoginForm({
   const mobileValid = /^[0-9]{10}$/.test(mobile);
   const code = otp.join("");
 
-  function sendCode() {
+  /** `channel` omitted means WhatsApp. A resend keeps the channel it was on. */
+  function sendCode(channel?: OtpChannel) {
     if (!mobileValid || pending) return;
     setError(null);
 
     startTransition(async () => {
-      const result = await requestOtpAction(mobile);
+      const result = await requestOtpAction(mobile, channel);
       if (result.error) {
         setError(result.error);
         return;
       }
+      // A new code retires the last one, so digits typed from it are now wrong.
+      setOtp(["", "", "", "", "", ""]);
       setChallenge(result);
       setStage("otp");
       setSeconds(30);
@@ -176,7 +181,8 @@ export function LoginForm({
             Enter your mobile number
           </h2>
           <p className="mt-2 text-[14.5px] sm:text-[13.5px] text-ink-3">
-            We will send a 6-digit code to verify it is you.
+            We will send a 6-digit code on WhatsApp to verify it is you. No WhatsApp? You can
+            have it by SMS on the next step.
           </p>
 
           <div className="mt-6">
@@ -244,7 +250,7 @@ export function LoginForm({
             </p>
           ) : null}
 
-          <Button onClick={sendCode} disabled={!mobileValid || pending} size="lg" className="mt-5 w-full">
+          <Button onClick={() => sendCode()} disabled={!mobileValid || pending} size="lg" className="mt-5 w-full">
             {pending ? "Sending…" : "Send code"}
           </Button>
 
@@ -271,7 +277,8 @@ export function LoginForm({
 
           <h2 className="mt-4 font-display text-[24px]">Enter the code</h2>
           <p className="mt-2 text-[14.5px] sm:text-[13.5px] text-ink-3">
-            Sent to <span className="font-medium text-ink">+91 {mobile}</span>
+            {`Sent ${sentVia(challenge.channel)}to`}{" "}
+            <span className="font-medium text-ink">+91 {mobile}</span>
           </p>
 
           <div className="mt-6 flex gap-2">
@@ -314,19 +321,24 @@ export function LoginForm({
             {pending ? "Verifying…" : "Verify and continue"}
           </Button>
 
-          <p className="mt-4 text-center text-[14px] sm:text-[13px] text-ink-3">
+          <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[14px] sm:text-[13px] text-ink-3">
             {seconds > 0 ? (
-              <>Resend code in {seconds}s</>
+              <span>Resend code in {seconds}s</span>
             ) : (
-              <button type="button" onClick={sendCode} className="font-medium text-brand">
+              <button
+                type="button"
+                onClick={() => sendCode(challenge.channel)}
+                className="font-medium text-brand"
+              >
                 Resend code
               </button>
             )}
-          </p>
+            <OtherChannelButton channel={challenge.channel} disabled={pending} onSwitch={sendCode} />
+          </div>
 
           {challenge.devCode ? (
             <p className="mt-6 rounded-lg bg-surface-2 p-3 text-center text-[13px] sm:text-[12px] leading-relaxed text-ink-3">
-              Development only — no SMS was sent. Your code is{" "}
+              Development only — nothing was sent. Your code is{" "}
               <span className="font-mono font-semibold text-ink">{challenge.devCode}</span>
             </p>
           ) : null}

@@ -37,7 +37,11 @@ export const productQuerySchema = paginationSchema.extend({
   search: z.string().trim().max(120).optional(),
   tags: csvSchema,
   city: z.string().uuid().optional(),
+  /** Both bounds apply to the price for the chosen city, not the base price. */
+  minPrice: z.coerce.number().int().nonnegative().optional(),
   maxPrice: z.coerce.number().int().positive().optional(),
+  /** Stars, 0 to 5. An item nobody has rated is left out once this is set. */
+  minRating: z.coerce.number().min(0).max(5).optional(),
   sort: z.enum(["featured", "price_asc", "price_desc", "rating"]).default("featured"),
 });
 
@@ -46,6 +50,10 @@ export const professionalQuerySchema = paginationSchema.extend({
   city: z.string().uuid().optional(),
   search: z.string().trim().max(120).optional(),
   verifiedOnly: boolQuerySchema,
+  /** Stars, 0 to 5, against the vendor's overall rating. Unrated vendors are left out once set. */
+  minRating: z.coerce.number().min(0).max(5).optional(),
+  minExperience: z.coerce.number().int().min(0).max(60).optional(),
+  sort: z.enum(["rating", "experience", "projects"]).default("rating"),
 });
 
 export const postQuerySchema = paginationSchema.extend({

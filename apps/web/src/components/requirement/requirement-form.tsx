@@ -9,8 +9,15 @@ import type {
   SiteAccessibilityTag,
   Urgency,
 } from "@repo/types";
-import { UploadError, formatRupeesShort, maxFilesFor, uploadFile } from "@repo/data";
+import {
+  UploadError,
+  formatRupeesShort,
+  maxFilesFor,
+  uploadFile,
+  type OtpChannel,
+} from "@repo/data";
 import { createRequirementAction } from "@/app/actions";
+import { OtherChannelButton, sentVia } from "@/components/auth/otp-channel";
 import { Badge, Button, cn } from "@repo/ui";
 
 interface PrefillItem {
@@ -95,9 +102,11 @@ export function RequirementForm({
 
   // Verifying the number is the last thing asked, not the first. Everything
   // typed so far stays here until the code is confirmed.
-  const [verification, setVerification] = useState<{ challengeId: string; devCode?: string } | null>(
-    null,
-  );
+  const [verification, setVerification] = useState<{
+    challengeId: string;
+    channel?: OtpChannel;
+    devCode?: string;
+  } | null>(null);
   const [code, setCode] = useState("");
   const [submitError, setSubmitError] = useState<string | null>(null);
 
@@ -147,7 +156,14 @@ export function RequirementForm({
     );
   }
 
-  function submit() {
+  /**
+   * Sends the requirement, or the code that has to come first.
+   *
+   * `channel` is set only when the visitor asks for the code the other way. That
+   * is a fresh code rather than a submission, so whatever was typed from the
+   * old one is not sent with it.
+   */
+  function submit(channel?: OtpChannel) {
     setSubmitError(null);
 
     startTransition(async () => {
@@ -180,14 +196,21 @@ export function RequirementForm({
               ]
             : undefined,
         },
-        verification && code.length === 6
+        !channel && verification && code.length === 6
           ? { challengeId: verification.challengeId, code }
           : undefined,
+        channel,
       );
 
       // On success this redirects and never returns.
       if (result?.needsVerification && result.challengeId) {
-        setVerification({ challengeId: result.challengeId, devCode: result.devCode });
+        setVerification({
+          challengeId: result.challengeId,
+          channel: result.channel,
+          devCode: result.devCode,
+        });
+        // A new code retires the last one, so digits typed from it are now wrong.
+        setCode("");
         return;
       }
       if (result?.error) setSubmitError(result.error);
@@ -637,7 +660,7 @@ export function RequirementForm({
             {verification ? (
               <div className="rounded-lg border border-brand-line bg-brand-soft p-4">
                 <label htmlFor="otp" className="text-[14px] sm:text-[13px] font-medium text-ink">
-                  Enter the code we sent to +91 {mobile}
+                  {`Enter the code we sent ${sentVia(verification.channel)}to +91 ${mobile}`}
                 </label>
                 <p className="mt-1 text-[13.5px] sm:text-[12.5px] text-ink-3">
                   This confirms the number so you can track quotes and talk to us about the job.
@@ -653,9 +676,16 @@ export function RequirementForm({
                   autoFocus
                   className="mt-3 h-11 w-full max-w-[220px] rounded-lg border border-line bg-surface px-3.5 font-mono text-[16px] tracking-[0.3em] text-ink outline-none focus:border-brand"
                 />
+                <p className="mt-3 text-[14px] sm:text-[13px]">
+                  <OtherChannelButton
+                    channel={verification.channel}
+                    disabled={pending}
+                    onSwitch={submit}
+                  />
+                </p>
                 {verification.devCode ? (
                   <p className="mt-3 text-[13px] sm:text-[12px] text-ink-3">
-                    Development only — no SMS was sent. Your code is{" "}
+                    Development only — nothing was sent. Your code is{" "}
                     <span className="font-mono font-semibold text-ink">{verification.devCode}</span>
                   </p>
                 ) : null}
@@ -737,7 +767,7 @@ export function RequirementForm({
               Continue
             </Button>
           ) : (
-            <Button onClick={submit} disabled={!canContinue || pending} size="lg">
+            <Button onClick={() => submit()} disabled={!canContinue || pending} size="lg">
               {pending
                 ? verification
                   ? "Verifying…"

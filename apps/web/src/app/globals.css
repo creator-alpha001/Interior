@@ -60,7 +60,9 @@
   --color-domain-painting: #4b6b63;
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
-  --font-display: var(--font-display), ui-serif, Georgia, "Times New Roman", serif;
+  /* Kept as a name so existing `font-display` classes keep working; it is the
+     same family as body text now, told apart by weight. */
+  --font-display: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
 
   --radius-card: 14px;
 
@@ -114,10 +116,10 @@
   h1,
   h2,
   h3 {
-    font-family: var(--font-display);
-    font-weight: 400;
-    letter-spacing: -0.01em;
-    line-height: 1.12;
+    font-family: var(--font-sans);
+    font-weight: 600;
+    letter-spacing: -0.02em;
+    line-height: 1.15;
     color: var(--color-ink);
   }
 
@@ -208,6 +210,13 @@
 }
 
 @layer utilities {
+  /* Prices and figures set in `font-display` were a 400-weight serif. In Inter
+     that is too light to carry a number, so the class brings its own weight. */
+  .font-display {
+    font-weight: 600;
+    letter-spacing: -0.015em;
+  }
+
   .no-scrollbar::-webkit-scrollbar {
     display: none;
   }
@@ -235,15 +244,6 @@
   .partner-portal {
     font-size: 14px;
   }
-}
-
-/* A serif heading reads as marketing; the portal is a tool. */
-.partner-portal h1,
-.partner-portal h2,
-.partner-portal h3 {
-  font-family: var(--font-sans);
-  font-weight: 600;
-  letter-spacing: -0.01em;
 }
 
 /* Numeric columns line up when digits are tabular. */

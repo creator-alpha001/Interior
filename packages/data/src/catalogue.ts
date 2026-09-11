@@ -9,7 +9,10 @@ export interface ProductQuery {
   search?: string;
   tags?: string[];
   cityId?: string;
+  minPrice?: number;
   maxPrice?: number;
+  /** Stars, 0 to 5. */
+  minRating?: number;
   sort?: "featured" | "price_asc" | "price_desc" | "rating";
   /** Page size. Defaults to DEFAULT_PAGE_SIZE — never "everything". */
   limit?: number;
@@ -27,7 +30,9 @@ export async function listProducts(query: ProductQuery = {}): Promise<Paginated<
         search: query.search,
         tags: query.tags?.join(","),
         city: query.cityId,
+        minPrice: query.minPrice,
         maxPrice: query.maxPrice,
+        minRating: query.minRating,
         sort: query.sort,
         limit: query.limit ?? DEFAULT_PAGE_SIZE,
         cursor: query.cursor,
@@ -59,6 +64,12 @@ export async function listProducts(query: ProductQuery = {}): Promise<Paginated<
 
   if (query.maxPrice) {
     views = views.filter((v) => v.effectivePrice <= query.maxPrice!);
+  }
+  if (query.minPrice) {
+    views = views.filter((v) => v.effectivePrice >= query.minPrice!);
+  }
+  if (query.minRating) {
+    views = views.filter((v) => v.product.rating >= query.minRating!);
   }
 
   const sorters: Record<string, (a: ProductView, b: ProductView) => number> = {

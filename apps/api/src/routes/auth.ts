@@ -1,8 +1,8 @@
 /**
  * Sign in, sign out, and "who am I".
  *
- * Two flows that never mix: customers and vendors use a mobile number and an
- * SMS code; staff use a password and a TOTP code. Ops accounts can see every
+ * Two flows that never mix: customers and vendors use a mobile number and a
+ * code sent on WhatsApp or by SMS; staff use a password and a TOTP code. Ops accounts can see every
  * customer's phone number and every vendor's margin, so they should not be
  * reachable by whoever ends up with a recycled mobile number.
  */
@@ -43,26 +43,28 @@ import {
 } from "../modules/auth/devices";
 import { closeAccount } from "../modules/auth/closure";
 import { requireUser } from "../lib/guard";
-import { sendOtp } from "../lib/sms";
+import { deliverOtp } from "../lib/otp-delivery";
 
 export async function registerAuthRoutes(app: FastifyInstance) {
   /* ---------------- mobile OTP ---------------- */
 
   app.post(routes.requestOtp.path, async (request, reply) => {
-    const { mobile } = routes.requestOtp.body!.parse(request.body);
+    const { mobile, channel } = routes.requestOtp.body!.parse(request.body);
 
-    // Per mobile and per IP. The first stops one number being flooded; the
-    // second stops one machine walking a range of numbers.
+    // Per mobile and per IP, whichever channel. The first stops one number
+    // being flooded; the second stops one machine walking a range of numbers.
     await consume(`otp:mobile:${mobile}`, LIMITS.otpRequestPerMobile);
     await consume(`otp:ip:${request.ip}`, LIMITS.otpRequestPerIp);
 
     const { challenge, code } = await createChallenge(mobile, request.ip);
-    const delivery = await sendOtp(mobile, code);
+    const delivery = await deliverOtp(mobile, code, channel);
 
     reply.header("Cache-Control", "no-store");
     return {
       challengeId: challenge.id,
       expiresInSeconds: Math.round((challenge.expiresAt.getTime() - Date.now()) / 1000),
+      // Where it actually went, so the screen says where to look.
+      channel: delivery.channel,
       // Present only when OTP_DEV_ECHO is on, which config.ts refuses in
       // production.
       ...(delivery.devCode ? { devCode: delivery.devCode } : {}),
@@ -316,24 +318,25 @@ export async function registerAuthRoutes(app: FastifyInstance) {
    */
   app.post(routes.requestMobileVerification.path, async (request, reply) => {
     const userId = await requireUser(request);
-    const { mobile } = routes.requestMobileVerification.body!.parse(request.body);
+    const { mobile, channel } = routes.requestMobileVerification.body!.parse(request.body);
 
     await consume(`otp:mobile:${mobile}`, LIMITS.otpRequestPerMobile);
     await consume(`otp:ip:${request.ip}`, LIMITS.otpRequestPerIp);
     await consume(`otp:user:${userId}`, LIMITS.otpRequestPerMobile);
 
-    // Before the SMS rather than after the code comes back. Failing at the end
-    // would mean paying for the round trip to be told the number was never
+    // Before the code is sent rather than after it comes back. Failing at the
+    // end would mean paying for the message to be told the number was never
     // available in the first place.
     await assertMobileAvailable(userId, mobile);
 
     const { challenge, code } = await createChallenge(mobile, request.ip);
-    const delivery = await sendOtp(mobile, code);
+    const delivery = await deliverOtp(mobile, code, channel);
 
     reply.header("Cache-Control", "no-store");
     return {
       challengeId: challenge.id,
       expiresInSeconds: Math.round((challenge.expiresAt.getTime() - Date.now()) / 1000),
+      channel: delivery.channel,
       ...(delivery.devCode ? { devCode: delivery.devCode } : {}),
     };
   });

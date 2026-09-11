@@ -1,13 +1,14 @@
 /**
  * Sign-in.
  *
- * Customers and vendors use a mobile number and an SMS code; staff use a
- * password and a TOTP code. They are separate flows on purpose — an ops account
- * can see every customer's phone number and every vendor's margin, and should
- * not be reachable by whoever ends up with a recycled mobile number.
+ * Customers and vendors use a mobile number and a code sent on WhatsApp or by
+ * SMS; staff use a password and a TOTP code. They are separate flows on purpose
+ * — an ops account can see every customer's phone number and every vendor's
+ * margin, and should not be reachable by whoever ends up with a recycled mobile
+ * number.
  */
 import { z } from "zod";
-import { mobileSchema } from "./common";
+import { mobileSchema, otpChannelSchema } from "./common";
 import { sessionUserSchema } from "@repo/types/schema";
 import {
   accountClosureSchema,
@@ -20,6 +21,14 @@ import { route } from "./http";
 
 export const otpRequestSchema = z.object({
   mobile: mobileSchema,
+  /**
+   * Where to send the code. Omitted means WhatsApp.
+   *
+   * A preference rather than an order: a channel that is not live on this
+   * deployment is swapped for one that is, and the response says which went
+   * out — so a screen never tells somebody to look in the wrong app.
+   */
+  channel: otpChannelSchema.optional(),
 });
 
 export const otpVerifySchema = z.object({
@@ -189,7 +198,7 @@ export const authRoutes = {
     path: "/auth/otp/request",
     audience: "public",
     body: otpRequestSchema,
-    summary: "Send a six-digit code to a mobile number",
+    summary: "Send a six-digit code to a mobile number, on WhatsApp or by SMS",
     response: otpChallengeSchema,
   }),
   googleSignIn: route({

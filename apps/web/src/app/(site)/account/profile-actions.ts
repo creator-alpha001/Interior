@@ -1,7 +1,13 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { ApiError, confirmMyMobile, requestMyMobileCode, setMyCity } from "@repo/data";
+import {
+  ApiError,
+  confirmMyMobile,
+  requestMyMobileCode,
+  setMyCity,
+  type OtpChannel,
+} from "@repo/data";
 
 /**
  * Filling in what signing up did not insist on.
@@ -14,17 +20,23 @@ import { ApiError, confirmMyMobile, requestMyMobileCode, setMyCity } from "@repo
 export interface MobileCodeState {
   challengeId?: string;
   expiresInSeconds?: number;
-  /** Shown in development only, when the API echoes the code instead of texting it. */
+  /** Where the code went, so the form can say where to look. */
+  channel?: OtpChannel;
+  /** Shown in development only, when the API echoes the code instead of sending it. */
   devCode?: string;
   error?: string;
 }
 
-export async function requestMyMobileCodeAction(mobile: string): Promise<MobileCodeState> {
+export async function requestMyMobileCodeAction(
+  mobile: string,
+  channel?: OtpChannel,
+): Promise<MobileCodeState> {
   try {
-    const result = await requestMyMobileCode(mobile);
+    const result = await requestMyMobileCode(mobile, channel);
     return {
       challengeId: result.challengeId,
       expiresInSeconds: result.expiresInSeconds,
+      channel: result.channel,
       devCode: result.devCode,
     };
   } catch (error) {
