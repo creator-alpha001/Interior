@@ -30,6 +30,15 @@
         "--workspace=admin"
       ],
       "port": 3002
+    },
+    {
+      "name": "mobile-web",
+      "runtimeExecutable": "cmd",
+      "runtimeArgs": [
+        "/c",
+        "cd /d D:\\Interior-mobile\\app && flutter run -d web-server --web-port 5300 --dart-define=INTERIOBEE_API_URL=http://localhost:4000"
+      ],
+      "port": 5300
     }
   ]
 }

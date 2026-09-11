@@ -463,11 +463,19 @@ function load() {
      * `https://www.decorashine.com` while the site answers on the apex, so this
      * was already wrong for every visitor who typed the short address.
      */
-    corsOrigins: [env.WEB_ORIGIN, env.ADMIN_ORIGIN].flatMap((origin) => {
-      const url = new URL(origin);
-      const host = url.host.startsWith("www.") ? url.host.slice(4) : url.host;
-      return [`${url.protocol}//${host}`, `${url.protocol}//www.${host}`];
-    }),
+    corsOrigins: [
+      ...[env.WEB_ORIGIN, env.ADMIN_ORIGIN].flatMap((origin) => {
+        const url = new URL(origin);
+        const host = url.host.startsWith("www.") ? url.host.slice(4) : url.host;
+        return [`${url.protocol}//${host}`, `${url.protocol}//www.${host}`];
+      }),
+      /*
+       * Any localhost port, outside production only. `flutter run -d chrome`
+       * serves the mobile app from a port it picks at random, so no fixed
+       * origin can name it. Production keeps the strict list above.
+       */
+      ...(isProduction ? [] : [/^http:\/\/(localhost|127\.0\.0\.1):\d+$/]),
+    ],
 
     /** GOOGLE_CLIENT_IDS split and cleaned. Empty when the feature is off. */
     googleClientIds: (env.GOOGLE_CLIENT_IDS ?? "")

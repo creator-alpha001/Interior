@@ -105,10 +105,20 @@ export async function buildApp(): Promise<FastifyInstance> {
   await app.register(cors, {
     origin: config.corsOrigins,
     credentials: true,
-    methods: ["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
+    // PUT is the local storage driver's upload, which lands on `/media/*` here.
+    methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
     // `x-request-id` is sent by the browser upload path so one file's journey
-    // is a single log query on both sides.
-    allowedHeaders: ["Content-Type", "Accept", "x-request-id"],
+    // is a single log query on both sides. The rest are the mobile client's
+    // when it runs as a web build: a bearer token rather than a cookie, its
+    // client marker, and the idempotency key on retried writes.
+    allowedHeaders: [
+      "Content-Type",
+      "Accept",
+      "x-request-id",
+      "Authorization",
+      "x-client",
+      "idempotency-key",
+    ],
     maxAge: 86_400,
   });
 
