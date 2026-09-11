@@ -134,9 +134,12 @@ export function toProfessionalProfile(professionalId: string): ProfessionalProfi
       .filter((a) => a.professionalId === pro.id)
       .map((a) => cityById(a.cityId)),
     portfolio: store.portfolioItems.filter(
-      (p) => p.professionalId === pro.id && p.moderationStatus === "approved",
+      (p) => p.professionalId === pro.id && p.moderationStatus === "approved" && p.deletedAt === null,
     ),
     reviews,
+    achievements: store.vendorAchievements.filter(
+      (a) => a.professionalId === pro.id && a.moderationStatus === "approved" && a.deletedAt === null,
+    ),
   };
 }
 

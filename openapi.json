@@ -176,6 +176,88 @@
         ],
         "additionalProperties": false
       },
+      "AddAchievementBody": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/VendorAchievementKind"
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 160
+          },
+          "issuer": {
+            "type": "string",
+            "maxLength": 160,
+            "default": ""
+          },
+          "year": {
+            "type": "integer",
+            "minimum": 1950,
+            "maximum": 2100,
+            "nullable": true
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "default": ""
+          },
+          "media": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "maxItems": 1,
+            "default": []
+          }
+        },
+        "required": [
+          "kind",
+          "title"
+        ],
+        "additionalProperties": false
+      },
+      "AddPortfolioItemBody": {
+        "type": "object",
+        "properties": {
+          "domainId": {
+            "type": "string",
+            "format": "uuid"
+          },
+          "cityId": {
+            "type": "string",
+            "format": "uuid",
+            "nullable": true
+          },
+          "title": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 120
+          },
+          "description": {
+            "type": "string",
+            "maxLength": 1000,
+            "default": ""
+          },
+          "media": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "minItems": 1,
+            "maxItems": 10
+          }
+        },
+        "required": [
+          "domainId",
+          "title",
+          "media"
+        ],
+        "additionalProperties": false
+      },
       "AdminDashboard": {
         "type": "object",
         "properties": {
@@ -664,7 +746,9 @@
           "visit_writeups",
           "reschedules",
           "overdue_commission",
-          "open_tickets"
+          "open_tickets",
+          "documents_overdue",
+          "showcase_review"
         ]
       },
       "AttentionView": {
@@ -3766,24 +3850,7 @@
         ],
         "additionalProperties": false
       },
-      "OpsReviewProofBody": {
-        "type": "object",
-        "properties": {
-          "approve": {
-            "type": "boolean"
-          },
-          "note": {
-            "type": "string",
-            "maxLength": 1000,
-            "nullable": true
-          }
-        },
-        "required": [
-          "approve"
-        ],
-        "additionalProperties": false
-      },
-      "OpsReviewSignedCopyBody": {
+      "OpsReviewPortfolioItemBody": {
         "type": "object",
         "properties": {
           "decision": {
@@ -3801,6 +3868,23 @@
         },
         "required": [
           "decision"
+        ],
+        "additionalProperties": false
+      },
+      "OpsReviewProofBody": {
+        "type": "object",
+        "properties": {
+          "approve": {
+            "type": "boolean"
+          },
+          "note": {
+            "type": "string",
+            "maxLength": 1000,
+            "nullable": true
+          }
+        },
+        "required": [
+          "approve"
         ],
         "additionalProperties": false
       },
@@ -4681,6 +4765,18 @@
           },
           "moderationStatus": {
             "$ref": "#/components/schemas/DomainApprovalStatus"
+          },
+          "cityId": {
+            "type": "string",
+            "nullable": true
+          },
+          "reviewNote": {
+            "type": "string",
+            "nullable": true
+          },
+          "reviewedAt": {
+            "type": "string",
+            "nullable": true
           }
         },
         "required": [
@@ -4693,7 +4789,10 @@
           "title",
           "description",
           "media",
-          "moderationStatus"
+          "moderationStatus",
+          "cityId",
+          "reviewNote",
+          "reviewedAt"
         ],
         "additionalProperties": false
       },
@@ -5468,6 +5567,12 @@
             "items": {
               "$ref": "#/components/schemas/ReviewView"
             }
+          },
+          "achievements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VendorAchievement"
+            }
           }
         },
         "required": [
@@ -5490,7 +5595,8 @@
           "domainStats",
           "serviceCities",
           "portfolio",
-          "reviews"
+          "reviews",
+          "achievements"
         ],
         "additionalProperties": false
       },
@@ -7539,6 +7645,87 @@
           "blocked"
         ]
       },
+      "VendorAchievement": {
+        "type": "object",
+        "properties": {
+          "createdAt": {
+            "type": "string"
+          },
+          "updatedAt": {
+            "type": "string"
+          },
+          "deletedAt": {
+            "type": "string",
+            "nullable": true
+          },
+          "id": {
+            "type": "string"
+          },
+          "professionalId": {
+            "type": "string"
+          },
+          "kind": {
+            "$ref": "#/components/schemas/VendorAchievementKind"
+          },
+          "title": {
+            "type": "string"
+          },
+          "issuer": {
+            "type": "string"
+          },
+          "year": {
+            "type": "integer",
+            "nullable": true
+          },
+          "description": {
+            "type": "string"
+          },
+          "media": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/MediaAsset"
+            }
+          },
+          "moderationStatus": {
+            "$ref": "#/components/schemas/DomainApprovalStatus"
+          },
+          "reviewNote": {
+            "type": "string",
+            "nullable": true
+          },
+          "reviewedAt": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "createdAt",
+          "updatedAt",
+          "deletedAt",
+          "id",
+          "professionalId",
+          "kind",
+          "title",
+          "issuer",
+          "year",
+          "description",
+          "media",
+          "moderationStatus",
+          "reviewNote",
+          "reviewedAt"
+        ],
+        "additionalProperties": false
+      },
+      "VendorAchievementKind": {
+        "type": "string",
+        "enum": [
+          "award",
+          "certification",
+          "membership",
+          "press",
+          "other"
+        ]
+      },
       "VendorAgreementView": {
         "type": "object",
         "properties": {
@@ -8090,6 +8277,28 @@
         ],
         "additionalProperties": false
       },
+      "VendorShowcase": {
+        "type": "object",
+        "properties": {
+          "portfolio": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PortfolioItem"
+            }
+          },
+          "achievements": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/VendorAchievement"
+            }
+          }
+        },
+        "required": [
+          "portfolio",
+          "achievements"
+        ],
+        "additionalProperties": false
+      },
       "VendorVerification": {
         "type": "object",
         "properties": {
@@ -8107,6 +8316,16 @@
             "items": {
               "type": "string"
             }
+          },
+          "agreementComplete": {
+            "type": "boolean"
+          },
+          "documentsDueBy": {
+            "type": "string",
+            "nullable": true
+          },
+          "documentsOverdue": {
+            "type": "boolean"
           },
           "terms": {
             "$ref": "#/components/schemas/PartnerTerms"
@@ -8137,6 +8356,9 @@
           "verificationStatus",
           "canBeVerified",
           "outstanding",
+          "agreementComplete",
+          "documentsDueBy",
+          "documentsOverdue",
           "terms",
           "agreement",
           "signedCopy",
@@ -14828,6 +15050,500 @@
             "sessionCookie": []
           }
         ]
+      },
+      "post": {
+        "operationId": "addPortfolioItem",
+        "tags": [
+          "professional"
+        ],
+        "summary": "addPortfolioItem",
+        "description": "Requires a signed-in professional.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PortfolioItem"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session was revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record — which also covers a record belonging to somebody else",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request body or query failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Retry after the stated time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddPortfolioItemBody"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/vendor/portfolio/{id}": {
+      "delete": {
+        "operationId": "removePortfolioItem",
+        "tags": [
+          "professional"
+        ],
+        "summary": "removePortfolioItem",
+        "description": "Requires a signed-in professional.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session was revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record — which also covers a record belonging to somebody else",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request body or query failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Retry after the stated time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/vendor/achievements": {
+      "get": {
+        "operationId": "vendorAchievements",
+        "tags": [
+          "professional"
+        ],
+        "summary": "vendorAchievements",
+        "description": "Requires a signed-in professional.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {
+                    "$ref": "#/components/schemas/VendorAchievement"
+                  }
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session was revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record — which also covers a record belonging to somebody else",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request body or query failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Retry after the stated time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ]
+      },
+      "post": {
+        "operationId": "addAchievement",
+        "tags": [
+          "professional"
+        ],
+        "summary": "addAchievement",
+        "description": "Requires a signed-in professional.",
+        "parameters": [],
+        "responses": {
+          "201": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/VendorAchievement"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session was revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record — which also covers a record belonging to somebody else",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request body or query failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Retry after the stated time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AddAchievementBody"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/vendor/achievements/{id}": {
+      "delete": {
+        "operationId": "removeAchievement",
+        "tags": [
+          "professional"
+        ],
+        "summary": "removeAchievement",
+        "description": "Requires a signed-in professional.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Ok"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Not signed in, or the session was revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record — which also covers a record belonging to somebody else",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request body or query failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Retry after the stated time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ]
       }
     },
     "/vendor/onboarding": {
@@ -17921,6 +18637,308 @@
         ]
       }
     },
+    "/ops/vendors/{id}/showcase": {
+      "get": {
+        "operationId": "opsVendorShowcase",
+        "tags": [
+          "staff"
+        ],
+        "summary": "vendors.view — work and achievements, including those awaiting review",
+        "description": "vendors.view — work and achievements, including those awaiting review Requires staff credentials. Not available to the mobile apps.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (response shape not yet declared in the manifest)"
+          },
+          "401": {
+            "description": "Not signed in, or the session was revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record — which also covers a record belonging to somebody else",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request body or query failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Retry after the stated time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/ops/portfolio/{id}/review": {
+      "post": {
+        "operationId": "opsReviewPortfolioItem",
+        "tags": [
+          "staff"
+        ],
+        "summary": "vendors.verify — approve, send back, or take down posted work",
+        "description": "vendors.verify — approve, send back, or take down posted work Requires staff credentials. Not available to the mobile apps.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (response shape not yet declared in the manifest)"
+          },
+          "401": {
+            "description": "Not signed in, or the session was revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record — which also covers a record belonging to somebody else",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request body or query failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Retry after the stated time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpsReviewPortfolioItemBody"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/ops/achievements/{id}/review": {
+      "post": {
+        "operationId": "opsReviewAchievement",
+        "tags": [
+          "staff"
+        ],
+        "summary": "vendors.verify",
+        "description": "vendors.verify Requires staff credentials. Not available to the mobile apps.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Success (response shape not yet declared in the manifest)"
+          },
+          "401": {
+            "description": "Not signed in, or the session was revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record — which also covers a record belonging to somebody else",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request body or query failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Retry after the stated time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OpsReviewPortfolioItemBody"
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
     "/ops/vendors/{id}/verification/signed-copy": {
       "post": {
         "operationId": "opsReviewSignedCopy",
@@ -18010,7 +19028,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OpsReviewSignedCopyBody"
+                "$ref": "#/components/schemas/OpsReviewPortfolioItemBody"
               }
             }
           }
@@ -18227,7 +19245,7 @@
           "content": {
             "application/json": {
               "schema": {
-                "$ref": "#/components/schemas/OpsReviewSignedCopyBody"
+                "$ref": "#/components/schemas/OpsReviewPortfolioItemBody"
               }
             }
           }

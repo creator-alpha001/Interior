@@ -46,6 +46,24 @@ export function VendorVerificationReview({
           )}
         </div>
 
+        {/* Leads start on the signed original; the documents then have 7 days. */}
+        <p className="mt-1 text-[12.5px] font-medium text-ink-2">
+          {verification.verificationStatus === "suspended" ||
+          verification.verificationStatus === "blacklisted"
+            ? "Suspended: not receiving leads."
+            : verified
+              ? "Verified: receiving leads, with the badge."
+              : verification.documentsOverdue
+                ? `New leads paused: ID documents were due ${
+                    verification.documentsDueBy ? formatDate(verification.documentsDueBy) : ""
+                  }.`
+                : verification.agreementComplete
+                  ? verification.documentsDueBy
+                    ? `Receiving leads. ID documents due by ${formatDate(verification.documentsDueBy)}.`
+                    : "Receiving leads. The badge follows once everything is accepted."
+                  : "Not receiving leads until the signed original is marked received."}
+        </p>
+
         {verification.canBeVerified ? (
           <p className="mt-1 text-[12.5px] text-ink-3">
             {verified
@@ -297,7 +315,7 @@ function DocumentReview({
 }
 
 /** Accept in one press; reject only with a reason the vendor will read. */
-function Decide({
+export function Decide({
   what,
   hint,
   onDecide,

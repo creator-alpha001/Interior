@@ -22,7 +22,10 @@ import {
   hardcopyMethodSchema,
   vendorDocumentKindSchema,
   vendorVerificationSchema,
+  vendorAchievementKindSchema,
+  vendorAchievementSchema,
 } from "@repo/types/schema";
+import { okSchema } from "./responses";
 import { idSchema, mediaIdSchema, rupeesSchema, shortText } from "./common";
 import { messageSchema } from "./customer";
 import { route } from "./http";
@@ -92,6 +95,27 @@ export const submitVendorDocumentSchema = z.object({
   kind: vendorDocumentKindSchema,
   documentNumber: z.string().trim().max(40).nullish(),
   files: z.array(mediaIdSchema).min(1, "Attach the document").max(6),
+});
+
+/** A completed job, posted for review. Photos are `portfolio_item` uploads. */
+export const portfolioDraftSchema = z.object({
+  /** One of the trades the vendor is approved for. */
+  domainId: idSchema,
+  cityId: idSchema.nullish(),
+  title: shortText(120),
+  description: z.string().trim().max(1000).default(""),
+  media: z.array(mediaIdSchema).min(1, "Add at least one photo").max(10),
+});
+
+/** An award, certification, membership or press mention, posted for review. */
+export const achievementDraftSchema = z.object({
+  kind: vendorAchievementKindSchema,
+  title: shortText(160),
+  issuer: z.string().trim().max(160).default(""),
+  year: z.number().int().min(1950).max(2100).nullish(),
+  description: z.string().trim().max(1000).default(""),
+  /** An optional photograph of the certificate or award. */
+  media: z.array(mediaIdSchema).max(1).default([]),
 });
 
 const idParam = z.object({ id: idSchema });
@@ -201,6 +225,43 @@ export const vendorRoutes = {
     audience: "professional",
     query: z.object({}),
     response: z.array(portfolioItemSchema),
+  }),
+  addPortfolioItem: route({
+    method: "POST",
+    path: "/vendor/portfolio",
+    audience: "professional",
+    body: portfolioDraftSchema,
+    response: portfolioItemSchema,
+    successStatus: 201,
+  }),
+  removePortfolioItem: route({
+    method: "DELETE",
+    path: "/vendor/portfolio/:id",
+    audience: "professional",
+    params: idParam,
+    response: okSchema,
+  }),
+  vendorAchievements: route({
+    method: "GET",
+    path: "/vendor/achievements",
+    audience: "professional",
+    query: z.object({}),
+    response: z.array(vendorAchievementSchema),
+  }),
+  addAchievement: route({
+    method: "POST",
+    path: "/vendor/achievements",
+    audience: "professional",
+    body: achievementDraftSchema,
+    response: vendorAchievementSchema,
+    successStatus: 201,
+  }),
+  removeAchievement: route({
+    method: "DELETE",
+    path: "/vendor/achievements/:id",
+    audience: "professional",
+    params: idParam,
+    response: okSchema,
   }),
 
   vendorOnboarding: route({

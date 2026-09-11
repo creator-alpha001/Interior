@@ -3,10 +3,10 @@
  *
  * Approval says a person may work here. Verification says we hold what makes
  * that enforceable: the standard agreement signed on paper, the original in our
- * hands, and documents identifying the business that signed it. A vendor is in
- * no lead pool until verified — `eligible_vendors` already requires
- * `verification_status = 'verified'` — so this module now stands between an
- * approved vendor and their first lead.
+ * hands, and documents identifying the business that signed it. Since 0015 a
+ * pending vendor enters lead pools once the signed original is received, and
+ * leaves them if their ID documents are not all sent within 7 days; the badge
+ * waits for everything to be accepted.
  *
  * `outstandingFor` is the one definition of "complete". The vendor's checklist,
  * the reviewer's checklist and the refusal to verify somebody early all read it,
@@ -29,6 +29,7 @@ import { groupMediaByOwner } from "../../lib/media";
 import { publicUrlFor } from "../../lib/storage";
 import { attachMedia } from "../uploads/repository";
 import { getCurrentTerms } from "./onboarding";
+import { documentsDueBy } from "./paperwork";
 
 /** `media_assets.owner_type` for the photographed pages of a signed agreement. */
 const SIGNED_COPY_OWNER = "partner_agreement_copy";
@@ -149,11 +150,33 @@ export async function getVerification(professionalId: string): Promise<VendorVer
 
   const outstanding = outstandingFor(terms, agreement, documents);
 
+  // Leads start on the signed original; the documents then have a deadline.
+  // The same rule decides eligibility in the `eligible_vendors` view.
+  const agreementComplete = Boolean(
+    agreement &&
+      agreement.status === "signed" &&
+      agreement.termsVersion === terms.version &&
+      agreement.hardcopyStatus === "received",
+  );
+  const documentsMissing = documents.some(
+    (slot) =>
+      slot.required &&
+      slot.document?.status !== "submitted" &&
+      slot.document?.status !== "accepted",
+  );
+  const dueBy =
+    agreementComplete && documentsMissing && pro.verificationStatus === "pending"
+      ? documentsDueBy(agreement!.hardcopyReceivedAt)
+      : null;
+
   return {
     professionalId,
     verificationStatus: pro.verificationStatus,
     canBeVerified: outstanding.length === 0,
     outstanding,
+    agreementComplete,
+    documentsDueBy: dueBy,
+    documentsOverdue: dueBy !== null && Date.parse(dueBy) < Date.now(),
     terms,
     agreement: agreement as PartnerAgreement | null,
     signedCopy: agreement ? (copyMedia.get(agreement.id) ?? []) : [],

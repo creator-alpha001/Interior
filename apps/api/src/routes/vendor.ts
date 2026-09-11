@@ -13,6 +13,7 @@ import * as vendor from "../modules/vendor/repository";
 import * as write from "../modules/vendor/mutations";
 import { getOnboarding } from "../modules/vendor/onboarding";
 import * as verification from "../modules/vendor/verification";
+import * as showcase from "../modules/vendor/showcase";
 
 export async function registerVendorRoutes(app: FastifyInstance) {
   /**
@@ -116,6 +117,38 @@ export async function registerVendorRoutes(app: FastifyInstance) {
   app.get(routes.vendorPortfolio.path, async (request) =>
     vendor.listPortfolio(await requireProfessional(request)),
   );
+
+  /* ---------------- work and achievements ---------------- */
+
+  app.post(routes.addPortfolioItem.path, async (request, reply) => {
+    const professionalId = await requireProfessional(request);
+    const input = routes.addPortfolioItem.body!.parse(request.body);
+    reply.status(201);
+    return showcase.addPortfolioItem(professionalId, input);
+  });
+
+  app.delete<{ Params: { id: string } }>(routes.removePortfolioItem.path, async (request) => {
+    const professionalId = await requireProfessional(request);
+    const { id } = routes.removePortfolioItem.params!.parse(request.params);
+    return showcase.removePortfolioItem(professionalId, id);
+  });
+
+  app.get(routes.vendorAchievements.path, async (request) =>
+    showcase.listAchievements(await requireProfessional(request)),
+  );
+
+  app.post(routes.addAchievement.path, async (request, reply) => {
+    const professionalId = await requireProfessional(request);
+    const input = routes.addAchievement.body!.parse(request.body);
+    reply.status(201);
+    return showcase.addAchievement(professionalId, input);
+  });
+
+  app.delete<{ Params: { id: string } }>(routes.removeAchievement.path, async (request) => {
+    const professionalId = await requireProfessional(request);
+    const { id } = routes.removeAchievement.params!.parse(request.params);
+    return showcase.removeAchievement(professionalId, id);
+  });
 
   /* ---------------- onboarding ---------------- */
 

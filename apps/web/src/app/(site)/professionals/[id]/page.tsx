@@ -16,6 +16,14 @@ import { Media } from "@repo/ui";
 
 type Params = { id: string };
 
+const ACHIEVEMENT_LABEL = {
+  award: "Award",
+  certification: "Certification",
+  membership: "Membership",
+  press: "In the press",
+  other: "Achievement",
+} as const;
+
 export async function generateMetadata({ params }: { params: Promise<Params> }): Promise<Metadata> {
   const { id } = await params;
   const pro = await getProfessional(id);
@@ -128,6 +136,49 @@ export default async function ProfessionalPage({ params }: { params: Promise<Par
                       </figure>
                     ))}
                   </div>
+                </>
+              ) : null}
+
+              {pro.achievements.length > 0 ? (
+                <>
+                  <h2 className="mt-12 text-[24px]">Achievements</h2>
+                  <p className="mt-2 text-[15px] sm:text-[14px] text-ink-3">
+                    Awards, certifications and memberships, checked by our team before they appear.
+                  </p>
+                  <ul className="mt-6 grid gap-4 sm:grid-cols-2">
+                    {pro.achievements.map((achievement) => (
+                      <li
+                        key={achievement.id}
+                        className="flex gap-4 rounded-xl border border-line bg-surface p-4"
+                      >
+                        {achievement.media[0] ? (
+                          <div className="h-16 w-16 shrink-0 overflow-hidden rounded-md">
+                            <Media
+                              src={achievement.media[0].url}
+                              alt={achievement.title}
+                              rounded={false}
+                            />
+                          </div>
+                        ) : null}
+                        <div className="min-w-0">
+                          <Badge tone="clay">{ACHIEVEMENT_LABEL[achievement.kind]}</Badge>
+                          <h3 className="mt-2 font-sans text-[15px] font-semibold text-ink">
+                            {achievement.title}
+                          </h3>
+                          {achievement.issuer || achievement.year ? (
+                            <p className="mt-0.5 text-[13px] text-ink-3">
+                              {[achievement.issuer, achievement.year].filter(Boolean).join(" · ")}
+                            </p>
+                          ) : null}
+                          {achievement.description ? (
+                            <p className="mt-1.5 text-[13px] leading-relaxed text-ink-2">
+                              {achievement.description}
+                            </p>
+                          ) : null}
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 </>
               ) : null}
 

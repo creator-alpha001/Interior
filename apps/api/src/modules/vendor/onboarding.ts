@@ -99,14 +99,16 @@ export async function getOnboarding(professionalId: string): Promise<VendorOnboa
     },
     {
       key: "identity",
-      label: "Verified by our team",
+      label: "Verified badge",
       description:
-        "Your signed agreement, the original copy and your business documents, checked by our team.",
+        "Your ID and business documents, checked by our team. Due within 7 days of your signed original reaching us.",
       done: pro.professional.verificationStatus === "verified",
-      blocking: true,
+      // Not a condition for leads since 0015 — the signed original is. Late
+      // documents pause leads through the eligibility view instead.
+      blocking: false,
       hint:
         pro.professional.verificationStatus === "pending"
-          ? "Upload the signed agreement and your business documents on the setup page."
+          ? "Send your ID documents on this page. New leads pause if they are late."
           : null,
     },
     {
@@ -137,11 +139,15 @@ export async function getOnboarding(professionalId: string): Promise<VendorOnboa
     },
     {
       key: "agreement",
-      label: "Partner agreement signed",
-      description: `Version ${terms.version} of the terms of working with us.`,
-      done: signed,
+      label: "Partner agreement signed and received",
+      description: `Version ${terms.version}, accepted online, signed on paper, and the original with our team.`,
+      done: signed && agreement?.hardcopyStatus === "received",
       blocking: true,
-      hint: signed ? null : "You will receive no leads until this is signed.",
+      hint: !signed
+        ? "Accept the terms online first."
+        : agreement?.hardcopyStatus === "received"
+          ? null
+          : "Send us the signed original. Leads start when it arrives.",
     },
   ];
 
@@ -156,7 +162,14 @@ export async function getOnboarding(professionalId: string): Promise<VendorOnboa
     canReceiveLeads,
     blockedReason: canReceiveLeads
       ? null
-      : (blocking[0]?.label ?? "Waiting on our team to finish checks"),
+      : blocking[0]
+        ? blocking[0].label
+        : pro.professional.verificationStatus === "suspended" ||
+            pro.professional.verificationStatus === "blacklisted"
+          ? "Your account is suspended."
+          : // Every blocking step is done, so the eligibility view is holding
+            // them back on the one rule the steps do not show: late documents.
+            "Your ID documents are overdue, so new leads are paused.",
     agreement,
     terms,
   };

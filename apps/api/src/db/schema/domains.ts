@@ -15,9 +15,9 @@ import {
   varchar,
 } from "drizzle-orm/pg-core";
 import type { DomainLabels } from "@repo/types";
-import { fk, primaryId, timestamps } from "./_shared";
+import { fk, primaryId, timestamps, ts } from "./_shared";
 import { cities } from "./geo";
-import { professionals } from "./identity";
+import { professionals, users } from "./identity";
 import { domainApprovalStatus, moderationStatus } from "./enums";
 
 export const domains = pgTable(
@@ -109,6 +109,12 @@ export const portfolioItems = pgTable(
     description: text("description").notNull().default(""),
     /** Photographs are moderated before they reach a public profile. */
     moderationStatus: moderationStatus("moderation_status").notNull().default("pending"),
+    /** Where the job was, when the vendor says. */
+    cityId: fk("city_id").references(() => cities.id),
+    /** Written for the vendor. Required when work is sent back or taken down. */
+    reviewNote: text("review_note"),
+    reviewedAt: ts("reviewed_at"),
+    reviewedByUserId: fk("reviewed_by_user_id").references(() => users.id),
     ...timestamps,
   },
   (t) => [

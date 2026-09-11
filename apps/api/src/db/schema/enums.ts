@@ -59,6 +59,13 @@ export const domainApprovalStatus = pgEnum("domain_approval_status", [
   "rejected",
 ]);
 export const moderationStatus = pgEnum("moderation_status", ["pending", "approved", "rejected"]);
+export const vendorAchievementKind = pgEnum("vendor_achievement_kind", [
+  "award",
+  "certification",
+  "membership",
+  "press",
+  "other",
+]);
 
 /* ---- catalogue ---- */
 export const priceUnit = pgEnum("price_unit", [

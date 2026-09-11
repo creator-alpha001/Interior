@@ -10,6 +10,7 @@ import type { AttentionCard, AttentionEntry, AttentionKey, AttentionView } from 
 import { api } from "./client";
 import { callingApiAsUser } from "./session";
 import { delay, nowIso, store } from "./store";
+import { paperworkStateFor } from "./verification";
 
 const SHOWN = 3;
 
@@ -131,6 +132,47 @@ export async function getOpsAttention(): Promise<AttentionView> {
   const overdueTotal = overdue.reduce((sum, i) => sum + i.amount, 0);
   const inProgressTickets = store.supportTickets.filter((t) => t.status === "in_progress").length;
 
+  const overdueVendors = store.professionals
+    .filter((p) => p.verificationStatus === "pending" && p.deletedAt === null)
+    .map((p) => ({ pro: p, paperwork: paperworkStateFor(p.id) }))
+    .filter(({ paperwork }) => paperwork.documentsOverdue)
+    .map(({ pro, paperwork }) => ({
+      targetId: pro.id,
+      title: pro.companyName,
+      detail: "ID documents overdue, new leads paused",
+      at: paperwork.documentsDueBy,
+    }))
+    .sort(byAt);
+
+  const showcaseByVendor = new Map<string, { work: number; achievements: number }>();
+  for (const item of store.portfolioItems) {
+    if (item.moderationStatus !== "pending" || item.deletedAt !== null) continue;
+    const seen = showcaseByVendor.get(item.professionalId) ?? { work: 0, achievements: 0 };
+    showcaseByVendor.set(item.professionalId, { ...seen, work: seen.work + 1 });
+  }
+  for (const achievement of store.vendorAchievements) {
+    if (achievement.moderationStatus !== "pending" || achievement.deletedAt !== null) continue;
+    const seen = showcaseByVendor.get(achievement.professionalId) ?? { work: 0, achievements: 0 };
+    showcaseByVendor.set(achievement.professionalId, { ...seen, achievements: seen.achievements + 1 });
+  }
+  const showcaseEntries = [...showcaseByVendor.entries()].map(([professionalId, counts]) => ({
+    targetId: professionalId,
+    title: vendorName(professionalId),
+    detail: [
+      counts.work > 0 ? `${counts.work} ${counts.work === 1 ? "piece of work" : "pieces of work"}` : null,
+      counts.achievements > 0
+        ? `${counts.achievements} ${counts.achievements === 1 ? "achievement" : "achievements"}`
+        : null,
+    ]
+      .filter(Boolean)
+      .join(" · "),
+    at: null,
+  }));
+  const showcaseCount = [...showcaseByVendor.values()].reduce(
+    (sum, c) => sum + c.work + c.achievements,
+    0,
+  );
+
   return delay({
     cards: [
       card(
@@ -234,6 +276,8 @@ export async function getOpsAttention(): Promise<AttentionView> {
         store.supportTickets.filter((t) => t.status === "open").length,
         inProgressTickets > 0 ? `${inProgressTickets} more in progress` : null,
       ),
+      card("documents_overdue", overdueVendors),
+      card("showcase_review", showcaseEntries, showcaseCount),
     ],
   });
 }

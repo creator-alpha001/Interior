@@ -16,6 +16,7 @@ import { partnerTerms } from "@repo/mock";
 import { api, nullWhenMissing } from "./client";
 import { callingApiAsUser, currentProfessionalId, currentStaffUserId } from "./session";
 import { delay, nextId, nowIso, store } from "./store";
+import { paperworkStateFor } from "./verification";
 
 export async function getPartnerTerms(): Promise<PartnerTerms> {
   return delay(partnerTerms);
@@ -86,9 +87,11 @@ export async function getVendorOnboardingFor(
       key: "identity",
       label: "Verified by our team",
       description:
-        "Your signed agreement, the original copy and your business documents, checked by our team.",
+        "Your ID and business documents, checked by our team. Due within 7 days of your signed original reaching us.",
       done: pro.verificationStatus === "verified",
-      blocking: true,
+      // Not a condition for leads: the signed original is. Late documents pause
+      // leads through the eligibility rule instead.
+      blocking: false,
       hint:
         pro.verificationStatus === "pending"
           ? "Our team is reviewing your documents."
@@ -116,11 +119,16 @@ export async function getVendorOnboardingFor(
     },
     {
       key: "agreement",
-      label: "Partner agreement signed",
-      description: `Version ${partnerTerms.version} of the terms of working with us.`,
-      done: hasSignedPartnerAgreementSync(professionalId),
+      label: "Partner agreement signed and received",
+      description: `Version ${partnerTerms.version}, accepted online, signed on paper, and the original with our team.`,
+      done: hasSignedPartnerAgreementSync(professionalId) && agreement?.hardcopyStatus === "received",
       blocking: true,
-      hint: agreement?.status === "signed" ? null : "You will receive no leads until this is signed.",
+      hint:
+        agreement?.status !== "signed"
+          ? "Accept the terms online first."
+          : agreement.hardcopyStatus === "received"
+            ? null
+            : "Send us the signed original. Leads start when it arrives.",
     },
     {
       key: "portfolio",
@@ -133,19 +141,34 @@ export async function getVendorOnboardingFor(
   ];
 
   const blocking = steps.filter((s) => s.blocking && !s.done);
+  const paperwork = paperworkStateFor(professionalId);
+  const closed = pro.verificationStatus === "suspended" || pro.verificationStatus === "blacklisted";
+
+  // Mirrors the API's eligibility view: verified with a signed agreement, or
+  // pending with the signed original received and documents not overdue.
+  const canReceiveLeads =
+    !closed &&
+    approvedTrades.length > 0 &&
+    areas.length > 0 &&
+    hasSignedPartnerAgreementSync(professionalId) &&
+    (pro.verificationStatus === "verified" ||
+      (paperwork.agreementComplete && !paperwork.documentsOverdue));
 
   return delay({
     professionalId,
     steps,
     completedCount: steps.filter((s) => s.done).length,
     totalCount: steps.length,
-    canReceiveLeads: blocking.length === 0,
-    blockedReason:
-      blocking.length === 0
-        ? null
-        : blocking[0].key === "agreement"
-          ? "The partner agreement has not been signed yet."
-          : `Outstanding: ${blocking.map((s) => s.label.toLowerCase()).join(", ")}.`,
+    canReceiveLeads,
+    blockedReason: canReceiveLeads
+      ? null
+      : blocking[0]
+        ? blocking[0].key === "agreement"
+          ? "The signed original of the partner agreement has not reached us yet."
+          : `Outstanding: ${blocking.map((s) => s.label.toLowerCase()).join(", ")}.`
+        : closed
+          ? "Your account is suspended."
+          : "Your ID documents are overdue, so new leads are paused.",
     agreement,
     terms: partnerTerms,
   });

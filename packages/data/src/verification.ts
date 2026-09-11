@@ -334,6 +334,19 @@ export function verificationGapsFor(professionalId: string): string[] {
   return buildVerification(professionalId).outstanding;
 }
 
+/** Days after the signed original arrives within which ID documents are due. Same as the API. */
+export const DOCUMENT_GRACE_DAYS = 7;
+
+/** Where a seeded vendor's leads stand on paperwork, for the seed branches of onboarding and the dashboard. */
+export function paperworkStateFor(professionalId: string): {
+  agreementComplete: boolean;
+  documentsDueBy: string | null;
+  documentsOverdue: boolean;
+} {
+  const { agreementComplete, documentsDueBy, documentsOverdue } = buildVerification(professionalId);
+  return { agreementComplete, documentsDueBy, documentsOverdue };
+}
+
 /** Mirrors the API: a pending vendor is verified the moment nothing is outstanding. */
 function verifyIfCompleteSync(professionalId: string): void {
   const pro = store.professionals.find((p) => p.id === professionalId);
@@ -455,11 +468,37 @@ function buildVerification(professionalId: string): VendorVerification {
     );
   }
 
+  // Mirrors the API: leads on the signed original, documents due 7 days after.
+  const agreementComplete = Boolean(
+    agreement &&
+      agreement.status === "signed" &&
+      agreement.termsVersion === partnerTerms.version &&
+      agreement.hardcopyStatus === "received",
+  );
+  const documentsMissing = documents.some(
+    (slot) =>
+      slot.required &&
+      slot.document?.status !== "submitted" &&
+      slot.document?.status !== "accepted",
+  );
+  const documentsDueBy =
+    agreementComplete &&
+    documentsMissing &&
+    pro.verificationStatus === "pending" &&
+    agreement?.hardcopyReceivedAt
+      ? new Date(
+          new Date(agreement.hardcopyReceivedAt).getTime() + DOCUMENT_GRACE_DAYS * 86_400_000,
+        ).toISOString()
+      : null;
+
   return {
     professionalId,
     verificationStatus: pro.verificationStatus,
     canBeVerified: outstanding.length === 0,
     outstanding,
+    agreementComplete,
+    documentsDueBy,
+    documentsOverdue: documentsDueBy !== null && Date.parse(documentsDueBy) < Date.now(),
     terms: partnerTerms,
     agreement,
     signedCopy: agreement ? (store.verificationFiles[agreement.id] ?? []) : [],

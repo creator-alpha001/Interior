@@ -17,6 +17,7 @@ import * as applications from "../modules/applications/repository";
 import * as applicationWrite from "../modules/applications/mutations";
 import * as verification from "../modules/vendor/verification";
 import * as attention from "../modules/ops/attention";
+import * as showcase from "../modules/vendor/showcase";
 
 export async function registerOpsRoutes(app: FastifyInstance) {
   /**
@@ -209,6 +210,28 @@ export async function registerOpsRoutes(app: FastifyInstance) {
     await requirePermission(request, "vendors.view");
     const { id } = routes.opsVendorVerification.params!.parse(request.params);
     return verification.getVerification(id);
+  });
+
+  /* ---------------- vendor work and achievements ---------------- */
+
+  app.get<{ Params: { id: string } }>(routes.opsVendorShowcase.path, async (request) => {
+    await requirePermission(request, "vendors.view");
+    const { id } = routes.opsVendorShowcase.params!.parse(request.params);
+    return showcase.getShowcase(id);
+  });
+
+  app.post<{ Params: { id: string } }>(routes.opsReviewPortfolioItem.path, async (request) => {
+    const staffUserId = await requirePermission(request, "vendors.verify");
+    const { id } = routes.opsReviewPortfolioItem.params!.parse(request.params);
+    const { decision, note } = routes.opsReviewPortfolioItem.body!.parse(request.body);
+    return showcase.reviewPortfolioItem(staffUserId, id, decision, note ?? null);
+  });
+
+  app.post<{ Params: { id: string } }>(routes.opsReviewAchievement.path, async (request) => {
+    const staffUserId = await requirePermission(request, "vendors.verify");
+    const { id } = routes.opsReviewAchievement.params!.parse(request.params);
+    const { decision, note } = routes.opsReviewAchievement.body!.parse(request.body);
+    return showcase.reviewAchievement(staffUserId, id, decision, note ?? null);
   });
 
   app.post<{ Params: { id: string } }>(routes.opsReviewSignedCopy.path, async (request) => {

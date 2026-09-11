@@ -2,25 +2,34 @@
 
 import Link from "next/link";
 import type { VendorVerification } from "@repo/types";
-import { Badge, cn } from "@repo/ui";
+import { Badge, cn, formatDate } from "@repo/ui";
 
 /** Where the verification steps live. */
 export const VERIFICATION_HREF = "/partner/onboarding";
 
 /**
- * Where a vendor stands, in the terms they need: is there something for them
- * to do, or are they waiting on us?
+ * Where a vendor stands, in the terms they need.
  *
- * The distinction is the whole point. "Pending" alone reads the same whether the
- * vendor has not started or has sent everything and is waiting for our review,
- * and those people need opposite advice — one should act, the other should stop
- * worrying. So it is worked out from the record itself, not from the status.
+ * Two questions, answered from the record rather than the status alone: are
+ * they receiving leads, and is there something for them to do? A vendor whose
+ * signed original has reached us is working; what they owe after that is the ID
+ * documents, on a deadline, and missing it pauses new leads. Those are different
+ * situations from "not started" and "waiting on our review", and each needs its
+ * own advice.
  */
 type Standing =
   | { kind: "verified" }
   | { kind: "closed"; status: "suspended" | "blacklisted" }
+  /** Not receiving leads yet, something to do. */
   | { kind: "action"; steps: string[]; waiting: string[] }
+  /** Not receiving leads yet, everything is with our team. */
   | { kind: "waiting"; waiting: string[] }
+  /** Receiving leads; ID documents due by a date. */
+  | { kind: "due"; dueBy: string; steps: string[] }
+  /** ID documents overdue; new leads paused. */
+  | { kind: "paused"; dueBy: string | null; steps: string[] }
+  /** Receiving leads; documents all sent, badge still to come. */
+  | { kind: "active"; steps: string[]; waiting: string[] }
   | { kind: "ready" }
   /** Verified before paperwork was required, and still owing some. */
   | { kind: "paperwork"; steps: string[] };
@@ -34,6 +43,7 @@ export function standingOf(verification: VendorVerification): Standing {
 
   const steps: string[] = [];
   const waiting: string[] = [];
+  const documentSteps: string[] = [];
 
   if (agreement?.status !== "signed" || agreement.termsVersion !== terms.version) {
     steps.push("accept the partner terms");
@@ -74,17 +84,35 @@ export function standingOf(verification: VendorVerification): Standing {
       case "submitted":
         waiting.push(`our team is checking your ${label}`);
         break;
-      case "rejected":
-        steps.push(`upload your ${label} again, as it was sent back`);
+      case "rejected": {
+        const step = `upload your ${label} again, as it was sent back`;
+        steps.push(step);
+        documentSteps.push(step);
         break;
-      default:
-        steps.push(`upload your ${label}`);
+      }
+      default: {
+        const step = `upload your ${label}`;
+        steps.push(step);
+        documentSteps.push(step);
+      }
     }
   }
 
   if (verification.verificationStatus === "verified") {
     return steps.length > 0 ? { kind: "paperwork", steps } : { kind: "verified" };
   }
+
+  if (verification.agreementComplete) {
+    if (verification.documentsOverdue) {
+      return { kind: "paused", dueBy: verification.documentsDueBy, steps: documentSteps };
+    }
+    if (verification.documentsDueBy) {
+      return { kind: "due", dueBy: verification.documentsDueBy, steps: documentSteps };
+    }
+    if (steps.length === 0 && waiting.length === 0) return { kind: "ready" };
+    return { kind: "active", steps, waiting };
+  }
+
   if (steps.length > 0) return { kind: "action", steps, waiting };
   if (waiting.length > 0) return { kind: "waiting", waiting };
   return { kind: "ready" };
@@ -98,7 +126,11 @@ export function VerificationPill({ verification }: { verification: VendorVerific
       ? ({ label: "Verified", tone: "positive" } as const)
       : standing.kind === "closed"
         ? ({ label: standing.status === "blacklisted" ? "Deactivated" : "Suspended", tone: "danger" } as const)
-        : ({ label: "Verification pending", tone: "warning" } as const);
+        : standing.kind === "paused"
+          ? ({ label: "Leads paused", tone: "danger" } as const)
+          : standing.kind === "due" || standing.kind === "active" || standing.kind === "ready"
+            ? ({ label: "Receiving leads", tone: "brand" } as const)
+            : ({ label: "Verification pending", tone: "warning" } as const);
 
   return (
     <Link href={VERIFICATION_HREF} className="shrink-0" title="Your verification status">
@@ -108,7 +140,8 @@ export function VerificationPill({ verification }: { verification: VendorVerific
 }
 
 /**
- * What an unverified vendor sees across the top of every portal screen.
+ * What a vendor sees across the top of every portal screen until they are
+ * verified.
  *
  * Every screen, because the one a vendor lands on is Home and the one they
  * return to is Leads, and a status that lived only on the setup page was a
@@ -140,6 +173,10 @@ export function VerificationBanner({ verification }: { verification: VendorVerif
   );
 }
 
+function more(count: number, noun: string): string {
+  return count > 0 ? ` After that, ${count} more ${count === 1 ? noun : `${noun}s`}.` : "";
+}
+
 function describe(standing: Exclude<Standing, { kind: "verified" }>): {
   title: string;
   body: string;
@@ -160,32 +197,63 @@ function describe(standing: Exclude<Standing, { kind: "verified" }>): {
         accent: "text-danger",
       };
 
-    case "action": {
-      const more = standing.steps.length - 1;
+    case "action":
       return {
-        title: "You are not verified yet, so you will not receive leads",
-        body: `Next, ${standing.steps[0]}.${
-          more > 0 ? ` After that, ${more} more ${more === 1 ? "step" : "steps"}.` : ""
-        }${standing.waiting.length > 0 ? " Some of it is already with our team." : ""}`,
+        title: "You are not receiving leads yet",
+        body: `Leads start as soon as your signed original reaches us. Next, ${standing.steps[0]}.${more(
+          standing.steps.length - 1,
+          "step",
+        )}`,
         cta: "Complete verification",
         frame: "border-warning/30 bg-warning-soft",
         accent: "text-warning",
       };
-    }
 
     case "waiting": {
-      const more = standing.waiting.length - 1;
       const first = standing.waiting[0]!;
       return {
-        title: "Verification in progress. Nothing for you to do right now",
-        body: `${first.charAt(0).toUpperCase()}${first.slice(1)}${
-          more > 0 ? `, and ${more} more ${more === 1 ? "item" : "items"} are with us` : ""
-        }. We will start sending you leads once you are verified.`,
+        title: "Nothing for you to do right now",
+        body: `${first.charAt(0).toUpperCase()}${first.slice(1)}. Leads start as soon as your signed original reaches us.`,
         cta: "See progress",
         frame: "border-brand-line bg-brand-soft",
         accent: "text-brand",
       };
     }
+
+    case "due":
+      return {
+        title: `You are receiving leads. Send your ID documents by ${formatDate(standing.dueBy)}`,
+        body: `Next, ${standing.steps[0] ?? "upload your documents"}.${more(
+          standing.steps.length - 1,
+          "document",
+        )} If they are not all sent by then, new leads pause until they are.`,
+        cta: "Upload documents",
+        frame: "border-warning/30 bg-warning-soft",
+        accent: "text-warning",
+      };
+
+    case "paused":
+      return {
+        title: "New leads are paused: your ID documents are overdue",
+        body: `${
+          standing.dueBy ? `They were due ${formatDate(standing.dueBy)}. ` : ""
+        }Next, ${standing.steps[0] ?? "upload your documents"}. Leads resume as soon as they are all sent, and your current jobs are not affected.`,
+        cta: "Upload documents",
+        frame: "border-danger/30 bg-danger-soft",
+        accent: "text-danger",
+      };
+
+    case "active":
+      return {
+        title: "You are receiving leads",
+        body:
+          standing.steps.length > 0
+            ? `For your Verified badge, ${standing.steps[0]}.`
+            : `${standing.waiting[0]!.charAt(0).toUpperCase()}${standing.waiting[0]!.slice(1)}. Your Verified badge follows once everything is accepted.`,
+        cta: standing.steps.length > 0 ? "Complete verification" : "See progress",
+        frame: "border-brand-line bg-brand-soft",
+        accent: "text-brand",
+      };
 
     case "ready":
       return {

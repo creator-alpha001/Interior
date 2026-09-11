@@ -131,8 +131,9 @@ describe("staff permissions are enforced, not documented", () => {
 
 describe("only eligible vendors can be assigned", () => {
   /**
-   * "Eligible" means verified, approved for that trade, serving that city, and
-   * signed up on the current terms. The rule lived in two places that could
+   * "Eligible" means approved for that trade, serving that city, signed up on
+   * the current terms, and either verified or — since 0015 — holding a received
+   * signed original with ID documents not overdue. The rule lived in two places that could
    * disagree; it is one view now. The test posts an ineligible vendor's id
    * directly, which is exactly what the old code would have accepted.
    */

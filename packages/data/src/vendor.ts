@@ -463,7 +463,9 @@ export async function listVendorPortfolio(): Promise<PortfolioItem[]> {
   if (await callingApiAsUser()) return api<PortfolioItem[]>("/vendor/portfolio");
 
   const professionalId = await currentProfessionalId();
-  return delay(store.portfolioItems.filter((p) => p.professionalId === professionalId));
+  return delay(
+    store.portfolioItems.filter((p) => p.professionalId === professionalId && p.deletedAt === null),
+  );
 }
 
 export async function getVendorPerformance(): Promise<VendorPerformance> {

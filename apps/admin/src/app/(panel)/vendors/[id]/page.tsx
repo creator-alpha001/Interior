@@ -4,6 +4,7 @@ import {
   getProfessional,
   getVendor,
   getVendorOnboardingFor,
+  getVendorShowcaseFor,
   getVendorVerificationFor,
   listCommissionInvoices,
   listDomains,
@@ -12,12 +13,13 @@ import { Badge, formatDate, invoiceStatus } from "@repo/ui";
 import { PageBody, PageHeader, Panel } from "@/components/ops-ui";
 import { VendorDomainRow, VendorStatusControl } from "@/components/vendor-controls";
 import { VendorVerificationReview } from "@/components/vendor-verification";
+import { VendorShowcaseReview } from "@/components/vendor-showcase-review";
 
 type Params = { id: string };
 
 export default async function VendorDetailPage({ params }: { params: Promise<Params> }) {
   const { id } = await params;
-  const [row, profile, domains, invoices, onboarding, verification] = await Promise.all([
+  const [row, profile, domains, invoices, onboarding, verification, showcase] = await Promise.all([
     getVendor(id),
     // The public profile only adds the mobile and reviews. It is the directory's
     // view of a vendor, so it can refuse one ops still needs to look at — that
@@ -27,6 +29,7 @@ export default async function VendorDetailPage({ params }: { params: Promise<Par
     listCommissionInvoices(),
     getVendorOnboardingFor(id),
     getVendorVerificationFor(id),
+    getVendorShowcaseFor(id),
   ]);
   if (!row) notFound();
 
@@ -128,6 +131,14 @@ export default async function VendorDetailPage({ params }: { params: Promise<Par
 
         {verification ? (
           <VendorVerificationReview professionalId={row.professional.id} verification={verification} />
+        ) : null}
+
+        {showcase ? (
+          <VendorShowcaseReview
+            professionalId={row.professional.id}
+            showcase={showcase}
+            domains={domains}
+          />
         ) : null}
 
         <div className="grid gap-4 lg:grid-cols-[1.4fr_1fr]">

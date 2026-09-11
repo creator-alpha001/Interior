@@ -7,6 +7,8 @@ import type {
   portfolioItemSchema,
   professionalDomainSchema,
   professionalServiceAreaSchema,
+  vendorAchievementKindSchema,
+  vendorAchievementSchema,
 } from "./schema/domains";
 
 /**
@@ -35,3 +37,8 @@ export type ProfessionalDomain = z.infer<typeof professionalDomainSchema>;
 export type ProfessionalServiceArea = z.infer<typeof professionalServiceAreaSchema>;
 
 export type PortfolioItem = z.infer<typeof portfolioItemSchema>;
+
+export type VendorAchievementKind = z.infer<typeof vendorAchievementKindSchema>;
+
+/** An award, certification, membership or press mention, moderated before it is public. */
+export type VendorAchievement = z.infer<typeof vendorAchievementSchema>;

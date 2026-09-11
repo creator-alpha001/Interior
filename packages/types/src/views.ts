@@ -67,6 +67,7 @@ import type {
   vendorProjectViewSchema,
   vendorReviewSchema,
   vendorRowSchema,
+  vendorShowcaseSchema,
   vendorVisitViewSchema,
 } from "./schema/views";
 
@@ -204,6 +205,9 @@ export type AttentionCard = z.infer<typeof attentionCardSchema>;
 
 /** Everything across the panel that is waiting on our team. */
 export type AttentionView = z.infer<typeof attentionViewSchema>;
+
+/** A vendor's work and achievements, as a reviewer sees them. */
+export type VendorShowcase = z.infer<typeof vendorShowcaseSchema>;
 
 export type RelayThread = z.infer<typeof relayThreadSchema>;
 

@@ -357,5 +357,8 @@ export const portfolioItems: PortfolioItem[] = seeds.flatMap((s) =>
     description: p.description,
     media: [ph(p.domainId.replace("dom-", ""), p.seed, p.title)],
     moderationStatus: "approved" as const,
+    cityId: s.cityId,
+    reviewNote: null,
+    reviewedAt: null,
   })),
 );

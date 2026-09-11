@@ -36,6 +36,8 @@ export async function getAttention(): Promise<AttentionView> {
     card("reschedules", reschedules),
     card("overdue_commission", overdueCommission),
     card("open_tickets", openTickets),
+    card("documents_overdue", documentsOverdue),
+    card("showcase_review", showcaseReview),
   ]);
   return { cards };
 }
@@ -523,6 +525,102 @@ async function openTickets(): Promise<Counted> {
       title: r.subject,
       detail: `${r.reference} · ${r.priority} priority`,
       at: r.createdAt,
+    })),
+  };
+}
+
+/**
+ * Pending vendors whose ID documents are late — the same rule that takes them
+ * out of lead pools in the `eligible_vendors` view (migration 0015).
+ */
+async function documentsOverdue(): Promise<Counted> {
+  const late = rows<{ professional_id: string; company_name: string; due: string }>(
+    await db.execute(sql`
+      SELECT p.id AS professional_id, p.company_name,
+             (pa.hardcopy_received_at + interval '7 days') AS due
+      FROM ${t.professionals} p
+      JOIN ${t.partnerAgreements} pa
+        ON pa.professional_id = p.id AND pa.status <> 'superseded'
+      WHERE p.deleted_at IS NULL
+        AND p.verification_status = 'pending'
+        AND pa.hardcopy_status = 'received'
+        AND pa.hardcopy_received_at + interval '7 days' <= now()
+        AND EXISTS (
+          SELECT 1
+          FROM unnest(
+            ARRAY['pan', 'business_registration', 'signatory_id', 'address_proof']::vendor_document_kind[]
+            || CASE
+                 WHEN coalesce(p.gst_number, '') <> '' THEN ARRAY['gst_certificate']::vendor_document_kind[]
+                 ELSE ARRAY[]::vendor_document_kind[]
+               END
+          ) AS required(kind)
+          WHERE NOT EXISTS (
+            SELECT 1 FROM ${t.vendorDocuments} d
+            WHERE d.professional_id = p.id
+              AND d.kind = required.kind
+              AND d.deleted_at IS NULL
+              AND d.status IN ('submitted', 'accepted')
+          )
+        )
+      ORDER BY due ASC
+    `),
+  );
+
+  return {
+    count: late.length,
+    entries: late.map((v) => ({
+      targetId: v.professional_id,
+      title: v.company_name,
+      detail: "ID documents overdue, new leads paused",
+      at: v.due,
+    })),
+  };
+}
+
+/** Work and achievements vendors have posted, waiting for approval. One entry per vendor. */
+async function showcaseReview(): Promise<Counted> {
+  const vendors = rows<{
+    professional_id: string;
+    company_name: string;
+    work: number;
+    achievements: number;
+    since: string;
+  }>(
+    await db.execute(sql`
+      WITH pending AS (
+        SELECT professional_id, 'work' AS what, created_at
+        FROM ${t.portfolioItems}
+        WHERE moderation_status = 'pending' AND deleted_at IS NULL
+        UNION ALL
+        SELECT professional_id, 'achievement', created_at
+        FROM ${t.vendorAchievements}
+        WHERE moderation_status = 'pending' AND deleted_at IS NULL
+      )
+      SELECT p.id AS professional_id, p.company_name,
+             (count(*) FILTER (WHERE pending.what = 'work'))::int AS work,
+             (count(*) FILTER (WHERE pending.what = 'achievement'))::int AS achievements,
+             min(pending.created_at) AS since
+      FROM pending
+      JOIN ${t.professionals} p ON p.id = pending.professional_id AND p.deleted_at IS NULL
+      GROUP BY p.id, p.company_name
+      ORDER BY min(pending.created_at) ASC
+    `),
+  );
+
+  return {
+    count: vendors.reduce((sum, v) => sum + v.work + v.achievements, 0),
+    entries: vendors.map((v) => ({
+      targetId: v.professional_id,
+      title: v.company_name,
+      detail: [
+        v.work > 0 ? `${v.work} ${v.work === 1 ? "piece of work" : "pieces of work"}` : null,
+        v.achievements > 0
+          ? `${v.achievements} ${v.achievements === 1 ? "achievement" : "achievements"}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(" · "),
+      at: v.since,
     })),
   };
 }

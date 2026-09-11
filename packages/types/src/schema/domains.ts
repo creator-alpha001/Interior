@@ -1,5 +1,5 @@
 import { z } from "zod";
-import { baseRecordSchema, idSchema, mediaAssetSchema } from "./common";
+import { baseRecordSchema, idSchema, mediaAssetSchema, timestampSchema } from "./common";
 
 /**
  * The compare-quotes table has identical structure across every domain; only
@@ -73,4 +73,39 @@ export const portfolioItemSchema = baseRecordSchema.extend({
   media: z.array(mediaAssetSchema),
   /** Portfolio media is moderated before it appears on a public profile. */
   moderationStatus: z.enum(["pending", "approved", "rejected"]),
+  /** Where the job was, when the vendor says. */
+  cityId: idSchema.nullable(),
+  /** Shown to the vendor when their work is sent back or taken down. */
+  reviewNote: z.string().nullable(),
+  reviewedAt: timestampSchema.nullable(),
+});
+
+export const vendorAchievementKindSchema = z.enum([
+  "award",
+  "certification",
+  "membership",
+  "press",
+  "other",
+]);
+
+/**
+ * An award, certification, membership or press mention a vendor posts.
+ *
+ * Moderated like portfolio work: nothing reaches a public profile until our
+ * team approves it.
+ */
+export const vendorAchievementSchema = baseRecordSchema.extend({
+  id: idSchema,
+  professionalId: idSchema,
+  kind: vendorAchievementKindSchema,
+  title: z.string(),
+  /** Who awarded or issued it. Empty when the vendor did not say. */
+  issuer: z.string(),
+  year: z.number().int().nullable(),
+  description: z.string(),
+  /** A photograph of the certificate or award, when there is one. */
+  media: z.array(mediaAssetSchema),
+  moderationStatus: z.enum(["pending", "approved", "rejected"]),
+  reviewNote: z.string().nullable(),
+  reviewedAt: timestampSchema.nullable(),
 });

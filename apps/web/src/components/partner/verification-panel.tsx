@@ -50,7 +50,7 @@ export function VerificationPanel({ verification }: { verification: VendorVerifi
             ? complete
               ? "Our team holds your signed agreement and has checked your documents. Customers see the verified badge on your profile."
               : "You are verified. Please send the paperwork below too, so your agreement is on record."
-            : "You are approved, but you will not receive leads or the verified badge until our team has your signed agreement, the original copy and your business documents. You are verified automatically as soon as all of them are accepted."}
+            : "You start receiving leads as soon as your signed original reaches us. Send your ID documents within 7 days of that, or new leads pause until you do. Your Verified badge follows automatically once everything is accepted."}
         </p>
         {complete ? (
           verified ? null : (
@@ -267,8 +267,8 @@ function HardcopyStep({ verification }: { verification: VendorVerification }) {
           "Courier the signed original to our office, or hand it over in person if you are nearby. Our team will confirm the address."}
       </p>
       <p className="mt-2 text-[12.5px] text-ink-4">
-        The photographs let us check it quickly; the original is what we keep on file. Keep a
-        photocopy for yourself.
+        You start receiving leads as soon as the original reaches us. The photographs let us
+        check it quickly; the original is what we keep on file. Keep a photocopy for yourself.
       </p>
 
       {status === "received" ? (
@@ -386,8 +386,21 @@ function DocumentsStep({ verification }: { verification: VendorVerification }) {
       }
     >
       <p className="text-[13px] leading-relaxed text-ink-2">
-        Clear photos or PDFs, with every corner visible. Only our team sees these.
+        Clear photos or PDFs, with every corner visible. Only our team sees these. They are due
+        within 7 days of your signed original reaching us.
       </p>
+      {verification.documentsOverdue ? (
+        <p className="mt-2 rounded-md bg-danger-soft px-3 py-2 text-[13px] text-danger">
+          These were due
+          {verification.documentsDueBy ? ` ${formatDate(verification.documentsDueBy)}` : ""}. New
+          leads are paused until every required document is sent.
+        </p>
+      ) : verification.documentsDueBy ? (
+        <p className="mt-2 rounded-md bg-warning-soft px-3 py-2 text-[13px] text-warning">
+          Send every required document by {formatDate(verification.documentsDueBy)} to keep
+          receiving leads.
+        </p>
+      ) : null}
       <ul className="-mx-4 -mb-4 mt-3 divide-y divide-line border-t border-line">
         {verification.documents.map((slot) => (
           <DocumentRow key={slot.kind} slot={slot} />

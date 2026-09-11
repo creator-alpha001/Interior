@@ -16,7 +16,12 @@ import {
   reviewSchema,
   supportTicketSchema,
 } from "./execution";
-import { domainSchema, portfolioItemSchema, professionalDomainSchema } from "./domains";
+import {
+  domainSchema,
+  portfolioItemSchema,
+  professionalDomainSchema,
+  vendorAchievementSchema,
+} from "./domains";
 import {
   leadDomainAssignmentSchema,
   leadDomainItemSchema,
@@ -97,6 +102,8 @@ export const professionalProfileSchema = professionalSummarySchema.extend({
   serviceCities: z.array(citySchema),
   portfolio: z.array(portfolioItemSchema),
   reviews: z.array(reviewViewSchema),
+  /** Approved achievements only. */
+  achievements: z.array(vendorAchievementSchema),
 });
 
 export const clientSummarySchema = z.object({
@@ -575,6 +582,8 @@ export const attentionKeySchema = z.enum([
   "reschedules",
   "overdue_commission",
   "open_tickets",
+  "documents_overdue",
+  "showcase_review",
 ]);
 
 export const attentionEntrySchema = z.object({
@@ -603,6 +612,12 @@ export const attentionCardSchema = z.object({
 
 export const attentionViewSchema = z.object({
   cards: z.array(attentionCardSchema),
+});
+
+/** Everything a vendor has posted, for the reviewer: pending, approved and sent back. */
+export const vendorShowcaseSchema = z.object({
+  portfolio: z.array(portfolioItemSchema),
+  achievements: z.array(vendorAchievementSchema),
 });
 
 export const domainSliceSchema = z.object({

@@ -31,6 +31,8 @@ import {
   reviewVendorDocument,
   updatePartnerTerms,
   requestUploadTicket,
+  reviewAchievement,
+  reviewPortfolioItem,
 } from "@repo/data";
 import type {
   TicketRequest,
@@ -144,6 +146,40 @@ export async function setVendorStatusAction(
   }
   revalidatePath("/vendors");
   revalidatePath(`/vendors/${professionalId}`);
+  return {};
+}
+
+/* ---------------- Vendor work and achievements ---------------- */
+
+export async function reviewPortfolioItemAction(
+  professionalId: string,
+  id: string,
+  decision: VerificationDecision,
+  note: string | null,
+): Promise<ActionResult> {
+  try {
+    await reviewPortfolioItem(id, decision, note);
+  } catch (error) {
+    return explain(error, "That decision could not be recorded.");
+  }
+  revalidateVendor(professionalId);
+  revalidatePath("/");
+  return {};
+}
+
+export async function reviewAchievementAction(
+  professionalId: string,
+  id: string,
+  decision: VerificationDecision,
+  note: string | null,
+): Promise<ActionResult> {
+  try {
+    await reviewAchievement(id, decision, note);
+  } catch (error) {
+    return explain(error, "That decision could not be recorded.");
+  }
+  revalidateVendor(professionalId);
+  revalidatePath("/");
   return {};
 }
 

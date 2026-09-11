@@ -78,6 +78,17 @@ const CARDS: Record<
     open: () => "/support?status=open",
     urgent: true,
   },
+  documents_overdue: {
+    label: "ID documents overdue",
+    href: "/vendors?status=pending",
+    open: (id) => (id ? `/vendors/${id}` : "/vendors?status=pending"),
+    urgent: true,
+  },
+  showcase_review: {
+    label: "Work and achievements to approve",
+    href: "/vendors",
+    open: (id) => (id ? `/vendors/${id}` : "/vendors"),
+  },
 };
 
 /**

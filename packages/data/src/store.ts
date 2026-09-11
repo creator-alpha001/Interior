@@ -5,7 +5,13 @@
  * lands, this file is replaced by an HTTP client and nothing above it changes —
  * screens import from `@repo/data`, never from `@repo/mock`.
  */
-import type { MediaAsset, ProfessionalApplication, VendorDocument } from "@repo/types";
+import type {
+  MediaAsset,
+  PortfolioItem,
+  ProfessionalApplication,
+  VendorAchievement,
+  VendorDocument,
+} from "@repo/types";
 import * as seed from "@repo/mock";
 
 export const store = {
@@ -25,7 +31,9 @@ export const store = {
   professionalApplications: [...seed.professionalApplications] as ProfessionalApplication[],
   professionalDomains: [...seed.professionalDomains],
   professionalServiceAreas: [...seed.professionalServiceAreas],
-  portfolioItems: [...seed.portfolioItems],
+  portfolioItems: [...seed.portfolioItems] as PortfolioItem[],
+  /** Awards, certifications and the like vendors post. None in the seed. */
+  vendorAchievements: [] as VendorAchievement[],
   salesAgents: [...seed.salesAgents],
   adminRoles: [...seed.adminRoles],
   partnerAgreements: [...seed.partnerAgreements],

@@ -30,6 +30,7 @@ import type * as vendor from "../modules/vendor/repository";
 import type * as vendorWrite from "../modules/vendor/mutations";
 import type * as onboarding from "../modules/vendor/onboarding";
 import type * as verification from "../modules/vendor/verification";
+import type * as showcase from "../modules/vendor/showcase";
 import type * as uploads from "../modules/uploads/repository";
 import type * as sessions from "../modules/auth/sessions";
 import type * as closure from "../modules/auth/closure";
@@ -299,4 +300,24 @@ export type _reportHardcopy = Assert<Check<
 export type _submitVendorDocument = Assert<Check<
   typeof routes.submitVendorDocument,
   typeof verification.submitDocument
+>>;
+export type _addPortfolioItem = Assert<Check<
+  typeof routes.addPortfolioItem,
+  typeof showcase.addPortfolioItem
+>>;
+export type _removePortfolioItem = Assert<Check<
+  typeof routes.removePortfolioItem,
+  typeof showcase.removePortfolioItem
+>>;
+export type _vendorAchievements = Assert<Check<
+  typeof routes.vendorAchievements,
+  typeof showcase.listAchievements
+>>;
+export type _addAchievement = Assert<Check<
+  typeof routes.addAchievement,
+  typeof showcase.addAchievement
+>>;
+export type _removeAchievement = Assert<Check<
+  typeof routes.removeAchievement,
+  typeof showcase.removeAchievement
 >>;

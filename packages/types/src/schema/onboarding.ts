@@ -217,6 +217,18 @@ export const vendorVerificationSchema = z.object({
   /** True when nothing is outstanding; ops may then mark the vendor verified. */
   canBeVerified: z.boolean(),
   outstanding: z.array(z.string()),
+  /**
+   * Accepted online, and the signed original received. This is what lets a
+   * pending vendor receive leads; the badge still waits for everything else.
+   */
+  agreementComplete: z.boolean(),
+  /**
+   * When every required ID document must have been sent by. Null until the
+   * original is received, once they have all been sent, and once verified.
+   */
+  documentsDueBy: timestampSchema.nullable(),
+  /** True once that date has passed with documents missing. New leads pause. */
+  documentsOverdue: z.boolean(),
   terms: partnerTermsSchema,
   agreement: partnerAgreementSchema.nullable(),
   /** The photographed or scanned signed pages. Private, short-lived links. */

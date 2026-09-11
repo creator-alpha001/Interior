@@ -13,8 +13,14 @@ import {
   submitQuote,
   submitSignedCopy,
   submitVendorDocument,
+  addAchievement,
+  addPortfolioItem,
+  removeAchievement,
+  removePortfolioItem,
 } from "@repo/data";
 import type {
+  AchievementDraft,
+  PortfolioDraft,
   HardcopyReport,
   QuoteDraftInput,
   SignedCopyInput,
@@ -44,6 +50,48 @@ function revalidateVerification() {
   revalidatePath("/partner/onboarding");
   revalidatePath("/partner");
   revalidatePath("/partner/profile");
+}
+
+/* ---------------- Work and achievements ---------------- */
+
+export async function addPortfolioItemAction(draft: PortfolioDraft): Promise<ActionResult> {
+  try {
+    await addPortfolioItem(draft);
+  } catch (error) {
+    return explain(error, "That work could not be posted. Please try again.");
+  }
+  revalidatePath("/partner/profile");
+  return {};
+}
+
+export async function removePortfolioItemAction(id: string): Promise<ActionResult> {
+  try {
+    await removePortfolioItem(id);
+  } catch (error) {
+    return explain(error, "That work could not be removed.");
+  }
+  revalidatePath("/partner/profile");
+  return {};
+}
+
+export async function addAchievementAction(draft: AchievementDraft): Promise<ActionResult> {
+  try {
+    await addAchievement(draft);
+  } catch (error) {
+    return explain(error, "That achievement could not be posted. Please try again.");
+  }
+  revalidatePath("/partner/profile");
+  return {};
+}
+
+export async function removeAchievementAction(id: string): Promise<ActionResult> {
+  try {
+    await removeAchievement(id);
+  } catch (error) {
+    return explain(error, "That achievement could not be removed.");
+  }
+  revalidatePath("/partner/profile");
+  return {};
 }
 
 /* ---------------- Uploads ---------------- */

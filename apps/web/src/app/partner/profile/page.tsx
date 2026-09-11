@@ -2,21 +2,30 @@ import {
   formatRupees,
   getVendorDashboard,
   getVendorPerformance,
+  listCities,
+  listMyAchievements,
   listVendorPortfolio,
 } from "@repo/data";
-import { Badge, Media, formatDate } from "@repo/ui";
+import { Badge, formatDate } from "@repo/ui";
 import { Metric, PageBody, PageHeader, Panel } from "@/components/partner/panel-ui";
+import { AchievementsManager, PortfolioManager } from "@/components/partner/showcase-manager";
 
 export const metadata = { title: "Profile" };
 
 export default async function VendorProfilePage() {
-  const [dashboard, performance, portfolio] = await Promise.all([
+  const [dashboard, performance, portfolio, achievements, cities] = await Promise.all([
     getVendorDashboard(),
     getVendorPerformance(),
     listVendorPortfolio(),
+    listMyAchievements(),
+    listCities(),
   ]);
 
   const { professional } = dashboard;
+  // Work can only be posted under a trade the vendor is approved for.
+  const approvedTrades = dashboard.domains
+    .filter((d) => d.link.verificationStatus === "approved")
+    .map((d) => d.domain);
 
   return (
     <>
@@ -38,6 +47,11 @@ export default async function VendorProfilePage() {
           <Metric label="Response time" value={`~${performance.avgResponseHours}h`} hint="To our coordinator" />
           <Metric label="Revenue" value={formatRupees(performance.totalRevenue)} hint="Through the platform" />
         </div>
+
+        {/* What customers see first on a public profile, so it leads here too. */}
+        <PortfolioManager items={portfolio} trades={approvedTrades} cities={cities} />
+
+        <AchievementsManager items={achievements} />
 
         {/* Per-trade performance is the whole point of the domain model. */}
         <Panel title="Performance by trade">
@@ -76,42 +90,6 @@ export default async function VendorProfilePage() {
             Ratings are held separately per trade, so being excellent at one is never diluted by
             another. To take work in a trade you are not approved for, ask our team — approval is
             per trade and is never self-service.
-          </p>
-        </Panel>
-
-        <Panel title={`Portfolio (${portfolio.length})`}>
-          {portfolio.length === 0 ? (
-            <p className="py-6 text-center text-[13px] text-ink-3">
-              No work published yet. Photos of completed jobs are what customers look at first.
-            </p>
-          ) : (
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-              {portfolio.map((item) => (
-                <figure key={item.id} className="overflow-hidden rounded-md border border-line">
-                  <div className="aspect-[4/3]">
-                    <Media
-                      src={item.media[0]?.url ?? "ph:default:x"}
-                      alt={item.title}
-                      rounded={false}
-                    />
-                  </div>
-                  <figcaption className="p-3">
-                    <div className="flex items-center justify-between gap-2">
-                      <span className="text-[12.5px] font-medium text-ink">{item.title}</span>
-                      <Badge
-                        tone={item.moderationStatus === "approved" ? "positive" : "warning"}
-                      >
-                        {item.moderationStatus}
-                      </Badge>
-                    </div>
-                    <p className="mt-1 line-clamp-2 text-[11.5px] text-ink-3">{item.description}</p>
-                  </figcaption>
-                </figure>
-              ))}
-            </div>
-          )}
-          <p className="mt-3 text-[11.5px] text-ink-4">
-            Photos are moderated before they appear on your public profile.
           </p>
         </Panel>
 

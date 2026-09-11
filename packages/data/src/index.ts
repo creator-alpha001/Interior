@@ -19,6 +19,7 @@ export * from "./ops-extra";
 export * from "./attention";
 export * from "./onboarding";
 export * from "./verification";
+export * from "./showcase";
 export * from "./applications";
 export * from "./admin";
 export * from "./vendor";

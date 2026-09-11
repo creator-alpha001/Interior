@@ -14,6 +14,7 @@ import { groupMediaByOwner, type MediaRow } from "../../lib/media";
 import { fromX10, toDomain, toPortfolioItem, toProfessionalSummary } from "../../lib/mappers";
 import { decodeCursor, page } from "../../lib/pagination";
 import { vendorCityJoin } from "../../lib/vendor-city";
+import { listAchievements } from "../vendor/showcase";
 
 export interface ProfessionalQuery {
   domain?: string;
@@ -305,6 +306,8 @@ export async function getProfessional(id: string): Promise<ProfessionalProfile |
       isActive: c.city.isActive,
     })),
     portfolio: portfolioRows.map((p) => toPortfolioItem(p, portfolioMedia.get(p.id) ?? [])),
+    // Moderated, like the portfolio: only what our team approved.
+    achievements: await listAchievements(id, { approvedOnly: true }),
     reviews: reviewRows.map((r) => ({
       review: {
         id: r.review.id,
