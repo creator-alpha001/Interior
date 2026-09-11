@@ -4,7 +4,7 @@ import { useState, useTransition } from "react";
 import { UploadError, maxFilesFor, uploadFile } from "@repo/data";
 import type { MediaAsset, ProjectMilestone } from "@repo/types";
 import { Media, cn, formatDateTime } from "@repo/ui";
-import { submitStageProofAction } from "@/app/partner/actions";
+import { issueUploadTicketAction, submitStageProofAction } from "@/app/partner/actions";
 
 /**
  * Closing out a stage with evidence.
@@ -39,7 +39,9 @@ export function StageProofForm({
     setUploading(true);
     try {
       for (const file of files) {
-        const asset = await uploadFile(file, "milestone_proof");
+        const asset = await uploadFile(file, "milestone_proof", {
+          requestTicket: issueUploadTicketAction,
+        });
         setPhotos((prev) => [...prev, asset]);
       }
     } catch (error) {

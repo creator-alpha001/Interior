@@ -11,6 +11,7 @@ import type {
 } from "@repo/types";
 import { Badge, cn, formatDate } from "@repo/ui";
 import {
+  issueUploadTicketAction,
   reportHardcopyAction,
   submitSignedCopyAction,
   submitVendorDocumentAction,
@@ -49,12 +50,12 @@ export function VerificationPanel({ verification }: { verification: VendorVerifi
             ? complete
               ? "Our team holds your signed agreement and has checked your documents. Customers see the verified badge on your profile."
               : "You are verified. Please send the paperwork below too, so your agreement is on record."
-            : "You are approved, but you will not receive leads or the verified badge until our team has your signed agreement, the original copy and your business documents."}
+            : "You are approved, but you will not receive leads or the verified badge until our team has your signed agreement, the original copy and your business documents. You are verified automatically as soon as all of them are accepted."}
         </p>
         {complete ? (
           verified ? null : (
             <p className="mt-2 text-[13px] font-medium text-positive">
-              Everything is in. Our team will mark you verified shortly.
+              Everything is accepted. Refresh the page to see your verified status.
             </p>
           )
         ) : (
@@ -605,7 +606,9 @@ function FilePicker({
     const next = [...files];
     try {
       for (const file of chosen) {
-        next.push(await uploadFile(file, "vendor_document"));
+        next.push(
+          await uploadFile(file, "vendor_document", { requestTicket: issueUploadTicketAction }),
+        );
         onChange([...next]);
       }
     } catch (cause) {

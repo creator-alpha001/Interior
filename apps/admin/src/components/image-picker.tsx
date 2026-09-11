@@ -3,6 +3,7 @@
 import { useRef, useState, useTransition } from "react";
 import { UploadError, maxFilesFor, uploadFile } from "@repo/data";
 import { Button, cn } from "@repo/ui";
+import { issueUploadTicketAction } from "@/app/actions";
 
 export interface PickedImage {
   id: string;
@@ -14,8 +15,9 @@ export interface PickedImage {
  * Choosing the pictures for a catalogue item.
  *
  * Uploads happen here, in the browser, because the file has to be streamed and
- * a server action would mean sending it twice. `uploadFile` asks the API for a
- * ticket and PUTs straight at storage; what comes back is an asset id, and that
+ * a server action would mean sending it twice. `uploadFile` gets a ticket through
+ * a server action — the browser holds no session the API can see — and PUTs
+ * straight at storage; what comes back is an asset id, and that
  * id — not a URL — is what the form submits. An asset never bound to an owner
  * is what the orphan sweep deletes, so a URL here would produce a picture that
  * worked all afternoon and vanished overnight.
@@ -55,7 +57,7 @@ export function ImagePicker({
       const added: PickedImage[] = [];
       for (const file of chosen) {
         try {
-          const asset = await uploadFile(file, purpose);
+          const asset = await uploadFile(file, purpose, { requestTicket: issueUploadTicketAction });
           added.push({ id: asset.id, url: asset.url, caption: asset.caption });
         } catch (cause) {
           // Named, because "upload failed" with eight files selected tells

@@ -30,8 +30,11 @@ import {
   reviewSignedCopy,
   reviewVendorDocument,
   updatePartnerTerms,
+  requestUploadTicket,
 } from "@repo/data";
 import type {
+  TicketRequest,
+  UploadTicketResult,
   HardcopyReceipt,
   PartnerTermsInput,
   VerificationDecision,
@@ -142,6 +145,19 @@ export async function setVendorStatusAction(
   revalidatePath("/vendors");
   revalidatePath(`/vendors/${professionalId}`);
   return {};
+}
+
+/* ---------------- Uploads ---------------- */
+
+/**
+ * An upload ticket, asked for by this server with the staff session.
+ *
+ * The browser cannot ask the API itself: the session cookie belongs to
+ * admin.decorashine.com, so a direct request arrives as nobody and is refused.
+ * See `requestUploadTicket`.
+ */
+export async function issueUploadTicketAction(request: TicketRequest): Promise<UploadTicketResult> {
+  return requestUploadTicket(request);
 }
 
 /* ---------------- Vendor verification ---------------- */

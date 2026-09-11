@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { UploadError, uploadFile } from "@repo/data";
 import type { PartnerTerms } from "@repo/types";
 import { Badge } from "@repo/ui";
-import { updatePartnerTermsAction } from "@/app/actions";
+import { issueUploadTicketAction, updatePartnerTermsAction } from "@/app/actions";
 
 /**
  * The standard agreement every vendor prints and signs.
@@ -29,7 +29,9 @@ export function PartnerTermsDocument({ terms }: { terms: PartnerTerms }) {
     setSaved(false);
     setUploading(true);
     try {
-      const asset = await uploadFile(file, "agreement_template");
+      const asset = await uploadFile(file, "agreement_template", {
+        requestTicket: issueUploadTicketAction,
+      });
       setPicked({ id: asset.id, name: file.name, url: asset.url });
     } catch (cause) {
       setError(cause instanceof UploadError ? cause.message : "That PDF could not be uploaded.");

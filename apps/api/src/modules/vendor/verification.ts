@@ -22,7 +22,7 @@ import type {
   VendorVerification,
 } from "@repo/types";
 import { gstinMatchesPan, gstinSchema, panSchema } from "@repo/contract";
-import { db, transaction } from "../../db/client";
+import { db, transaction, unscopedDb } from "../../db/client";
 import * as t from "../../db/schema";
 import { ConflictError, NotFoundError, ValidationError } from "../../lib/errors";
 import { groupMediaByOwner } from "../../lib/media";
@@ -164,6 +164,40 @@ export async function getVerification(professionalId: string): Promise<VendorVer
 /** What still stands between this vendor and the verified tag. Empty when nothing does. */
 export async function verificationGaps(professionalId: string): Promise<string[]> {
   return (await getVerification(professionalId)).outstanding;
+}
+
+/**
+ * Verifies a pending vendor the moment nothing is outstanding.
+ *
+ * Every item has already been accepted by a person by the time this can pass —
+ * the signed copy and each document are reviewed, and the original is marked
+ * received by hand — so a further "now press Verified" is a step that only
+ * ever delays a vendor who has done everything asked of them. Called after each
+ * action that can complete the set, including the vendor accepting the terms,
+ * which may be the last thing done.
+ *
+ * Only from pending. A suspended or blacklisted vendor whose paperwork is in
+ * order stays where ops put them.
+ *
+ * On the unscoped pool: this can run inside a vendor's own request, and a
+ * vendor's row-level-security scope is not the authority that grants the tag.
+ */
+export async function verifyIfComplete(professionalId: string): Promise<boolean> {
+  const { outstanding, verificationStatus } = await getVerification(professionalId);
+  if (verificationStatus !== "pending" || outstanding.length > 0) return false;
+
+  const updated = await unscopedDb
+    .update(t.professionals)
+    .set({ verificationStatus: "verified", updatedAt: new Date().toISOString() })
+    .where(
+      and(
+        eq(t.professionals.id, professionalId),
+        eq(t.professionals.verificationStatus, "pending"),
+      ),
+    )
+    .returning({ id: t.professionals.id });
+
+  return updated.length > 0;
 }
 
 /**
@@ -444,6 +478,7 @@ export async function reviewSignedCopy(
     })
     .where(eq(t.partnerAgreements.id, agreement.id));
 
+  await verifyIfComplete(professionalId);
   return getVerification(professionalId);
 }
 
@@ -475,6 +510,7 @@ export async function receiveHardcopy(
     })
     .where(eq(t.partnerAgreements.id, agreement.id));
 
+  await verifyIfComplete(professionalId);
   return getVerification(professionalId);
 }
 
@@ -516,6 +552,7 @@ export async function reviewDocument(
     })
     .where(eq(t.vendorDocuments.id, document.id));
 
+  await verifyIfComplete(professionalId);
   return getVerification(professionalId);
 }
 

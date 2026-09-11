@@ -50,16 +50,21 @@ export function VendorVerificationReview({
           <p className="mt-1 text-[12.5px] text-ink-3">
             {verified
               ? "Verified, with the signed original and documents on record."
-              : "Everything is accepted and the original is in. They can now be marked verified."}
+              : "Everything is accepted and the original is in, so they are verified. Refresh if the status above has not updated."}
           </p>
         ) : (
-          <ul className="mt-2 space-y-1">
-            {outstanding.map((item) => (
-              <li key={item} className="text-[12.5px] text-ink-2">
-                · {item}
-              </li>
-            ))}
-          </ul>
+          <>
+            <ul className="mt-2 space-y-1">
+              {outstanding.map((item) => (
+                <li key={item} className="text-[12.5px] text-ink-2">
+                  · {item}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-2 text-[12px] text-ink-4">
+              They are verified automatically the moment the last of these is done.
+            </p>
+          </>
         )}
 
         {verified && !verification.canBeVerified ? (

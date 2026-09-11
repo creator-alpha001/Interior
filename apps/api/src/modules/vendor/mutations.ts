@@ -18,6 +18,7 @@ import { db, transaction } from "../../db/client";
 import * as t from "../../db/schema";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../../lib/errors";
 import { attachMedia } from "../uploads/repository";
+import { verifyIfComplete } from "./verification";
 
 /** Confirms this vendor was actually offered the service before they act on it. */
 async function assignedTo(professionalId: string, leadDomainId: string) {
@@ -319,7 +320,7 @@ export async function signPartnerAgreement(
   input: SignPartnerAgreementInput,
   context: { ip?: string; userAgent?: string },
 ): Promise<PartnerAgreement> {
-  return transaction(async (tx) => {
+  const signed = await transaction(async (tx) => {
     const [terms] = await tx
       .select()
       .from(t.partnerTerms)
@@ -390,4 +391,9 @@ export async function signPartnerAgreement(
 
     return agreement as unknown as PartnerAgreement;
   });
+
+  // Accepting the terms can be the last item outstanding, when the paperwork
+  // was reviewed first. After the commit, so it reads what was just written.
+  await verifyIfComplete(professionalId);
+  return signed;
 }

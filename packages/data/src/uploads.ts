@@ -11,7 +11,7 @@
  * server, which is what keeps a twenty-photo stage submission from timing out.
  */
 import type { MediaAsset } from "@repo/types";
-import { USING_API, api } from "./client";
+import { ApiError, USING_API, api } from "./client";
 
 /** What the file is for. Drives where it is stored and who may read it back. */
 export type UploadPurpose =
@@ -59,6 +59,42 @@ export interface UploadTicket {
   publicUrl: string;
 }
 
+/** What a ticket is asked for. */
+export interface TicketRequest {
+  purpose: UploadPurpose;
+  fileName: string;
+  contentType: string;
+  sizeBytes: number;
+}
+
+/** A ticket, or the API's reason for refusing one — the shape a server action hands back. */
+export type UploadTicketResult = UploadTicket | { error: string };
+
+/**
+ * Asks the API for a ticket from the server, carrying the caller's session.
+ *
+ * Every signed-in upload comes through here, called from a server action. The
+ * session cookie belongs to the site's own host — decorashine.com,
+ * admin.decorashine.com — and is httpOnly, so a request the browser makes to
+ * the API's host carries no session at all, and the API rightly refuses a
+ * vendor document or a catalogue image from nobody. That refused every
+ * signed-in upload in production with a 403. The site's server holds the cookie
+ * and forwards it; the file itself still goes straight from the browser to
+ * storage.
+ *
+ * Anonymous requirement photographs keep the direct browser path. From a
+ * server every visitor would share one address, and the per-address limit on
+ * anonymous tickets would throttle all of them at once.
+ */
+export async function requestUploadTicket(request: TicketRequest): Promise<UploadTicketResult> {
+  try {
+    return await api<UploadTicket>("/uploads/tickets", { method: "POST", body: request });
+  } catch (error) {
+    if (error instanceof ApiError && error.isClientError) return { error: error.message };
+    return { error: "The upload could not be started. Please try again." };
+  }
+}
+
 /**
  * Checks a file against its purpose before anything is sent.
  *
@@ -91,7 +127,14 @@ export function maxFilesFor(purpose: UploadPurpose): number {
 export async function uploadFile(
   file: File,
   purpose: UploadPurpose,
-  options: { signal?: AbortSignal } = {},
+  options: {
+    signal?: AbortSignal;
+    /**
+     * Where the ticket comes from. Signed-in screens pass a server action that
+     * calls `requestUploadTicket`; see there for why the browser cannot ask.
+     */
+    requestTicket?: (request: TicketRequest) => Promise<UploadTicketResult>;
+  } = {},
 ): Promise<MediaAsset> {
   const problem = checkFile(file, purpose);
   if (problem) throw new UploadError(file.name, problem);
@@ -105,23 +148,40 @@ export async function uploadFile(
     };
   }
 
-  const ticket = await api<UploadTicket>("/uploads/tickets", {
-    method: "POST",
-    body: {
-      purpose,
-      fileName: file.name,
-      contentType: file.type,
-      sizeBytes: file.size,
-    },
-    signal: options.signal,
-  });
+  const ticketRequest: TicketRequest = {
+    purpose,
+    fileName: file.name,
+    contentType: file.type,
+    sizeBytes: file.size,
+  };
 
-  const response = await fetch(ticket.uploadUrl, {
-    method: "PUT",
-    headers: { "Content-Type": file.type, ...ticket.headers },
-    body: file,
-    signal: options.signal,
-  });
+  const result = options.requestTicket
+    ? await options.requestTicket(ticketRequest)
+    : await api<UploadTicket>("/uploads/tickets", {
+        method: "POST",
+        body: ticketRequest,
+        signal: options.signal,
+      });
+
+  if ("error" in result) throw new UploadError(file.name, result.error);
+  const ticket = result;
+
+  let response: Response;
+  try {
+    response = await fetch(ticket.uploadUrl, {
+      method: "PUT",
+      headers: { "Content-Type": file.type, ...ticket.headers },
+      body: file,
+      signal: options.signal,
+    });
+  } catch {
+    // A network failure, or storage refusing this site's origin (CORS), which
+    // the browser reports as nothing more specific than a failed fetch.
+    throw new UploadError(
+      file.name,
+      `${file.name} could not be sent to storage. Check your connection and try again.`,
+    );
+  }
 
   if (!response.ok) {
     throw new UploadError(file.name, `Upload failed (${response.status})`);

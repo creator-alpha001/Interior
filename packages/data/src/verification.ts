@@ -241,6 +241,7 @@ export async function reviewSignedCopy(
     updatedAt: nowIso(),
   } satisfies Partial<PartnerAgreement>);
 
+  verifyIfCompleteSync(professionalId);
   return delay(buildVerification(professionalId));
 }
 
@@ -267,6 +268,7 @@ export async function receiveHardcopy(
     updatedAt: nowIso(),
   } satisfies Partial<PartnerAgreement>);
 
+  verifyIfCompleteSync(professionalId);
   return delay(buildVerification(professionalId));
 }
 
@@ -298,6 +300,7 @@ export async function reviewVendorDocument(
     updatedAt: nowIso(),
   });
 
+  verifyIfCompleteSync(professionalId);
   return delay(buildVerification(professionalId));
 }
 
@@ -329,6 +332,15 @@ export async function updatePartnerTerms(input: PartnerTermsInput): Promise<Part
 /** What stands between a seeded vendor and the verified tag. For the seed branch of `setVendorStatus`. */
 export function verificationGapsFor(professionalId: string): string[] {
   return buildVerification(professionalId).outstanding;
+}
+
+/** Mirrors the API: a pending vendor is verified the moment nothing is outstanding. */
+function verifyIfCompleteSync(professionalId: string): void {
+  const pro = store.professionals.find((p) => p.id === professionalId);
+  if (pro?.verificationStatus === "pending" && verificationGapsFor(professionalId).length === 0) {
+    pro.verificationStatus = "verified";
+    pro.updatedAt = nowIso();
+  }
 }
 
 /* ------------------------------------------------------------------ *
