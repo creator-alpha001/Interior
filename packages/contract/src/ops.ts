@@ -313,6 +313,13 @@ export const opsRoutes = {
 
   /* ---- day and dashboards ---- */
   opsMyDay: route({ method: "GET", path: "/ops/my-day", audience: "staff", query: z.object({}) }),
+  opsAttention: route({
+    method: "GET",
+    path: "/ops/attention",
+    audience: "staff",
+    query: z.object({}),
+    summary: "leads.view — everything across the panel that is waiting on our team",
+  }),
   opsSalesDashboard: route({
     method: "GET",
     path: "/ops/dashboard",

@@ -16,6 +16,7 @@ import { getOnboarding } from "../modules/vendor/onboarding";
 import * as applications from "../modules/applications/repository";
 import * as applicationWrite from "../modules/applications/mutations";
 import * as verification from "../modules/vendor/verification";
+import * as attention from "../modules/ops/attention";
 
 export async function registerOpsRoutes(app: FastifyInstance) {
   /**
@@ -161,6 +162,11 @@ export async function registerOpsRoutes(app: FastifyInstance) {
   app.get(routes.opsMyDay.path, async (request) => {
     await requirePermission(request, "leads.view");
     return ops.getMyDay((await staffActor(request)).salesAgentId);
+  });
+
+  app.get(routes.opsAttention.path, async (request) => {
+    await requirePermission(request, "leads.view");
+    return attention.getAttention();
   });
 
   app.get(routes.opsSalesDashboard.path, async (request) => {

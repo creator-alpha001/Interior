@@ -18,6 +18,10 @@ import type {
   agreementProjectSchema,
   agreementViewSchema,
   assignmentViewSchema,
+  attentionCardSchema,
+  attentionEntrySchema,
+  attentionKeySchema,
+  attentionViewSchema,
   blogPostViewSchema,
   citySliceSchema,
   clientRecordSchema,
@@ -190,6 +194,16 @@ export type VendorVisitView = z.infer<typeof vendorVisitViewSchema>;
 export type OpsLeadRow = z.infer<typeof opsLeadRowSchema>;
 
 export type OpsVisitRow = z.infer<typeof opsVisitRowSchema>;
+
+/** Which kind of waiting work a dashboard card counts. */
+export type AttentionKey = z.infer<typeof attentionKeySchema>;
+
+export type AttentionEntry = z.infer<typeof attentionEntrySchema>;
+
+export type AttentionCard = z.infer<typeof attentionCardSchema>;
+
+/** Everything across the panel that is waiting on our team. */
+export type AttentionView = z.infer<typeof attentionViewSchema>;
 
 export type RelayThread = z.infer<typeof relayThreadSchema>;
 

@@ -38,7 +38,11 @@ export default async function VendorHomePage() {
       />
 
       <PageBody className="space-y-5">
-        {onboarding && !onboarding.canReceiveLeads ? (
+        {/* Verification has its own banner across the portal. This covers a
+            verified vendor who is still in no lead pool for another reason. */}
+        {onboarding &&
+        !onboarding.canReceiveLeads &&
+        dashboard.professional.verificationStatus === "verified" ? (
           <Link
             href="/partner/onboarding"
             className="block rounded-lg border border-warning/30 bg-warning-soft p-4 transition-colors hover:border-warning"

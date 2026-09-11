@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { authenticationRequired, getActor } from "@repo/data";
+import { authenticationRequired, getActor, getMyVerification } from "@repo/data";
 import { VendorShell } from "@/components/partner/vendor-shell";
 
 export const metadata: Metadata = {
@@ -39,9 +39,19 @@ export default async function PartnerLayout({ children }: { children: React.Reac
     redirect(actor.role === "client" ? "/account" : "/");
   }
 
+  /*
+   * Where their verification stands, on every screen.
+   *
+   * An unverified vendor receives no leads, and until this was here the only
+   * place that said so was a setup page with no link in the navigation. A
+   * failure to load it must not take the whole portal down with it, so it
+   * degrades to no banner rather than an error page.
+   */
+  const verification = await getMyVerification().catch(() => null);
+
   return (
     <div className="partner-portal">
-      <VendorShell>{children}</VendorShell>
+      <VendorShell verification={verification}>{children}</VendorShell>
     </div>
   );
 }

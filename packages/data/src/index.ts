@@ -16,6 +16,7 @@ export * from "./estimator";
 export * from "./search";
 export * from "./ops";
 export * from "./ops-extra";
+export * from "./attention";
 export * from "./onboarding";
 export * from "./verification";
 export * from "./applications";

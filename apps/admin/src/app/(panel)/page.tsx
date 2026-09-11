@@ -1,12 +1,13 @@
 import Link from "next/link";
-import { formatRupees, formatRupeesShort, getAdminDashboard } from "@repo/data";
+import { formatRupeesShort, getAdminDashboard, getOpsAttention } from "@repo/data";
 import { Badge } from "@repo/ui";
+import { AttentionBoard } from "@/components/attention-board";
 import { DataTable, Metric, PageBody, PageHeader, Panel } from "@/components/ops-ui";
 
 export const metadata = { title: "Dashboard" };
 
 export default async function AdminDashboardPage() {
-  const data = await getAdminDashboard();
+  const [data, attention] = await Promise.all([getAdminDashboard(), getOpsAttention()]);
   const maxRevenue = Math.max(...data.byDomain.map((d) => d.revenue), 1);
 
   return (
@@ -44,6 +45,9 @@ export default async function AdminDashboardPage() {
             href="/vendors?status=pending"
           />
         </div>
+
+        {/* Second row: what is waiting on the team, across every screen. */}
+        <AttentionBoard view={attention} />
 
         {/* The reason the multi-domain model exists: see each vertical separately. */}
         <Panel
@@ -161,49 +165,6 @@ export default async function AdminDashboardPage() {
                       {city.revenue ? formatRupeesShort(city.revenue) : "—"}
                     </span>
                   </div>
-                </li>
-              ))}
-            </ul>
-          </Panel>
-
-          <Panel title="Needs attention" bodyClassName="p-0">
-            <ul className="divide-y divide-line">
-              {[
-                {
-                  label: "Commission overdue",
-                  value: formatRupees(data.totals.commissionOverdue),
-                  href: "/commission?status=overdue",
-                  urgent: data.totals.commissionOverdue > 0,
-                },
-                {
-                  label: "Vendors awaiting verification",
-                  value: String(data.totals.pendingVerification),
-                  href: "/vendors?status=pending",
-                  urgent: data.totals.pendingVerification > 0,
-                },
-                {
-                  label: "Open support tickets",
-                  value: String(data.totals.openTickets),
-                  href: "/support",
-                  urgent: data.totals.openTickets > 0,
-                },
-              ].map((item) => (
-                <li key={item.label}>
-                  <Link
-                    href={item.href}
-                    className="flex items-center justify-between gap-3 px-4 py-3 transition-colors hover:bg-surface-2"
-                  >
-                    <span className="text-[13px] text-ink-2">{item.label}</span>
-                    <span
-                      className={
-                        item.urgent
-                          ? "tnum text-[13.5px] font-semibold text-danger"
-                          : "tnum text-[13.5px] text-ink-3"
-                      }
-                    >
-                      {item.value}
-                    </span>
-                  </Link>
                 </li>
               ))}
             </ul>

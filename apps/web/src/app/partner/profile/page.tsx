@@ -22,8 +22,12 @@ export default async function VendorProfilePage() {
     <>
       <PageHeader
         title={professional.companyName}
-        subtitle={`${dashboard.displayName} · ${professional.experienceYears} years · verified ${
-          professional.verificationStatus === "verified" ? "account" : `(${professional.verificationStatus})`
+        subtitle={`${dashboard.displayName} · ${professional.experienceYears} years · ${
+          professional.verificationStatus === "verified"
+            ? "verified account"
+            : professional.verificationStatus === "pending"
+              ? "verification pending"
+              : professional.verificationStatus
         }`}
       />
 

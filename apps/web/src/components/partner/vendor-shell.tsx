@@ -3,7 +3,13 @@
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
+import type { VendorVerification } from "@repo/types";
 import { cn } from "@repo/ui";
+import {
+  VERIFICATION_HREF,
+  VerificationBanner,
+  VerificationPill,
+} from "@/components/partner/verification-status";
 
 /**
  * Bottom navigation, not a sidebar: vendors work this on a phone, standing on a
@@ -18,7 +24,14 @@ const tabs = [
   { href: "/partner/profile", label: "Profile", icon: "M10 10a3 3 0 100-6 3 3 0 000 6zm0 2c-3 0-6 1.5-6 4v1h12v-1c0-2.5-3-4-6-4z" },
 ];
 
-export function VendorShell({ children }: { children: ReactNode }) {
+export function VendorShell({
+  children,
+  verification,
+}: {
+  children: ReactNode;
+  /** Null when it could not be loaded; the portal still works, without the status. */
+  verification?: VendorVerification | null;
+}) {
   const pathname = usePathname();
 
   return (
@@ -42,8 +55,9 @@ export function VendorShell({ children }: { children: ReactNode }) {
             </div>
           </Link>
 
+          <div className="ml-auto flex items-center gap-3">
           {/* Wider screens get the tabs inline; phones use the bottom bar. */}
-          <nav className="ml-auto hidden items-center gap-1 sm:flex">
+          <nav className="hidden items-center gap-1 sm:flex">
             {tabs.map((tab) => {
               const active = tab.exact ? pathname === tab.href : pathname.startsWith(tab.href);
               return (
@@ -62,8 +76,15 @@ export function VendorShell({ children }: { children: ReactNode }) {
               );
             })}
           </nav>
+          {verification ? <VerificationPill verification={verification} /> : null}
+          </div>
         </div>
       </header>
+
+      {/* The steps page shows all of this in detail, so the banner steps aside there. */}
+      {verification && !pathname.startsWith(VERIFICATION_HREF) ? (
+        <VerificationBanner verification={verification} />
+      ) : null}
 
       <main className="mx-auto w-full max-w-5xl flex-1 pb-20 sm:pb-8">{children}</main>
 

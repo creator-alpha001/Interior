@@ -554,6 +554,57 @@ export const opsVisitRowSchema = z.object({
   city: citySchema,
 });
 
+/* ------------------------------------------------------------------ *
+ * The dashboard's "needs your attention" row
+ *
+ * Counts and the oldest-waiting few of everything across the panel that is
+ * waiting on our team. The API names *what* each entry is; the panel decides
+ * where it opens, so admin URLs never leak into a response.
+ * ------------------------------------------------------------------ */
+
+export const attentionKeySchema = z.enum([
+  "new_leads",
+  "awaiting_reply",
+  "unassigned_leads",
+  "follow_ups",
+  "applications",
+  "paperwork",
+  "trade_requests",
+  "stage_proof",
+  "visit_writeups",
+  "reschedules",
+  "overdue_commission",
+  "open_tickets",
+]);
+
+export const attentionEntrySchema = z.object({
+  /**
+   * The record to open — a lead, application or vendor id, depending on the
+   * card. Null when the card's own page is where it is handled.
+   */
+  targetId: idSchema.nullable(),
+  title: z.string(),
+  detail: z.string(),
+  at: timestampSchema.nullable(),
+});
+
+export const attentionCardSchema = z.object({
+  key: attentionKeySchema,
+  count: z.number().int(),
+  /** A line under the count: an amount, or what is behind it. */
+  note: z.string().nullable(),
+  /**
+   * True when this card's query failed. One broken count must not take the
+   * dashboard down, and must not pass for "nothing waiting" either.
+   */
+  failed: z.boolean(),
+  entries: z.array(attentionEntrySchema),
+});
+
+export const attentionViewSchema = z.object({
+  cards: z.array(attentionCardSchema),
+});
+
 export const domainSliceSchema = z.object({
   domain: domainSchema,
   leads: z.number().int(),

@@ -592,6 +592,96 @@
         ],
         "additionalProperties": false
       },
+      "AttentionCard": {
+        "type": "object",
+        "properties": {
+          "key": {
+            "$ref": "#/components/schemas/AttentionKey"
+          },
+          "count": {
+            "type": "integer"
+          },
+          "note": {
+            "type": "string",
+            "nullable": true
+          },
+          "failed": {
+            "type": "boolean"
+          },
+          "entries": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttentionEntry"
+            }
+          }
+        },
+        "required": [
+          "key",
+          "count",
+          "note",
+          "failed",
+          "entries"
+        ],
+        "additionalProperties": false
+      },
+      "AttentionEntry": {
+        "type": "object",
+        "properties": {
+          "targetId": {
+            "type": "string",
+            "nullable": true
+          },
+          "title": {
+            "type": "string"
+          },
+          "detail": {
+            "type": "string"
+          },
+          "at": {
+            "type": "string",
+            "nullable": true
+          }
+        },
+        "required": [
+          "targetId",
+          "title",
+          "detail",
+          "at"
+        ],
+        "additionalProperties": false
+      },
+      "AttentionKey": {
+        "type": "string",
+        "enum": [
+          "new_leads",
+          "awaiting_reply",
+          "unassigned_leads",
+          "follow_ups",
+          "applications",
+          "paperwork",
+          "trade_requests",
+          "stage_proof",
+          "visit_writeups",
+          "reschedules",
+          "overdue_commission",
+          "open_tickets"
+        ]
+      },
+      "AttentionView": {
+        "type": "object",
+        "properties": {
+          "cards": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AttentionCard"
+            }
+          }
+        },
+        "required": [
+          "cards"
+        ],
+        "additionalProperties": false
+      },
       "AuditLog": {
         "type": "object",
         "properties": {
@@ -16892,6 +16982,90 @@
         ],
         "summary": "opsMyDay",
         "description": "Requires staff credentials. Not available to the mobile apps.",
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Success (response shape not yet declared in the manifest)"
+          },
+          "401": {
+            "description": "Not signed in, or the session was revoked",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Signed in, but not permitted",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "No such record — which also covers a record belonging to somebody else",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "The request body or query failed validation",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Rate limited. Retry after the stated time",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Unhandled server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApiProblem"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "bearerAuth": []
+          },
+          {
+            "sessionCookie": []
+          }
+        ]
+      }
+    },
+    "/ops/attention": {
+      "get": {
+        "operationId": "opsAttention",
+        "tags": [
+          "staff"
+        ],
+        "summary": "leads.view — everything across the panel that is waiting on our team",
+        "description": "leads.view — everything across the panel that is waiting on our team Requires staff credentials. Not available to the mobile apps.",
         "parameters": [],
         "responses": {
           "200": {
