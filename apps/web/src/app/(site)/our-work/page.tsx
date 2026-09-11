@@ -1,30 +1,59 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { domainById, listDomains, listPortfolio, listProfessionals } from "@repo/data";
+import { domainById, listCities, listDomains, listPortfolio, listProfessionals } from "@repo/data";
 import type { ProfessionalSummary } from "@repo/types";
+import { FilterForm, SortSelect } from "@/components/listing/filter-form";
+import {
+  ActiveFilters,
+  Choice,
+  FilterSection,
+  ListingLayout,
+} from "@/components/listing/filter-parts";
 import {
   Badge,
   Breadcrumbs,
   ButtonLink,
   Container,
   EmptyState,
+  Media,
   Section,
 } from "@repo/ui";
-import { Media, cn } from "@repo/ui";
+import { hrefWith, toRating } from "@/lib/filters";
 
 export const metadata: Metadata = {
   title: "Our work",
   description:
-    "Completed interiors, furniture, fabrication and painting projects by verified professionals — filter by trade to see the work that matters to you.",
+    "Completed interiors, furniture, fabrication and painting projects by verified professionals — filter by trade, city and rating to find work like yours.",
 };
+
+type Search = { domain?: string; city?: string; rating?: string; sort?: string };
+
+const sorts = [
+  { key: "recommended", label: "Recommended" },
+  { key: "rating", label: "Top-rated professionals" },
+  { key: "projects", label: "Most experienced teams" },
+] as const;
+
+const ratings = [
+  { value: "4.5", label: "4.5 ★ and above" },
+  { value: "4", label: "4 ★ and above" },
+];
 
 export default async function OurWorkPage({
   searchParams,
 }: {
-  searchParams: Promise<{ domain?: string }>;
+  searchParams: Promise<Search>;
 }) {
-  const { domain: domainSlug } = await searchParams;
-  const [domains, items] = await Promise.all([listDomains(), listPortfolio(domainSlug)]);
+  const search = await searchParams;
+  const { domain: domainSlug, city: cityId } = search;
+  const sort = sorts.find((s) => s.key === search.sort)?.key ?? "recommended";
+  const minRating = toRating(search.rating);
+
+  const [domains, cities, allItems] = await Promise.all([
+    listDomains(),
+    listCities(),
+    listPortfolio(domainSlug),
+  ]);
 
   // Portfolio entries carry a professional id, so each piece of work links back
   // to the person who actually did it rather than floating free.
@@ -45,124 +74,205 @@ export default async function OurWorkPage({
   } while (cursor);
   const proById = new Map(pros.map((p) => [p.id, p]));
 
+  // City and rating belong to the professional rather than the piece of work,
+  // so they are applied here, against the directory the page already holds.
+  const items = allItems
+    .filter((item) => {
+      const pro = proById.get(item.professionalId);
+      if (cityId && pro?.city?.id !== cityId) return false;
+      if (minRating && (pro?.avgRating ?? 0) < minRating) return false;
+      return true;
+    })
+    .sort((a, b) => {
+      if (sort === "recommended") return 0;
+      const pa = proById.get(a.professionalId);
+      const pb = proById.get(b.professionalId);
+      return sort === "rating"
+        ? (pb?.avgRating ?? 0) - (pa?.avgRating ?? 0)
+        : (pb?.completedProjects ?? 0) - (pa?.completedProjects ?? 0);
+    });
+
+  const activeDomain = domains.find((d) => d.slug === domainSlug);
+  const activeCity = cities.find((c) => c.id === cityId);
+
+  const base = "/our-work";
+  const current: Record<string, string | undefined> = {
+    domain: domainSlug,
+    city: cityId,
+    rating: search.rating,
+    sort: search.sort,
+  };
+
+  const chips = [
+    activeDomain && { label: activeDomain.name, href: hrefWith(base, current, { domain: undefined }) },
+    activeCity && { label: activeCity.name, href: hrefWith(base, current, { city: undefined }) },
+    minRating && { label: `${minRating} ★ and above`, href: hrefWith(base, current, { rating: undefined }) },
+  ].filter((chip): chip is { label: string; href: string } => Boolean(chip));
+
+  const filters = (
+    <FilterForm key={JSON.stringify(current)} keep={{ sort: search.sort }}>
+      <FilterSection title="Trade">
+        <Choice name="domain" value="" checked={!activeDomain} label="All trades" />
+        {domains.map((d) => (
+          <Choice key={d.id} name="domain" value={d.slug} checked={activeDomain?.id === d.id} label={d.name} />
+        ))}
+      </FilterSection>
+
+      <FilterSection title="City">
+        <Choice name="city" value="" checked={!activeCity} label="All cities" />
+        {cities.map((c) => (
+          <Choice key={c.id} name="city" value={c.id} checked={activeCity?.id === c.id} label={c.name} />
+        ))}
+      </FilterSection>
+
+      <FilterSection title="Professional's rating">
+        <Choice name="rating" value="" checked={!minRating} label="Any rating" />
+        {ratings.map((r) => (
+          <Choice
+            key={r.value}
+            name="rating"
+            value={r.value}
+            checked={minRating === Number(r.value)}
+            label={r.label}
+          />
+        ))}
+      </FilterSection>
+    </FilterForm>
+  );
+
   return (
     <>
       <div className="border-b border-line bg-surface">
-        <Container width="wide" className="py-10">
+        <Container width="wide" className="py-8 sm:py-10">
           <Breadcrumbs items={[{ label: "Home", href: "/" }, { label: "Our work" }]} />
-          <h1 className="mt-4 max-w-3xl text-[36px] leading-tight sm:text-[44px]">
-            Work delivered, not renders
-          </h1>
-          <p className="mt-4 max-w-2xl text-[15.5px] leading-relaxed text-ink-2">
-            Every project here was completed by a verified professional on the platform, and every
-            photo is moderated before it appears. Filter by trade — a painter&apos;s work should not
-            be judged against a fabricator&apos;s.
-          </p>
+          <div className="mt-5 grid items-center gap-8 lg:grid-cols-[1fr_minmax(0,460px)]">
+            <div>
+              <h1 className="max-w-3xl text-[32px] leading-tight sm:text-[40px]">
+                Designs delivered in real homes
+              </h1>
+              <p className="mt-3 max-w-2xl text-[15.5px] leading-relaxed text-ink-2">
+                Every project here was completed by a professional on the platform, and every photo
+                is moderated before it appears. Find work like the home you have in mind, then ask
+                the people who did it to quote for yours.
+              </p>
+              <ButtonLink href="/submit-requirement" size="lg" className="mt-6">
+                Get free design quotes
+              </ButtonLink>
+            </div>
+            <div className="hidden overflow-hidden rounded-xl border border-line lg:block">
+              <Media
+                src="/images/stock/hero/2.jpg"
+                alt="A finished living room"
+                rounded={false}
+                priority
+                className="aspect-[4/3] w-full"
+              />
+            </div>
+          </div>
         </Container>
       </div>
 
-      <Section tone="paper">
+      <Section tone="paper" className="py-8 sm:py-10">
         <Container width="wide">
-          <div className="mb-8 flex flex-wrap items-center gap-2 border-b border-line pb-6">
-            <Link
-              href="/our-work"
-              className={cn(
-                "rounded-full border px-3.5 py-1.5 text-[14px] sm:text-[13px] transition-colors",
-                !domainSlug
-                  ? "border-brand bg-brand text-white"
-                  : "border-line bg-surface text-ink-2 hover:border-ink-4",
-              )}
-            >
-              All trades
-            </Link>
-            {domains.map((d) => (
-              <Link
-                key={d.id}
-                href={`/our-work?domain=${d.slug}`}
-                className={cn(
-                  "rounded-full border px-3.5 py-1.5 text-[14px] sm:text-[13px] transition-colors",
-                  domainSlug === d.slug
-                    ? "border-brand bg-brand text-white"
-                    : "border-line bg-surface text-ink-2 hover:border-ink-4",
-                )}
-              >
-                {d.name}
-              </Link>
-            ))}
-          </div>
+          <ListingLayout
+            filters={filters}
+            activeCount={chips.length}
+            toolbar={
+              <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+                <p className="text-[15px] text-ink-3 sm:text-[14px]">
+                  <span className="font-semibold text-ink">{items.length}</span>{" "}
+                  {items.length === 1 ? "project" : "projects"}
+                </p>
+                <SortSelect options={[...sorts]} value={sort} params={current} />
+              </div>
+            }
+          >
+            <ActiveFilters chips={chips} clearHref={base} />
 
-          {items.length === 0 ? (
-            <EmptyState
-              title="No work published for this trade yet"
-              description="We are still building the portfolio here. In the meantime, tell us what you need and we will put three professionals in front of you."
-              action={<ButtonLink href="/submit-requirement">Get free quotes</ButtonLink>}
-            />
-          ) : (
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
-              {items.map((item) => {
-                const pro = proById.get(item.professionalId);
-                const domain = domainById(item.domainId);
-                return (
-                  <figure
-                    key={item.id}
-                    className="group overflow-hidden rounded-xl border border-line bg-surface transition-shadow hover:shadow-[var(--shadow-lift)]"
-                  >
-                    <div className="aspect-[4/3] overflow-hidden">
-                      <Media
-                        src={item.media[0]?.url ?? "ph:default:x"}
-                        alt={item.title}
-                        rounded={false}
-                      />
-                    </div>
-                    <figcaption className="p-5">
-                      <Badge tone="neutral">{domain.name}</Badge>
-                      <h2 className="mt-2.5 font-display text-[20px] leading-tight text-ink">
-                        {item.title}
-                      </h2>
-                      <p className="mt-2 text-[14.5px] sm:text-[13.5px] leading-relaxed text-ink-3">
-                        {item.description}
-                      </p>
-                      {pro ? (
-                        <Link
-                          href={`/professionals/${pro.id}`}
-                          className="mt-4 flex items-center gap-2.5 border-t border-line pt-3.5 text-[14px] sm:text-[13px] text-ink-2 transition-colors hover:text-brand"
-                        >
-                          <span className="grid h-7 w-7 place-items-center rounded-full bg-brand-soft text-[13px] sm:text-[12px] font-medium text-brand">
-                            {pro.name.charAt(0)}
+            {items.length === 0 ? (
+              <EmptyState
+                title="No work published for these filters yet"
+                description="We are still building the portfolio here. In the meantime, tell us what you need and we will put three professionals in front of you."
+                action={<ButtonLink href="/submit-requirement">Get free quotes</ButtonLink>}
+              />
+            ) : (
+              <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
+                {items.map((item) => {
+                  const pro = proById.get(item.professionalId);
+                  const domain = domainById(item.domainId);
+                  return (
+                    <figure
+                      key={item.id}
+                      className="group overflow-hidden rounded-xl border border-line bg-surface transition-shadow hover:shadow-[var(--shadow-lift)]"
+                    >
+                      <div className="relative aspect-[4/3] overflow-hidden">
+                        <div className="h-full w-full transition-transform duration-500 group-hover:scale-[1.04]">
+                          <Media
+                            src={item.media[0]?.url ?? `ph:${domain.slug}:${item.id}`}
+                            alt={item.title}
+                            rounded={false}
+                          />
+                        </div>
+                        {item.media.length > 1 ? (
+                          <span className="absolute bottom-3 right-3 rounded-full bg-black/55 px-2.5 py-1 text-[12px] font-medium text-white backdrop-blur-sm">
+                            {item.media.length} photos
                           </span>
-                          <span className="truncate">{pro.companyName}</span>
-                          {pro.city ? (
-                            <span className="ml-auto shrink-0 text-[13px] sm:text-[12px] text-ink-4">
-                              {pro.city.name}
+                        ) : null}
+                      </div>
+                      <figcaption className="p-5">
+                        <Badge tone="neutral">{domain.name}</Badge>
+                        <h2 className="mt-2.5 text-[17px] leading-tight text-ink">{item.title}</h2>
+                        <p className="mt-2 line-clamp-3 text-[14.5px] leading-relaxed text-ink-3 sm:text-[13.5px]">
+                          {item.description}
+                        </p>
+                        {pro ? (
+                          <Link
+                            href={`/professionals/${pro.id}`}
+                            className="mt-4 flex items-center gap-2.5 border-t border-line pt-3.5 text-[14px] text-ink-2 transition-colors hover:text-brand sm:text-[13px]"
+                          >
+                            <span className="grid h-7 w-7 place-items-center rounded-full bg-brand-soft text-[13px] font-medium text-brand sm:text-[12px]">
+                              {pro.name.charAt(0)}
                             </span>
-                          ) : null}
-                        </Link>
-                      ) : null}
-                    </figcaption>
-                  </figure>
-                );
-              })}
-            </div>
-          )}
+                            <span className="truncate">{pro.companyName}</span>
+                            {pro.city ? (
+                              <span className="ml-auto shrink-0 text-[13px] text-ink-4 sm:text-[12px]">
+                                {pro.city.name}
+                              </span>
+                            ) : null}
+                          </Link>
+                        ) : null}
+                      </figcaption>
+                    </figure>
+                  );
+                })}
+              </div>
+            )}
+          </ListingLayout>
         </Container>
       </Section>
 
-      <Section tone="brand">
-        <Container width="default">
-          <div className="text-center">
-            <h2 className="text-[30px] text-white sm:text-[36px]">Want something like this?</h2>
-            <p className="mx-auto mt-4 max-w-xl text-[15.5px] leading-relaxed text-white/70">
-              Tell us what you have in mind. Three verified professionals will visit, measure and
-              quote — free, and with no obligation.
-            </p>
-            <div className="mt-8">
-              <ButtonLink href="/submit-requirement" variant="onDark" size="lg">
-                Get free quotes
-              </ButtonLink>
-            </div>
+      <section className="relative isolate overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
+          src="/images/stock/hero/3.jpg"
+          alt=""
+          loading="lazy"
+          className="absolute inset-0 -z-10 h-full w-full object-cover"
+        />
+        <div className="absolute inset-0 -z-10 bg-black/55" />
+        <Container width="default" className="py-16 text-center sm:py-20">
+          <h2 className="text-[28px] text-white sm:text-[34px]">Want something like this?</h2>
+          <p className="mx-auto mt-4 max-w-xl text-[15.5px] leading-relaxed text-white/80">
+            Tell us what you have in mind. Three professionals will visit, measure and quote — free,
+            and with no obligation.
+          </p>
+          <div className="mt-8">
+            <ButtonLink href="/submit-requirement" variant="onDark" size="lg">
+              Get free design quotes
+            </ButtonLink>
           </div>
         </Container>
-      </Section>
+      </section>
     </>
   );
 }

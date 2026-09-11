@@ -207,7 +207,7 @@ export function ProfessionalCard({
           ))}
         </div>
 
-        <dl className="mt-auto grid grid-cols-3 gap-2 border-t border-line pt-4 text-center [margin-top:max(1rem,auto)]">
+        <dl className="mt-4 grid grid-cols-3 gap-2 border-t border-line pt-4 text-center">
           <div>
             <dt className="text-[12px] sm:text-[11px] text-ink-4">Rating</dt>
             {/* An unreviewed vendor has no rating. "0.0" would claim they have a
