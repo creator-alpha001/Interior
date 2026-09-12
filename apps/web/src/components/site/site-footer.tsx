@@ -34,6 +34,23 @@ const columns = [
       { name: "Guides", href: "/blog" },
     ],
   },
+  {
+    /*
+     * Everything a person looks for when deciding whether to trust a
+     * platform with their address — who runs it, how to reach a human, and
+     * what happens to their data. Both app stores also expect the policy and
+     * the deletion route to be reachable from anywhere on the site, not only
+     * from the small print at the bottom.
+     */
+    title: "Company",
+    links: [
+      { name: "About us", href: "/about" },
+      { name: "Contact us", href: "mailto:hello@decorashine.com" },
+      { name: "Terms of use", href: "/terms" },
+      { name: "Privacy policy", href: "/privacy" },
+      { name: "Delete your account", href: "/delete-account" },
+    ],
+  },
 ];
 
 /** A strip of rooms, each leading to the trade that makes it. */
@@ -142,7 +159,7 @@ export async function SiteFooter() {
             {cities.length > 0 ? (
               <div className="mt-6">
                 <p className="text-[12px] font-semibold uppercase tracking-[0.12em] text-white/45">
-                  Live in
+                  Districts we serve
                 </p>
                 <div className="mt-2.5 flex flex-wrap gap-1.5">
                   {cities.map((city) => (
@@ -186,9 +203,15 @@ export async function SiteFooter() {
            * site are visibly the same business, so this line is load-bearing: keep
            * it in step with the GST certificate if either ever changes.
            */}
+          {/*
+            "Prototype — all data on this site is sample data" sat here while
+            that was true. It is not any more: the platform serves real
+            customers and real professionals, and telling visitors otherwise
+            cost trust exactly where trust is being asked for.
+          */}
           <p>
-            © {new Date().getFullYear()} Decora Shine, a brand of Intellihive Solutions. Prototype —
-            all data on this site is sample data.
+            © {new Date().getFullYear()} Decora Shine, a brand of Intellihive Solutions.
+            <br className="sm:hidden" /> Faridabad, Haryana, India.
           </p>
           <div className="flex gap-5">
             <Link href="/terms" className="hover:text-white">
@@ -196,6 +219,9 @@ export async function SiteFooter() {
             </Link>
             <Link href="/privacy" className="hover:text-white">
               Privacy
+            </Link>
+            <Link href="/delete-account" className="hover:text-white">
+              Delete account
             </Link>
           </div>
         </div>

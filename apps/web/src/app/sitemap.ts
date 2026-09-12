@@ -35,7 +35,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/submit-requirement", priority: 0.9 },
     // Low priority, but present: both app stores check that the policy they
     // were given is a real, reachable page.
+    { path: "/about", priority: 0.5 },
     { path: "/privacy", priority: 0.3 },
+    // Play requires this one to be publicly reachable and indexable.
+    { path: "/delete-account", priority: 0.3 },
     { path: "/terms", priority: 0.3 },
   ].map((route) => ({
     url: `${BASE_URL}${route.path}`,
