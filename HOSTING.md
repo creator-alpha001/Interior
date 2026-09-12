@@ -148,6 +148,7 @@ it is annotated per variable. The ones with no safe default:
 | `OPS_DATABASE_POOL_MAX` | `2` |
 | `DATABASE_POOLER_MAX_CLIENTS` | `15`, matching the pool size in the Supabase dashboard |
 | `GOOGLE_CLIENT_IDS` | Comma-separated OAuth client ids, or empty to disable Google sign-in |
+| `REVIEW_MOBILE`, `REVIEW_CODE` | The app stores' review account: codes for that one number are the fixed code, and nothing is sent to it. Both or neither |
 
 Do **not** set `OWNER_DATABASE_URL` here. The running API has no business
 holding a credential that can drop tables; it lives in your local `.env` only.

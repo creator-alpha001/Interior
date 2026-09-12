@@ -33,6 +33,10 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     { path: "/how-it-works", priority: 0.6 },
     { path: "/join-as-professional", priority: 0.5 },
     { path: "/submit-requirement", priority: 0.9 },
+    // Low priority, but present: both app stores check that the policy they
+    // were given is a real, reachable page.
+    { path: "/privacy", priority: 0.3 },
+    { path: "/terms", priority: 0.3 },
   ].map((route) => ({
     url: `${BASE_URL}${route.path}`,
     lastModified: new Date(),

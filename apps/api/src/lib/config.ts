@@ -111,6 +111,23 @@ const schema = z.object({
     .transform((v) => v === "true"),
 
   /**
+   * The account Google and Apple's reviewers sign in with.
+   *
+   * Sign-in is a code to a mobile, and a reviewer in another country cannot
+   * receive one — so a listing without this is rejected for "we could not
+   * access the app". Both variables set turns it on: codes for this one number
+   * are the fixed value instead of a random one, and nothing is sent to it.
+   *
+   * It is a real hole in the login, so it is narrow on purpose: one number,
+   * named in configuration rather than in code, and everything else about the
+   * challenge is unchanged — the code is still hashed, still expires in five
+   * minutes, still burns on use, and still allows three attempts. Rotate it
+   * with each submission, and use a number nobody could be issued.
+   */
+  REVIEW_MOBILE: z.string().regex(/^[0-9]{10}$/).optional(),
+  REVIEW_CODE: z.string().regex(/^[0-9]{6}$/).optional(),
+
+  /**
    * How an SMS actually leaves the building.
    *
    * `auto` picks msg91 when it is configured and `console` when it is not, so a
@@ -516,6 +533,18 @@ function load() {
        */
       ...(isProduction ? [] : [/^http:\/\/(localhost|127\.0\.0\.1):\d+$/]),
     ],
+
+    /**
+     * The store reviewers' account, or null when the pair is not configured.
+     *
+     * Both halves or neither: a number with no code would send a real message
+     * to a number nobody watches, and a code with no number would apply to
+     * everybody, which is the whole login gone.
+     */
+    reviewAccount:
+      env.REVIEW_MOBILE && env.REVIEW_CODE
+        ? { mobile: env.REVIEW_MOBILE, code: env.REVIEW_CODE }
+        : null,
 
     /** GOOGLE_CLIENT_IDS split and cleaned. Empty when the feature is off. */
     googleClientIds: (env.GOOGLE_CLIENT_IDS ?? "")

@@ -10,6 +10,7 @@ import argon2 from "argon2";
 import { and, eq, isNull, sql } from "drizzle-orm";
 import { db } from "../../db/client";
 import * as t from "../../db/schema";
+import { config } from "../../lib/config";
 import { ValidationError } from "../../lib/errors";
 
 const CODE_DIGITS = 6;
@@ -33,7 +34,15 @@ export async function createChallenge(mobile: string, ip?: string): Promise<{
   challenge: Challenge;
   code: string;
 }> {
-  const code = generateCode();
+  /**
+   * The store reviewers' number gets its configured code instead of a random
+   * one — see `REVIEW_MOBILE` in `lib/config.ts`. Deliberately the *only*
+   * difference: the code is hashed the same way, expires in the same five
+   * minutes, burns on the same first use and allows the same three attempts,
+   * so this cannot become a standing password for that number.
+   */
+  const review = config.reviewAccount;
+  const code = review && review.mobile === mobile ? review.code : generateCode();
   const expiresAt = new Date(Date.now() + EXPIRY_MINUTES * 60_000);
 
   // Any earlier code for this number stops working the moment a new one is

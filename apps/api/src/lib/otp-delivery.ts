@@ -59,6 +59,18 @@ export async function deliverOtp(
 ): Promise<SmsResult & { channel: OtpChannel }> {
   const channel = resolveChannel(requested);
 
+  /**
+   * Nothing is sent to the store reviewers' number.
+   *
+   * Its code is the configured one, so a message would be pointless — and the
+   * number belongs to nobody, so a real WhatsApp attempt either fails and
+   * takes the sign-in down with it, or worse, reaches whoever is issued that
+   * number next. The screen still says which channel it would have used.
+   */
+  if (config.reviewAccount?.mobile === mobile) {
+    return { channel, sent: false, skippedReason: "review account" };
+  }
+
   try {
     return { ...(await senders[channel](mobile, code)), channel };
   } catch (error) {

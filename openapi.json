@@ -241,6 +241,20 @@
             "maxLength": 1000,
             "default": ""
           },
+          "highlights": {
+            "type": "array",
+            "items": {
+              "type": "string",
+              "maxLength": 80
+            },
+            "maxItems": 6,
+            "default": []
+          },
+          "details": {
+            "type": "string",
+            "maxLength": 20000,
+            "default": ""
+          },
           "media": {
             "type": "array",
             "items": {
@@ -4757,6 +4771,15 @@
           "description": {
             "type": "string"
           },
+          "highlights": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "details": {
+            "type": "string"
+          },
           "media": {
             "type": "array",
             "items": {
@@ -4788,6 +4811,8 @@
           "domainId",
           "title",
           "description",
+          "highlights",
+          "details",
           "media",
           "moderationStatus",
           "cityId",

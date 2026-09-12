@@ -191,10 +191,10 @@ export async function SiteFooter() {
             all data on this site is sample data.
           </p>
           <div className="flex gap-5">
-            <Link href="/how-it-works" className="hover:text-white">
+            <Link href="/terms" className="hover:text-white">
               Terms
             </Link>
-            <Link href="/how-it-works" className="hover:text-white">
+            <Link href="/privacy" className="hover:text-white">
               Privacy
             </Link>
           </div>
