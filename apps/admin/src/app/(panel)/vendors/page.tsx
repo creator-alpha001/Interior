@@ -87,12 +87,16 @@ export default async function VendorsPage({
             ]}
           />
           <FilterGroup
-            label="City"
+            label="District"
             current={sp.city ?? "all"}
             hrefFor={(value) => href({ city: value })}
             options={[
               { value: "all", label: "All" },
-              ...cities.map((c) => ({ value: c.id, label: c.name })),
+              // Grouped by state and labelled with it: two states can each
+              // have a Bilaspur, and a bare list makes them indistinguishable.
+              ...[...cities]
+                .sort((a, b) => a.state.localeCompare(b.state) || a.name.localeCompare(b.name))
+                .map((c) => ({ value: c.id, label: `${c.name} · ${c.state}` })),
             ]}
           />
         </FilterBar>

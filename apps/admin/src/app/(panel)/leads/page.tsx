@@ -150,12 +150,14 @@ export default async function LeadQueuePage({
             ]}
           />
           <FilterGroup
-            label="City"
+            label="District"
             current={sp.city ?? "all"}
             hrefFor={(value) => href({ city: value === "all" ? undefined : value })}
             options={[
               { value: "all", label: "All" },
-              ...cities.map((c) => ({ value: c.id, label: c.name })),
+              ...[...cities]
+                .sort((a, b) => a.state.localeCompare(b.state) || a.name.localeCompare(b.name))
+                .map((c) => ({ value: c.id, label: `${c.name} · ${c.state}` })),
             ]}
           />
         </FilterBar>

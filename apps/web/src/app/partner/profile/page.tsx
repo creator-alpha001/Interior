@@ -4,22 +4,26 @@ import {
   getVendorPerformance,
   listCities,
   listMyAchievements,
+  listMyServiceAreas,
   listVendorPortfolio,
 } from "@repo/data";
 import { Badge, formatDate } from "@repo/ui";
 import { Metric, PageBody, PageHeader, Panel } from "@/components/partner/panel-ui";
 import { AchievementsManager, PortfolioManager } from "@/components/partner/showcase-manager";
+import { ServiceAreas } from "@/components/partner/service-areas";
 
 export const metadata = { title: "Profile" };
 
 export default async function VendorProfilePage() {
-  const [dashboard, performance, portfolio, achievements, cities] = await Promise.all([
-    getVendorDashboard(),
-    getVendorPerformance(),
-    listVendorPortfolio(),
-    listMyAchievements(),
-    listCities(),
-  ]);
+  const [dashboard, performance, portfolio, achievements, cities, serviceAreas] =
+    await Promise.all([
+      getVendorDashboard(),
+      getVendorPerformance(),
+      listVendorPortfolio(),
+      listMyAchievements(),
+      listCities(),
+      listMyServiceAreas(),
+    ]);
 
   const { professional } = dashboard;
   // Work can only be posted under a trade the vendor is approved for.
@@ -47,6 +51,15 @@ export default async function VendorProfilePage() {
           <Metric label="Response time" value={`~${performance.avgResponseHours}h`} hint="To our coordinator" />
           <Metric label="Revenue" value={formatRupees(performance.totalRevenue)} hint="Through the platform" />
         </div>
+
+        {/*
+          Above the showcase, because it is the setting that decides whether
+          any work arrives at all — a vendor with a beautiful portfolio and one
+          stale district gets nothing.
+        */}
+        <Panel title="Where you work">
+          <ServiceAreas all={cities} mine={serviceAreas} />
+        </Panel>
 
         {/* What customers see first on a public profile, so it leads here too. */}
         <PortfolioManager items={portfolio} trades={approvedTrades} cities={cities} />

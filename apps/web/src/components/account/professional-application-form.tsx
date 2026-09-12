@@ -193,28 +193,44 @@ export function ProfessionalApplicationForm({
       <div className="mt-6">
         <span className="text-[14px] sm:text-[13px] font-medium text-ink">Where do you work?</span>
         <p className="mt-1 text-[13px] text-ink-4">
-          Leads are matched by city, so only pick the ones you actually travel to.
+          Leads are matched by district, so pick every one you actually travel to — and
+          nothing you do not. You can change this later from your profile.
         </p>
-        <div className="mt-3 flex flex-wrap gap-2">
-          {cities.map((city) => {
-            const selected = cityIds.includes(city.id);
-            return (
-              <button
-                key={city.id}
-                type="button"
-                onClick={() => setCityIds((list) => toggle(list, city.id))}
-                aria-pressed={selected}
-                className={cn(
-                  "rounded-full border px-3.5 py-1.5 text-[14px] sm:text-[13px] transition-colors",
-                  selected
-                    ? "border-brand bg-brand-soft font-medium text-brand"
-                    : "border-line bg-paper text-ink-2 hover:border-ink-4",
-                )}
-              >
-                {city.name}
-              </button>
-            );
-          })}
+
+        {/*
+          Grouped by state rather than one long row of chips. A flat list is
+          unreadable past a dozen districts, and two states can each have a
+          district of the same name.
+        */}
+        <div className="mt-3 space-y-3">
+          {[...new Set(cities.map((c) => c.state))].sort().map((state) => (
+            <fieldset key={state}>
+              <legend className="text-[11.5px] uppercase tracking-wider text-ink-4">{state}</legend>
+              <div className="mt-1.5 flex flex-wrap gap-2">
+                {cities
+                  .filter((city) => city.state === state)
+                  .map((city) => {
+                    const selected = cityIds.includes(city.id);
+                    return (
+                      <button
+                        key={city.id}
+                        type="button"
+                        onClick={() => setCityIds((list) => toggle(list, city.id))}
+                        aria-pressed={selected}
+                        className={cn(
+                          "rounded-full border px-3.5 py-1.5 text-[14px] sm:text-[13px] transition-colors",
+                          selected
+                            ? "border-brand bg-brand-soft font-medium text-brand"
+                            : "border-line bg-paper text-ink-2 hover:border-ink-4",
+                        )}
+                      >
+                        {city.name}
+                      </button>
+                    );
+                  })}
+              </div>
+            </fieldset>
+          ))}
         </div>
       </div>
 

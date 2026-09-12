@@ -6,6 +6,7 @@
  * and `modules/vendor/showcase.ts` for the API.
  */
 import type {
+  City,
   MediaAsset,
   PortfolioItem,
   VendorAchievement,
@@ -241,4 +242,60 @@ function reviewed(decision: VerificationDecision, note: string | null) {
     reviewedAt: nowIso(),
     updatedAt: nowIso(),
   };
+}
+
+/* ------------------------------------------------------------------ *
+ * Where a vendor works
+ * ------------------------------------------------------------------ */
+
+/**
+ * The districts this vendor covers.
+ *
+ * Leads are routed through exactly this list, which is why it is editable at
+ * all: it was written once at approval and then frozen, so a vendor who took
+ * on a second district simply never heard about work there.
+ */
+export async function listMyServiceAreas(): Promise<City[]> {
+  if (await callingApiAsUser()) return api<City[]>("/vendor/service-areas");
+
+  const professionalId = await currentProfessionalId();
+  const ids = new Set(
+    store.professionalServiceAreas
+      .filter((a) => a.professionalId === professionalId && a.deletedAt === null)
+      .map((a) => a.cityId),
+  );
+  return delay(store.cities.filter((c) => ids.has(c.id)));
+}
+
+/** Replaces the list wholesale — unticked means no longer covered. */
+export async function setMyServiceAreas(cityIds: string[]): Promise<City[]> {
+  if (await callingApiAsUser()) {
+    return api<City[]>("/vendor/service-areas", { method: "PUT", body: { cityIds } });
+  }
+
+  const professionalId = await currentProfessionalId();
+  const now = nowIso();
+
+  for (const area of store.professionalServiceAreas) {
+    if (area.professionalId !== professionalId) continue;
+    area.deletedAt = cityIds.includes(area.cityId) ? null : now;
+  }
+
+  for (const cityId of cityIds) {
+    const existing = store.professionalServiceAreas.find(
+      (a) => a.professionalId === professionalId && a.cityId === cityId,
+    );
+    if (existing) continue;
+    store.professionalServiceAreas.push({
+      id: nextId("psa"),
+      professionalId,
+      cityId,
+      localities: [],
+      createdAt: now,
+      updatedAt: now,
+      deletedAt: null,
+    });
+  }
+
+  return listMyServiceAreas();
 }

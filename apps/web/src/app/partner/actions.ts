@@ -15,6 +15,7 @@ import {
   submitVendorDocument,
   addAchievement,
   addPortfolioItem,
+  setMyServiceAreas,
   removeAchievement,
   removePortfolioItem,
 } from "@repo/data";
@@ -53,6 +54,23 @@ function revalidateVerification() {
 }
 
 /* ---------------- Work and achievements ---------------- */
+
+/**
+ * Replaces the districts this vendor covers.
+ *
+ * Wholesale, because that is what a set of tick boxes means — and the screen
+ * says so, since "unticked" silently meaning "stop sending me work" would be a
+ * surprising way to lose leads.
+ */
+export async function setServiceAreasAction(cityIds: string[]): Promise<ActionResult> {
+  try {
+    await setMyServiceAreas(cityIds);
+    revalidatePath("/partner/profile");
+    return {};
+  } catch (cause) {
+    return { error: cause instanceof Error ? cause.message : "That did not save" };
+  }
+}
 
 export async function addPortfolioItemAction(draft: PortfolioDraft): Promise<ActionResult> {
   try {

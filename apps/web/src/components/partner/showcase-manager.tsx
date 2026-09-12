@@ -151,7 +151,7 @@ export function PortfolioManager({
                 ))}
               </select>
             </Field>
-            <Field label="City (optional)">
+            <Field label="District (optional)">
               <select value={cityId} onChange={(e) => setCityId(e.target.value)} className={inputClass}>
                 <option value="">Not specified</option>
                 {cities.map((city) => (
