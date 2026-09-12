@@ -10,6 +10,7 @@ import type { z } from "zod";
 import type {
   baseRecordSchema,
   citySchema,
+  stateSchema,
   mediaAssetSchema,
   paginatedSchema,
 } from "./schema/common";
@@ -31,10 +32,17 @@ export type Rupees = number;
  */
 export type BaseRecord = z.infer<typeof baseRecordSchema>;
 
+/** A state. Districts hang off it, and everything else hangs off districts. */
+export type State = z.infer<typeof stateSchema>;
+
 /**
- * Cities are a table, not a free-text string — they drive vendor matching,
- * catalogue pricing and reporting, so "Bengaluru" and "Bangalore" must not
- * be able to diverge.
+ * A district — one place we serve, with one pool of vendors and one set of
+ * prices. A table rather than free text, so "Bengaluru" and "Bangalore"
+ * cannot diverge.
+ *
+ * Named `City` still: the product and every screen say District, but the
+ * identifier reaches hundreds of places across the web, the API and the
+ * phone, and that rename deserves its own commit.
  */
 export type City = z.infer<typeof citySchema>;
 

@@ -6,7 +6,9 @@ import {
   assignProfessionals,
   createCatalogueProduct,
   createCategory,
+  createCity,
   createDomain,
+  createState,
   createPackage,
   logCall,
   relayToVendors,
@@ -24,7 +26,9 @@ import {
   setVendorStatus,
   updateCatalogueProduct,
   updateCategory,
+  updateCity,
   updateDomain,
+  updateState,
   updatePackage,
   receiveHardcopy,
   reviewSignedCopy,
@@ -307,6 +311,31 @@ export async function updateDomainAction(
 ) {
   await updateDomain(domainId, patch);
   revalidatePath("/domains");
+}
+
+/* ---------------- Where the platform works ---------------- */
+
+export async function createStateAction(name: string) {
+  await createState(name);
+  revalidatePath("/locations");
+}
+
+export async function updateStateAction(id: string, patch: { name?: string; isActive?: boolean }) {
+  await updateState(id, patch);
+  revalidatePath("/locations");
+}
+
+export async function createDistrictAction(input: { name: string; stateId: string }) {
+  await createCity(input);
+  revalidatePath("/locations");
+}
+
+export async function updateDistrictAction(
+  id: string,
+  patch: { name?: string; stateId?: string; isActive?: boolean },
+) {
+  await updateCity(id, patch);
+  revalidatePath("/locations");
 }
 
 /* ---------------- Support ---------------- */

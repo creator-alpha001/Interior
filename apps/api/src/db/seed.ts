@@ -121,18 +121,30 @@ async function main() {
         portfolio_items, professional_service_areas, professional_domains,
         referrals, device_tokens, audit_logs, rate_limits, staff_credentials,
         otp_challenges, sessions, admin_users, admin_roles,
-        sales_agents, professionals, clients, users, domains, cities
+        sales_agents, professionals, clients, users, domains, cities, states
       RESTART IDENTITY CASCADE
     `);
 
     /* ---------------- reference data ---------------- */
 
+    await tx.insert(t.states).values(
+      seed.states.map((s) => ({
+        id: uid(s.id),
+        name: s.name,
+        slug: s.slug,
+        isActive: s.isActive,
+      })),
+    );
+
+    // Districts. `state` is written alongside `stateId` and kept in step by
+    // every write — see the note on the table.
     await tx.insert(t.cities).values(
       seed.cities.map((c) => ({
         id: uid(c.id),
         name: c.name,
         slug: c.slug,
         state: c.state,
+        stateId: uid(c.stateId),
         isActive: c.isActive,
       })),
     );

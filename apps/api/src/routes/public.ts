@@ -51,6 +51,11 @@ export async function registerPublicRoutes(app: FastifyInstance) {
     return catalogue.listCities();
   });
 
+  app.get(routes.listStates.path, async (_request, reply) => {
+    cached(reply);
+    return catalogue.listStates();
+  });
+
   /* ---------------- products ---------------- */
 
   app.get(routes.listProducts.path, async (request, reply) => {

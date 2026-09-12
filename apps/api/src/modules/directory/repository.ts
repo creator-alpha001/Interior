@@ -303,6 +303,7 @@ export async function getProfessional(id: string): Promise<ProfessionalProfile |
       name: c.city.name,
       slug: c.city.slug,
       state: c.city.state,
+      stateId: c.city.stateId,
       isActive: c.city.isActive,
     })),
     portfolio: portfolioRows.map((p) => toPortfolioItem(p, portfolioMedia.get(p.id) ?? [])),

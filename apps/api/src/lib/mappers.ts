@@ -41,6 +41,7 @@ export function toCity(row: Row<typeof t.cities>): City {
     name: row.name,
     slug: row.slug,
     state: row.state,
+    stateId: row.stateId,
     isActive: row.isActive,
   };
 }

@@ -47,6 +47,7 @@ const groups: Array<{ title: string; items: NavItem[] }> = [
     title: "Configuration",
     items: [
       { href: "/domains", label: "Domains" },
+      { href: "/locations", label: "Locations" },
       { href: "/catalogue", label: "Catalogue" },
       { href: "/blog", label: "Blog" },
       { href: "/support", label: "Support" },

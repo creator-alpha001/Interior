@@ -91,6 +91,45 @@ export const domainLabelsInputSchema = z.object({
   pricingBasis: shortText(120),
 });
 
+/**
+ * A city the platform serves.
+ *
+ * Nothing about a city is cosmetic. It decides which professionals a
+ * requirement can reach, which service areas a vendor may claim, and — through
+ * `product_city_prices` — what a customer is quoted. Adding one is how the
+ * platform enters a market, and until now it could only be done with SQL.
+ */
+export const stateInputSchema = z.object({
+  name: shortText(80),
+  slug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Not a valid slug")
+    .max(80)
+    .optional(),
+});
+
+export const cityInputSchema = z.object({
+  name: shortText(80),
+  /** The state it sits in. A district cannot exist outside one. */
+  stateId: idSchema,
+  /**
+   * Optional: derived from the name when absent.
+   *
+   * Explicit because a slug is in URLs and must not change under a customer
+   * who bookmarked one — so renaming "Bengaluru" from "Bangalore" leaves the
+   * slug alone unless somebody deliberately says otherwise.
+   */
+  slug: z
+    .string()
+    .trim()
+    .toLowerCase()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "Not a valid slug")
+    .max(80)
+    .optional(),
+});
+
 export const domainInputSchema = z.object({
   name: shortText(80),
   tagline: z.string().trim().max(200).default(""),
@@ -605,6 +644,66 @@ export const opsRoutes = {
   opsDomainUsage: route({
     method: "GET",
     path: "/ops/domains/:id/usage",
+    audience: "staff",
+    params: idParam,
+  }),
+
+  /* ---- states and districts ---- */
+  opsStates: route({
+    method: "GET",
+    path: "/ops/states",
+    audience: "staff",
+    query: z.object({}),
+  }),
+  opsCreateState: route({
+    method: "POST",
+    path: "/ops/states",
+    audience: "staff",
+    body: stateInputSchema,
+    summary: "settings.manage",
+  }),
+  opsUpdateState: route({
+    method: "PATCH",
+    path: "/ops/states/:id",
+    audience: "staff",
+    params: idParam,
+    body: stateInputSchema.partial().extend({ isActive: z.boolean().optional() }),
+    summary: "settings.manage",
+  }),
+
+  opsCities: route({
+    method: "GET",
+    path: "/ops/cities",
+    audience: "staff",
+    query: z.object({}),
+  }),
+  opsCreateCity: route({
+    method: "POST",
+    path: "/ops/cities",
+    audience: "staff",
+    body: cityInputSchema,
+    summary: "settings.manage",
+  }),
+  opsUpdateCity: route({
+    method: "PATCH",
+    path: "/ops/cities/:id",
+    audience: "staff",
+    params: idParam,
+    body: cityInputSchema.partial().extend({ isActive: z.boolean().optional() }),
+    summary: "settings.manage",
+  }),
+
+  /**
+   * What is attached to a city, before anybody switches it off.
+   *
+   * There is deliberately no delete. A city is referenced by customers,
+   * requirements, vendor service areas, posted work and per-city prices;
+   * removing the row would orphan all of it. Switching it off stops new
+   * business reaching a place we cannot serve, and leaves the history intact.
+   */
+  opsCityUsage: route({
+    method: "GET",
+    path: "/ops/cities/:id/usage",
     audience: "staff",
     params: idParam,
   }),

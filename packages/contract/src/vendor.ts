@@ -7,6 +7,7 @@
  */
 import { z } from "zod";
 import {
+  citySchema,
   messageSchema as messageRecordSchema,
   partnerAgreementSchema,
   portfolioItemSchema,
@@ -276,6 +277,32 @@ export const vendorRoutes = {
     audience: "professional",
     params: idParam,
     response: okSchema,
+  }),
+
+  /**
+   * The districts this vendor covers, and the only way to change them.
+   *
+   * They were set once, when the application was approved, and nothing could
+   * touch them afterwards — so a vendor who took on a second district had to
+   * ask ops, and ops had no screen for it either. Leads reach a vendor through
+   * exactly this list, so a stale one is lost work.
+   */
+  vendorServiceAreas: route({
+    method: "GET",
+    path: "/vendor/service-areas",
+    audience: "professional",
+    query: z.object({}),
+    response: z.array(citySchema),
+  }),
+  setVendorServiceAreas: route({
+    method: "PUT",
+    path: "/vendor/service-areas",
+    audience: "professional",
+    body: z.object({
+      /** Every district they cover. Sending fewer removes the rest. */
+      cityIds: z.array(idSchema).min(1, "Choose at least one district").max(50),
+    }),
+    response: z.array(citySchema),
   }),
 
   vendorOnboarding: route({

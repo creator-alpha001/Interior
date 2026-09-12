@@ -16,6 +16,7 @@ import * as seed from "@repo/mock";
 
 export const store = {
   cities: [...seed.cities],
+  states: [...seed.states],
   domains: [...seed.domains],
 
   users: [...seed.users],

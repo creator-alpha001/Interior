@@ -376,6 +376,52 @@ export async function registerOpsRoutes(app: FastifyInstance) {
     return admin.getDomainUsage(id);
   });
 
+  /* ---------------- where we work ---------------- */
+
+  app.get(routes.opsStates.path, async (request) => {
+    await requirePermission(request, "leads.view");
+    return admin.listAllStates();
+  });
+
+  app.post(routes.opsCreateState.path, async (request, reply) => {
+    await requirePermission(request, "settings.manage");
+    const input = routes.opsCreateState.body!.parse(request.body);
+    reply.code(201);
+    return admin.createState(input);
+  });
+
+  app.patch<{ Params: { id: string } }>(routes.opsUpdateState.path, async (request) => {
+    await requirePermission(request, "settings.manage");
+    const { id } = routes.opsUpdateState.params!.parse(request.params);
+    const patch = routes.opsUpdateState.body!.parse(request.body);
+    return admin.updateState(id, patch);
+  });
+
+  app.get(routes.opsCities.path, async (request) => {
+    await requirePermission(request, "leads.view");
+    return admin.listAllCities();
+  });
+
+  app.post(routes.opsCreateCity.path, async (request, reply) => {
+    await requirePermission(request, "settings.manage");
+    const input = routes.opsCreateCity.body!.parse(request.body);
+    reply.code(201);
+    return admin.createCity(input);
+  });
+
+  app.patch<{ Params: { id: string } }>(routes.opsUpdateCity.path, async (request) => {
+    await requirePermission(request, "settings.manage");
+    const { id } = routes.opsUpdateCity.params!.parse(request.params);
+    const patch = routes.opsUpdateCity.body!.parse(request.body);
+    return admin.updateCity(id, patch);
+  });
+
+  app.get<{ Params: { id: string } }>(routes.opsCityUsage.path, async (request) => {
+    await requirePermission(request, "settings.manage");
+    const { id } = routes.opsCityUsage.params!.parse(request.params);
+    return admin.getCityUsage(id);
+  });
+
 
   /* ---------------- catalogue ---------------- */
 

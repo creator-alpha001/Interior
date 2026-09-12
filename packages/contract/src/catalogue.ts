@@ -12,6 +12,7 @@ import {
   blogPostViewSchema,
   blogTagSchema,
   citySchema,
+  stateSchema,
   domainSchema,
   packageViewSchema,
   portfolioItemSchema,
@@ -90,6 +91,22 @@ export const catalogueRoutes = {
     query: z.object({}),
     tags: ["cities"],
     response: z.array(citySchema),
+  }),
+
+  /**
+   * The states we serve, for a picker that asks state before district.
+   *
+   * Active ones only, and only those with an active district in them: a state
+   * offered with nothing behind it is a dead end a customer reaches before
+   * finding out.
+   */
+  listStates: route({
+    method: "GET",
+    path: "/states",
+    audience: "public",
+    query: z.object({}),
+    tags: ["cities"],
+    response: z.array(stateSchema),
   }),
 
   listProducts: route({

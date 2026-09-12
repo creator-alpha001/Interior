@@ -7,6 +7,7 @@
  */
 import type {
   AgreementView,
+  City,
   CommissionInvoice,
   Domain,
   DomainApprovalStatus,
@@ -21,6 +22,7 @@ import type {
   ServicePackage,
   SupportTicket,
   VerificationStatus,
+  State,
 } from "@repo/types";
 import { domainById, toAgreementView, toProfessionalSummary } from "./mappers";
 import { hasSignedPartnerAgreementSync } from "./onboarding";
@@ -861,4 +863,135 @@ export async function updateCatalogueProduct(
 ): Promise<void> {
   await requireApi("products");
   await api(`/ops/products/${encodeURIComponent(productId)}`, { method: "PATCH", body: patch });
+}
+
+/* ------------------------------------------------------------------ *
+ * Where the platform works
+ * ------------------------------------------------------------------ */
+
+/**
+ * States and districts, as ops manage them.
+ *
+ * A district is what everything else hangs off: which vendors a requirement
+ * can reach, which areas a vendor may claim, and what a customer is quoted.
+ * Until now they could only be changed with SQL, which meant entering a new
+ * market was a developer task.
+ *
+ * Nothing is ever deleted here. Switching a state or district off stops new
+ * business reaching a place we cannot serve; the customers, requirements and
+ * prices already attached to it stay exactly as they are.
+ */
+export async function listAllStates(): Promise<State[]> {
+  if (await callingApiAsUser()) return api<State[]>("/ops/states");
+  return delay([...store.states].sort((a, b) => a.name.localeCompare(b.name)));
+}
+
+export async function createState(name: string): Promise<State> {
+  if (await callingApiAsUser()) {
+    return api<State>("/ops/states", { method: "POST", body: { name } });
+  }
+
+  const state: State = { id: nextId("state"), name, slug: slugOf(name), isActive: true };
+  store.states.push(state);
+  return delay(state);
+}
+
+export async function updateState(
+  id: string,
+  patch: { name?: string; isActive?: boolean },
+): Promise<void> {
+  if (await callingApiAsUser()) {
+    await api<State>(`/ops/states/${id}`, { method: "PATCH", body: patch });
+    return;
+  }
+
+  const state = store.states.find((s) => s.id === id);
+  if (!state) throw new Error("That state");
+  if (patch.name !== undefined) {
+    state.name = patch.name;
+    // The district carries its state's name for display; a rename has to reach
+    // it or the two drift apart on screen.
+    for (const city of store.cities.filter((c) => c.stateId === id)) city.state = patch.name;
+  }
+  if (patch.isActive !== undefined) state.isActive = patch.isActive;
+  return delay(undefined);
+}
+
+export async function listAllCities(): Promise<City[]> {
+  if (await callingApiAsUser()) return api<City[]>("/ops/cities");
+  return delay(
+    [...store.cities].sort(
+      (a, b) => a.state.localeCompare(b.state) || a.name.localeCompare(b.name),
+    ),
+  );
+}
+
+export async function createCity(input: { name: string; stateId: string }): Promise<City> {
+  if (await callingApiAsUser()) {
+    return api<City>("/ops/cities", { method: "POST", body: input });
+  }
+
+  const state = store.states.find((s) => s.id === input.stateId);
+  if (!state) throw new Error("Choose a state that exists");
+
+  const city: City = {
+    id: nextId("city"),
+    name: input.name,
+    slug: slugOf(input.name),
+    state: state.name,
+    stateId: state.id,
+    isActive: true,
+  };
+  store.cities.push(city);
+  return delay(city);
+}
+
+export async function updateCity(
+  id: string,
+  patch: { name?: string; stateId?: string; isActive?: boolean },
+): Promise<void> {
+  if (await callingApiAsUser()) {
+    await api<City>(`/ops/cities/${id}`, { method: "PATCH", body: patch });
+    return;
+  }
+
+  const city = store.cities.find((c) => c.id === id);
+  if (!city) throw new Error("That district");
+  if (patch.name !== undefined) city.name = patch.name;
+  if (patch.isActive !== undefined) city.isActive = patch.isActive;
+  if (patch.stateId !== undefined) {
+    const state = store.states.find((s) => s.id === patch.stateId);
+    if (!state) throw new Error("Choose a state that exists");
+    city.stateId = state.id;
+    city.state = state.name;
+  }
+  return delay(undefined);
+}
+
+export interface CityUsage {
+  customers: number;
+  vendors: number;
+  liveLeads: number;
+  prices: number;
+  postedWork: number;
+}
+
+/** What is attached to a district, read before anybody switches it off. */
+export async function getCityUsage(id: string): Promise<CityUsage> {
+  if (await callingApiAsUser()) return api<CityUsage>(`/ops/cities/${id}/usage`);
+
+  return delay({
+    customers: 0,
+    vendors: store.professionalServiceAreas.filter((a) => a.cityId === id).length,
+    liveLeads: store.leads.filter((l) => l.cityId === id).length,
+    prices: 0,
+    postedWork: store.portfolioItems.filter((p) => p.cityId === id).length,
+  });
+}
+
+function slugOf(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
 }

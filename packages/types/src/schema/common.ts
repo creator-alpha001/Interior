@@ -53,11 +53,36 @@ export const baseRecordSchema = z.object({
  * catalogue pricing and reporting, so "Bengaluru" and "Bangalore" must not
  * be able to diverge.
  */
+/**
+ * A state. Districts hang off it, and everything else hangs off districts.
+ *
+ * Switching one off hides it and every district in it from customer-facing
+ * pickers, without deleting anything — a state is referenced by districts,
+ * which are referenced by customers, requirements, posted work and prices.
+ */
+export const stateSchema = z.object({
+  id: idSchema,
+  name: z.string(),
+  slug: z.string(),
+  isActive: z.boolean(),
+});
+
+/**
+ * A district: one place we serve, with one pool of vendors and one set of
+ * prices.
+ *
+ * Still called `City` in code. The product says district and every screen says
+ * District; the identifier reaches hundreds of places across the web, the API
+ * and the phone, and renaming it is a mechanical change that deserves its own
+ * commit rather than riding along with a feature.
+ */
 export const citySchema = z.object({
   id: idSchema,
   name: z.string(),
   slug: z.string(),
+  /** The state's name, carried for display beside the district. */
   state: z.string(),
+  stateId: idSchema,
   isActive: z.boolean(),
 });
 

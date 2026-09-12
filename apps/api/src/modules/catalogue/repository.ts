@@ -73,6 +73,27 @@ export async function getDomainBySlug(slug: string) {
   return row ? toDomain(row) : null;
 }
 
+/**
+ * The states worth offering, which is not the same as the states that exist.
+ *
+ * A state with no active district in it is a dead end: somebody picks it, then
+ * finds an empty list. So the join is the filter.
+ */
+export async function listStates() {
+  const rows = await db
+    .selectDistinct({
+      id: t.states.id,
+      name: t.states.name,
+      slug: t.states.slug,
+      isActive: t.states.isActive,
+    })
+    .from(t.states)
+    .innerJoin(t.cities, eq(t.cities.stateId, t.states.id))
+    .where(and(eq(t.states.isActive, true), eq(t.cities.isActive, true)))
+    .orderBy(asc(t.states.name));
+  return rows;
+}
+
 export async function listCities() {
   const rows = await db
     .select()
@@ -84,6 +105,7 @@ export async function listCities() {
     name: row.name,
     slug: row.slug,
     state: row.state,
+    stateId: row.stateId,
     isActive: row.isActive,
   }));
 }

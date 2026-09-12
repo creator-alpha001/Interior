@@ -89,6 +89,7 @@ type Check<Route, Fn extends (...args: never[]) => unknown> = Conforms<
 
 export type _listDomains = Assert<Check<typeof routes.listDomains, typeof catalogue.listDomains>>;
 export type _listCities = Assert<Check<typeof routes.listCities, typeof catalogue.listCities>>;
+export type _listStates = Assert<Check<typeof routes.listStates, typeof catalogue.listStates>>;
 export type _listProducts = Assert<Check<typeof routes.listProducts, typeof catalogue.listProducts>>;
 export type _listRelatedProducts = Assert<Check<
   typeof routes.listRelatedProducts,
@@ -300,6 +301,10 @@ export type _reportHardcopy = Assert<Check<
 export type _submitVendorDocument = Assert<Check<
   typeof routes.submitVendorDocument,
   typeof verification.submitDocument
+>>;
+export type _vendorServiceAreas = Assert<Check<
+  typeof routes.vendorServiceAreas,
+  typeof vendorWrite.listServiceAreas
 >>;
 export type _addPortfolioItem = Assert<Check<
   typeof routes.addPortfolioItem,

@@ -12,11 +12,12 @@
  * customer sees. That gap is the whole point — "done" should mean somebody
  * checked.
  */
-import { and, desc, eq, ne } from "drizzle-orm";
-import type { Message, PartnerAgreement, Quote } from "@repo/types";
+import { and, asc, desc, eq, inArray, isNull, ne } from "drizzle-orm";
+import type { City, Message, PartnerAgreement, Quote } from "@repo/types";
 import { db, transaction } from "../../db/client";
 import * as t from "../../db/schema";
 import { ConflictError, ForbiddenError, NotFoundError, ValidationError } from "../../lib/errors";
+import { toCity } from "../../lib/mappers";
 import { attachMedia } from "../uploads/repository";
 import { verifyIfComplete } from "./verification";
 
@@ -396,4 +397,81 @@ export async function signPartnerAgreement(
   // was reviewed first. After the commit, so it reads what was just written.
   await verifyIfComplete(professionalId);
   return signed;
+}
+
+/* ------------------------------------------------------------------ *
+ * Where they work
+ * ------------------------------------------------------------------ */
+
+/** The districts this vendor covers, as they appear on their profile. */
+export async function listServiceAreas(professionalId: string): Promise<City[]> {
+  const rows = await db
+    .select({ city: t.cities })
+    .from(t.professionalServiceAreas)
+    .innerJoin(t.cities, eq(t.cities.id, t.professionalServiceAreas.cityId))
+    .where(
+      and(
+        eq(t.professionalServiceAreas.professionalId, professionalId),
+        isNull(t.professionalServiceAreas.deletedAt),
+      ),
+    )
+    .orderBy(asc(t.cities.state), asc(t.cities.name));
+
+  return rows.map((r) => toCity(r.city));
+}
+
+/**
+ * Replaces the list wholesale, because that is what the screen means.
+ *
+ * A vendor ticks the districts they cover and saves; anything unticked is no
+ * longer covered. Rows are soft-deleted rather than removed and revived on
+ * re-selection, so the unique index on (professional, city) holds and a
+ * vendor who unticks a district by accident loses nothing but the flag.
+ *
+ * Only active districts, and only ones that exist: leads are routed through
+ * this table, so a stale id here is work that never arrives.
+ */
+export async function setServiceAreas(
+  professionalId: string,
+  cityIds: string[],
+): Promise<City[]> {
+  const wanted = [...new Set(cityIds)];
+
+  const found = await db
+    .select({ id: t.cities.id })
+    .from(t.cities)
+    .where(and(inArray(t.cities.id, wanted), eq(t.cities.isActive, true)));
+
+  if (found.length !== wanted.length) {
+    throw new ValidationError("One of those districts is not one we serve");
+  }
+
+  await transaction(async (tx) => {
+    const now = new Date().toISOString();
+
+    await tx
+      .update(t.professionalServiceAreas)
+      .set({ deletedAt: now, updatedAt: now })
+      .where(
+        and(
+          eq(t.professionalServiceAreas.professionalId, professionalId),
+          isNull(t.professionalServiceAreas.deletedAt),
+        ),
+      );
+
+    for (const cityId of wanted) {
+      await tx
+        .insert(t.professionalServiceAreas)
+        .values({ professionalId, cityId, localities: [] })
+        .onConflictDoUpdate({
+          target: [
+            t.professionalServiceAreas.professionalId,
+            t.professionalServiceAreas.cityId,
+          ],
+          set: { deletedAt: null, updatedAt: now },
+        });
+    }
+  });
+
+  return listServiceAreas(professionalId);
 }

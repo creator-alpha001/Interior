@@ -118,6 +118,18 @@ export async function registerVendorRoutes(app: FastifyInstance) {
     vendor.listPortfolio(await requireProfessional(request)),
   );
 
+  /* ---------------- where they work ---------------- */
+
+  app.get(routes.vendorServiceAreas.path, async (request) =>
+    write.listServiceAreas(await requireProfessional(request)),
+  );
+
+  app.put(routes.setVendorServiceAreas.path, async (request) => {
+    const professionalId = await requireProfessional(request);
+    const { cityIds } = routes.setVendorServiceAreas.body!.parse(request.body);
+    return write.setServiceAreas(professionalId, cityIds);
+  });
+
   /* ---------------- work and achievements ---------------- */
 
   app.post(routes.addPortfolioItem.path, async (request, reply) => {

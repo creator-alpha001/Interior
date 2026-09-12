@@ -19,7 +19,7 @@ import { attachMedia, attachSingleImage, replaceOwnedMedia } from "../uploads/re
 import { db, transaction, type Tx } from "../../db/client";
 import * as t from "../../db/schema";
 import { ConflictError, NotFoundError, ValidationError } from "../../lib/errors";
-import { fromX10, toDomain, toProfessionalSummary } from "../../lib/mappers";
+import { fromX10, toCity, toDomain, toProfessionalSummary } from "../../lib/mappers";
 import { decodeCursor, page } from "../../lib/pagination";
 import { vendorCityJoin } from "../../lib/vendor-city";
 import { verificationGaps } from "../vendor/verification";
@@ -1193,4 +1193,157 @@ export async function updateProduct(
     }
     return rows[0]!;
   });
+}
+
+/* ------------------------------------------------------------------ *
+ * States and districts
+ * ------------------------------------------------------------------ */
+
+/**
+ * A slug from a name, the same way the rest of the platform makes one.
+ *
+ * Given explicitly on an update, because a slug is in URLs: renaming
+ * "Bangalore" to "Bengaluru" must not break a link somebody bookmarked.
+ */
+function slugify(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+}
+
+export async function listAllStates() {
+  return db
+    .select()
+    .from(t.states)
+    .orderBy(asc(t.states.name));
+}
+
+export async function createState(input: { name: string; slug?: string }) {
+  const [row] = await db
+    .insert(t.states)
+    .values({ name: input.name.trim(), slug: input.slug ?? slugify(input.name) })
+    .returning();
+  return row!;
+}
+
+export async function updateState(
+  id: string,
+  patch: { name?: string; slug?: string; isActive?: boolean },
+) {
+  const [row] = await db
+    .update(t.states)
+    .set({
+      ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
+      ...(patch.slug !== undefined ? { slug: patch.slug } : {}),
+      ...(patch.isActive !== undefined ? { isActive: patch.isActive } : {}),
+    })
+    .where(eq(t.states.id, id))
+    .returning();
+
+  if (!row) throw new NotFoundError("That state");
+
+  // `cities.state` carries the state's name for display and is written
+  // alongside `state_id` everywhere. A rename here has to reach it, or a
+  // district goes on showing the old name beside it for ever.
+  if (patch.name !== undefined) {
+    await db.update(t.cities).set({ state: row.name }).where(eq(t.cities.stateId, id));
+  }
+
+  return row;
+}
+
+/** Districts, newest state grouping first — the ops list is read by state. */
+export async function listAllCities() {
+  const rows = await db
+    .select({ city: t.cities, stateName: t.states.name })
+    .from(t.cities)
+    .innerJoin(t.states, eq(t.states.id, t.cities.stateId))
+    .orderBy(asc(t.states.name), asc(t.cities.name));
+  return rows.map((r) => toCity(r.city));
+}
+
+export async function createCity(input: { name: string; stateId: string; slug?: string }) {
+  const [state] = await db
+    .select()
+    .from(t.states)
+    .where(eq(t.states.id, input.stateId))
+    .limit(1);
+  if (!state) throw new ValidationError("Choose a state that exists");
+
+  const [row] = await db
+    .insert(t.cities)
+    .values({
+      name: input.name.trim(),
+      slug: input.slug ?? slugify(input.name),
+      stateId: state.id,
+      // Both, always, so the denormalised name cannot drift.
+      state: state.name,
+    })
+    .returning();
+  return toCity(row!);
+}
+
+export async function updateCity(
+  id: string,
+  patch: { name?: string; stateId?: string; slug?: string; isActive?: boolean },
+) {
+  let stateName: string | undefined;
+
+  if (patch.stateId !== undefined) {
+    const [state] = await db
+      .select()
+      .from(t.states)
+      .where(eq(t.states.id, patch.stateId))
+      .limit(1);
+    if (!state) throw new ValidationError("Choose a state that exists");
+    stateName = state.name;
+  }
+
+  const [row] = await db
+    .update(t.cities)
+    .set({
+      ...(patch.name !== undefined ? { name: patch.name.trim() } : {}),
+      ...(patch.slug !== undefined ? { slug: patch.slug } : {}),
+      ...(patch.isActive !== undefined ? { isActive: patch.isActive } : {}),
+      ...(patch.stateId !== undefined ? { stateId: patch.stateId, state: stateName! } : {}),
+    })
+    .where(eq(t.cities.id, id))
+    .returning();
+
+  if (!row) throw new NotFoundError("That district");
+  return toCity(row);
+}
+
+/**
+ * What is attached to a district, so nobody switches off a live market blind.
+ *
+ * There is no delete, deliberately: these rows are referenced by customers,
+ * requirements, vendor service areas, posted work and per-district prices.
+ * Switching a district off stops new business reaching a place we cannot
+ * serve and leaves every record intact.
+ */
+export async function getCityUsage(cityId: string) {
+  const [row] = await db.execute<Record<string, number>>(sql`
+    SELECT
+      (SELECT count(*) FROM ${t.users} WHERE city_id = ${cityId} AND deleted_at IS NULL)::int AS customers,
+      (SELECT count(*) FROM ${t.professionalServiceAreas}
+        WHERE city_id = ${cityId} AND deleted_at IS NULL)::int AS vendors,
+      (SELECT count(*) FROM ${t.leads} l
+        JOIN ${t.leadDomains} ld ON ld.lead_id = l.id
+        WHERE l.city_id = ${cityId}
+          AND ld.status NOT IN ('completed', 'cancelled'))::int AS live_leads,
+      (SELECT count(*) FROM ${t.productCityPrices} WHERE city_id = ${cityId})::int AS prices,
+      (SELECT count(*) FROM ${t.portfolioItems}
+        WHERE city_id = ${cityId} AND deleted_at IS NULL)::int AS posted_work
+  `);
+
+  const r = (row as unknown as Record<string, number>) ?? {};
+  return {
+    customers: Number(r.customers ?? 0),
+    vendors: Number(r.vendors ?? 0),
+    liveLeads: Number(r.live_leads ?? 0),
+    prices: Number(r.prices ?? 0),
+    postedWork: Number(r.posted_work ?? 0),
+  };
 }
