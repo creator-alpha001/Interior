@@ -124,7 +124,20 @@ const schema = z.object({
    * minutes, still burns on use, and still allows three attempts. Rotate it
    * with each submission, and use a number nobody could be issued.
    */
-  REVIEW_MOBILE: z.string().regex(/^[0-9]{10}$/).optional(),
+  /**
+   * Ten digits or twelve, normalised to twelve here.
+   *
+   * Every number reaching `createChallenge` has been through `mobileSchema`,
+   * which stores `919990001112`. Compared against a ten-digit setting this
+   * never matched, so the reviewers' number quietly got a random code and a
+   * real WhatsApp send — indistinguishable, from the outside, from the feature
+   * not being configured at all.
+   */
+  REVIEW_MOBILE: z
+    .string()
+    .regex(/^(91)?[6-9][0-9]{9}$/, "REVIEW_MOBILE must be an Indian mobile number")
+    .transform((value) => (value.length === 10 ? `91${value}` : value))
+    .optional(),
   REVIEW_CODE: z.string().regex(/^[0-9]{6}$/).optional(),
 
   /**
