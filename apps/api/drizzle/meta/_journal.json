@@ -113,6 +113,13 @@
       "when": 1788636316132,
       "tag": "0015_vendor_activation_and_showcase",
       "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1788639916132,
+      "tag": "0016_showcase_publishes_on_posting",
+      "breakpoints": true
     }
   ]
 }

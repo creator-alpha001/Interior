@@ -69,9 +69,17 @@ export const portfolioItemSchema = baseRecordSchema.extend({
   professionalId: idSchema,
   domainId: idSchema,
   title: z.string(),
+  /** The one-line summary, in plain text. */
   description: z.string(),
+  /** Short lines a customer skims: materials, size, how long it took. */
+  highlights: z.array(z.string()),
+  /** The long description, as HTML the API has already sanitised. */
+  details: z.string(),
   media: z.array(mediaAssetSchema),
-  /** Portfolio media is moderated before it appears on a public profile. */
+  /**
+   * Work is public the moment it is posted. `rejected` means ops took it
+   * down, and `reviewNote` says why — the vendor reads it.
+   */
   moderationStatus: z.enum(["pending", "approved", "rejected"]),
   /** Where the job was, when the vendor says. */
   cityId: idSchema.nullable(),

@@ -178,6 +178,8 @@ export function toPortfolioItem(
     domainId: row.domainId,
     title: row.title,
     description: row.description,
+    highlights: row.highlights,
+    details: row.details,
     media,
     moderationStatus: row.moderationStatus,
     cityId: row.cityId,

@@ -19,20 +19,23 @@ import {
   removeAchievementAction,
   removePortfolioItemAction,
 } from "@/app/partner/actions";
+import { RichText } from "./rich-text";
 
 /**
  * A vendor's work and achievements, as they manage them.
  *
- * Everything posted waits for our team before it reaches the public profile,
- * and says so on the card — "pending" alone reads like something broke. When a
- * piece is sent back, the reason is right there, so the vendor can fix it or
- * remove it.
+ * **Posting publishes.** This used to hold everything for approval, so a
+ * vendor photographed a finished kitchen, posted it, and looked at an empty
+ * profile — which reads as a broken feature rather than a queue. Our team can
+ * still take something down, and when they do the reason is on the card, so
+ * the vendor can fix it or remove it.
  */
 
 const MODERATION = {
-  pending: { label: "Awaiting approval", tone: "warning" },
+  // Only reachable for items posted before publishing became immediate.
+  pending: { label: "Waiting on our team", tone: "warning" },
   approved: { label: "Live on your profile", tone: "positive" },
-  rejected: { label: "Not published", tone: "danger" },
+  rejected: { label: "Taken down", tone: "danger" },
 } as const;
 
 export const ACHIEVEMENT_KINDS: Array<{ value: VendorAchievementKind; label: string }> = [
@@ -63,11 +66,20 @@ export function PortfolioManager({
   const [cityId, setCityId] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [highlights, setHighlights] = useState<string[]>([""]);
+  const [details, setDetails] = useState("");
   const [photos, setPhotos] = useState<MediaAsset[]>([]);
   const [error, setError] = useState<string>();
+  const [saved, setSaved] = useState(0);
   const [pending, startTransition] = useTransition();
 
-  function submit() {
+  /**
+   * `again` keeps the form open with the trade and city still chosen.
+   *
+   * A vendor posting their work posts *all* of it in one sitting, and closing
+   * the form after each one made that ten clicks longer than it needed to be.
+   */
+  function submit(again: boolean) {
     setError(undefined);
     startTransition(async () => {
       const result = await addPortfolioItemAction({
@@ -75,6 +87,8 @@ export function PortfolioManager({
         cityId: cityId || null,
         title: title.trim(),
         description: description.trim(),
+        highlights: highlights.map((line) => line.trim()).filter(Boolean),
+        details,
         media: photos,
       });
       if (result.error) {
@@ -83,8 +97,11 @@ export function PortfolioManager({
       }
       setTitle("");
       setDescription("");
+      setHighlights([""]);
+      setDetails("");
       setPhotos([]);
-      setOpen(false);
+      setSaved((n) => n + 1);
+      setOpen(again);
       router.refresh();
     });
   }
@@ -109,6 +126,12 @@ export function PortfolioManager({
       {trades.length === 0 ? (
         <p className="mb-3 text-[13px] text-ink-3">
           You can post work once our team has approved you for a trade.
+        </p>
+      ) : null}
+
+      {saved > 0 ? (
+        <p className="mb-3 rounded bg-positive-soft px-2.5 py-1.5 text-[12.5px] text-positive">
+          {saved === 1 ? "Posted, and live on your profile." : `${saved} posted, and live on your profile.`}
         </p>
       ) : null}
 
@@ -147,13 +170,30 @@ export function PortfolioManager({
               className={inputClass}
             />
           </Field>
-          <Field label="What you did" className="mt-3">
-            <textarea
+          <Field label="One-line summary" className="mt-3">
+            <input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              rows={3}
-              placeholder="Materials, finishes, how long it took, anything that made it hard."
+              placeholder="Full modular kitchen in birch ply, finished in three weeks."
               className={inputClass}
+            />
+          </Field>
+
+          <div className="mt-3">
+            <span className="text-[12px] uppercase tracking-wider text-ink-4">
+              Highlights
+            </span>
+            <HighlightFields value={highlights} onChange={setHighlights} />
+            <p className="mt-1 text-[11.5px] text-ink-4">
+              The short lines a customer skims: materials, size, how long it took.
+            </p>
+          </div>
+
+          <Field label="Details" className="mt-3">
+            <RichText
+              value={details}
+              onChange={setDetails}
+              placeholder="What the job involved, what you used, anything that made it hard."
             />
           </Field>
           <div className="mt-3">
@@ -166,9 +206,11 @@ export function PortfolioManager({
           <FormFooter
             pending={pending}
             disabled={!domainId || title.trim().length === 0 || photos.length === 0}
-            submitLabel="Send for approval"
+            submitLabel="Publish"
             onCancel={() => setOpen(false)}
-            onSubmit={submit}
+            onSubmit={() => submit(false)}
+            onSubmitAndAdd={() => submit(true)}
+            addLabel="Save and add more"
             error={error}
           />
         </div>
@@ -213,7 +255,8 @@ export function PortfolioManager({
       )}
 
       <p className="mt-3 text-[11.5px] text-ink-4">
-        Our team approves each piece before it appears on your public profile.
+        Work appears on your public profile as soon as you post it. Our team can
+        take something down if it is not yours, and will tell you why.
       </p>
     </Section>
   );
@@ -235,7 +278,7 @@ export function AchievementsManager({ items }: { items: VendorAchievement[] }) {
   const [error, setError] = useState<string>();
   const [pending, startTransition] = useTransition();
 
-  function submit() {
+  function submit(again: boolean) {
     setError(undefined);
     startTransition(async () => {
       const result = await addAchievementAction({
@@ -255,7 +298,7 @@ export function AchievementsManager({ items }: { items: VendorAchievement[] }) {
       setYear("");
       setDescription("");
       setPhoto([]);
-      setOpen(false);
+      setOpen(again);
       router.refresh();
     });
   }
@@ -337,9 +380,11 @@ export function AchievementsManager({ items }: { items: VendorAchievement[] }) {
           <FormFooter
             pending={pending}
             disabled={title.trim().length === 0 || (year !== "" && year.length !== 4)}
-            submitLabel="Send for approval"
+            submitLabel="Publish"
             onCancel={() => setOpen(false)}
-            onSubmit={submit}
+            onSubmit={() => submit(false)}
+            onSubmitAndAdd={() => submit(true)}
+            addLabel="Save and add more"
             error={error}
           />
         </div>
@@ -347,7 +392,7 @@ export function AchievementsManager({ items }: { items: VendorAchievement[] }) {
 
       {items.length === 0 ? (
         <p className="py-4 text-center text-[13px] text-ink-3">
-          Awards, certifications and memberships you add appear on your public profile once approved.
+          Awards, certifications and memberships you add appear on your public profile straight away.
         </p>
       ) : (
         <ul className="divide-y divide-line">
@@ -438,6 +483,8 @@ function FormFooter({
   submitLabel,
   onCancel,
   onSubmit,
+  onSubmitAndAdd,
+  addLabel,
   error,
 }: {
   pending: boolean;
@@ -445,21 +492,34 @@ function FormFooter({
   submitLabel: string;
   onCancel: () => void;
   onSubmit: () => void;
+  /** Saves and leaves the form open, for somebody posting a batch. */
+  onSubmitAndAdd?: () => void;
+  addLabel?: string;
   error?: string;
 }) {
   return (
     <>
-      <div className="mt-3 flex items-center justify-end gap-2">
+      <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
         <button type="button" onClick={onCancel} className="rounded-md px-3 py-1.5 text-[13px] text-ink-3">
           Cancel
         </button>
+        {onSubmitAndAdd ? (
+          <button
+            type="button"
+            disabled={pending || disabled}
+            onClick={onSubmitAndAdd}
+            className="rounded-full border border-line px-4 py-1.5 text-[13px] font-medium text-ink transition-colors hover:bg-surface-2 disabled:opacity-50"
+          >
+            {addLabel ?? "Save and add more"}
+          </button>
+        ) : null}
         <button
           type="button"
           disabled={pending || disabled}
           onClick={onSubmit}
           className="rounded-full bg-brand px-4 py-1.5 text-[13px] font-medium text-white hover:bg-brand-hover disabled:opacity-50"
         >
-          {pending ? "Sending…" : submitLabel}
+          {pending ? "Saving…" : submitLabel}
         </button>
       </div>
       {error ? (
@@ -468,6 +528,64 @@ function FormFooter({
         </p>
       ) : null}
     </>
+  );
+}
+
+/**
+ * The short lines under a job, as a growing list of single-line fields.
+ *
+ * A textarea split on newlines would be fewer components and the wrong shape:
+ * these are separate values, stored separately and rendered as separate lines,
+ * and a vendor who pastes a paragraph into a textarea has no way to tell that
+ * it will be cut up.
+ */
+function HighlightFields({
+  value,
+  onChange,
+}: {
+  value: string[];
+  onChange: (next: string[]) => void;
+}) {
+  const MAX = 6;
+
+  function set(index: number, text: string) {
+    const next = [...value];
+    next[index] = text;
+    // A last line with something in it grows the list, so there is always an
+    // empty one to type in and never a button to press first.
+    if (index === value.length - 1 && text.trim().length > 0 && value.length < MAX) {
+      next.push("");
+    }
+    onChange(next);
+  }
+
+  return (
+    <div className="mt-1 grid gap-1.5">
+      {value.map((line, index) => (
+        <div key={index} className="flex items-center gap-1.5">
+          <span aria-hidden="true" className="text-ink-4">
+            •
+          </span>
+          <input
+            value={line}
+            onChange={(e) => set(index, e.target.value)}
+            placeholder={index === 0 ? "Birch ply carcass, matte laminate" : ""}
+            aria-label={`Highlight ${index + 1}`}
+            className={inputClass}
+          />
+          {value.length > 1 ? (
+            <button
+              type="button"
+              onClick={() => onChange(value.filter((_, i) => i !== index))}
+              aria-label={`Remove highlight ${index + 1}`}
+              className="grid h-7 w-7 shrink-0 place-items-center rounded text-ink-4 hover:bg-surface-2 hover:text-ink"
+            >
+              ✕
+            </button>
+          ) : null}
+        </div>
+      ))}
+    </div>
   );
 }
 

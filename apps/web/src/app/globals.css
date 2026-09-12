@@ -136,6 +136,45 @@
 }
 
 @layer components {
+  /*
+   * What a vendor writes about a job, in the editor and on their profile.
+   *
+   * The same class on both, so the editor is honest: a vendor sees the
+   * spacing and the bullets their customers will see, rather than a browser's
+   * defaults that change shape the moment the page is published. The tags are
+   * the allowlist in `apps/api/src/lib/html.ts` and nothing else can appear.
+   */
+  .prose-vendor > * + * {
+    margin-top: 0.6em;
+  }
+  .prose-vendor h3,
+  .prose-vendor h4 {
+    font-weight: 600;
+    color: var(--color-ink);
+  }
+  .prose-vendor ul,
+  .prose-vendor ol {
+    padding-left: 1.25em;
+  }
+  .prose-vendor ul {
+    list-style: disc;
+  }
+  .prose-vendor ol {
+    list-style: decimal;
+  }
+  .prose-vendor li + li {
+    margin-top: 0.25em;
+  }
+  .prose-vendor a {
+    color: var(--color-brand);
+    text-decoration: underline;
+  }
+  .prose-vendor blockquote {
+    border-left: 2px solid var(--color-line);
+    padding-left: 0.75em;
+    color: var(--color-ink-3);
+  }
+
   /* Editorial body copy for blog articles and long-form descriptions. */
   .prose-article {
     color: var(--color-ink-2);

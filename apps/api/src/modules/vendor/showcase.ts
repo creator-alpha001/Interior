@@ -2,11 +2,12 @@
  * A vendor's work and achievements: what they post, and what our team lets
  * reach their public profile.
  *
- * Everything posted starts pending. Our team approves it, sends it back with a
- * reason, or takes down something already approved — also with a reason, since
- * the vendor reads it. Only approved items are public; the public directory
- * reads them through `listPortfolioItems` / `listAchievements` with
- * `approvedOnly`.
+ * **Everything posted is public at once.** It used to start `pending` and wait
+ * for our team, which meant a vendor photographed a finished kitchen, posted
+ * it, and saw an empty profile — the feature read as broken and the profiles
+ * stayed bare. Ops keep the same lever pointing the other way: `reject` takes
+ * something down with a reason the vendor reads, and the public directory
+ * still reads with `approvedOnly`, so a take-down disappears immediately.
  *
  * A vendor may only post work in a trade they are approved for. A fabricator's
  * painting job on their profile would advertise work nobody has vetted them to
@@ -23,6 +24,7 @@ import type {
 import { db, transaction } from "../../db/client";
 import * as t from "../../db/schema";
 import { NotFoundError, ValidationError } from "../../lib/errors";
+import { cleanHtml, isBlankHtml } from "../../lib/html";
 import { groupMediaByOwner, type MediaRow } from "../../lib/media";
 import { toPortfolioItem } from "../../lib/mappers";
 import { attachMedia } from "../uploads/repository";
@@ -86,6 +88,16 @@ export async function getShowcase(professionalId: string): Promise<VendorShowcas
   return { portfolio, achievements };
 }
 
+/**
+ * Vendor-written HTML, cleaned, and empty when it renders as nothing.
+ *
+ * An editor with nothing in it still posts `<p><br></p>`, and storing that
+ * makes every "are there details" check answer yes.
+ */
+function toDetails(value: string): string {
+  return isBlankHtml(value) ? "" : cleanHtml(value);
+}
+
 /* ------------------------------------------------------------------ *
  * What the vendor does
  * ------------------------------------------------------------------ */
@@ -97,6 +109,8 @@ export async function addPortfolioItem(
     cityId?: string | null;
     title: string;
     description: string;
+    highlights?: string[];
+    details?: string;
     media: string[];
   },
 ): Promise<PortfolioItem> {
@@ -137,6 +151,12 @@ export async function addPortfolioItem(
         cityId: input.cityId ?? null,
         title: input.title.trim(),
         description: input.description.trim(),
+        // Blank lines a vendor tabbed past are dropped rather than stored as
+        // empty bullets nobody can see to delete.
+        highlights: (input.highlights ?? [])
+          .map((line) => line.trim())
+          .filter((line) => line.length > 0),
+        details: toDetails(input.details ?? ""),
       })
       .returning({ id: t.portfolioItems.id });
 

@@ -22,7 +22,12 @@ export interface PortfolioDraft {
   domainId: string;
   cityId?: string | null;
   title: string;
+  /** The one-line summary, in plain text. */
   description: string;
+  /** Short lines a customer skims: materials, size, how long it took. */
+  highlights?: string[];
+  /** The long description, as HTML. The API sanitises it before storing. */
+  details?: string;
   /** Already uploaded with purpose `portfolio_item`. */
   media: MediaAsset[];
 }
@@ -59,6 +64,8 @@ export async function addPortfolioItem(draft: PortfolioDraft): Promise<Portfolio
         cityId: draft.cityId ?? null,
         title: draft.title,
         description: draft.description,
+        highlights: draft.highlights ?? [],
+        details: draft.details ?? "",
         media: draft.media.map((m) => m.id),
       },
     });
@@ -80,8 +87,12 @@ export async function addPortfolioItem(draft: PortfolioDraft): Promise<Portfolio
     domainId: draft.domainId,
     title: draft.title.trim(),
     description: draft.description.trim(),
+    highlights: (draft.highlights ?? []).map((line) => line.trim()).filter(Boolean),
+    details: draft.details ?? "",
     media: draft.media,
-    moderationStatus: "pending",
+    // Public the moment it is posted, as on the API. The mock store showing
+    // "awaiting approval" would teach the wrong thing to anybody demoing.
+    moderationStatus: "approved",
     cityId: draft.cityId ?? null,
     reviewNote: null,
     reviewedAt: null,

@@ -4,6 +4,7 @@
  * Nothing on the platform is hardcoded to four trades. Adding "Electrical Work"
  * is an insert here plus an admin approving vendors for it — not a release.
  */
+import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
@@ -107,8 +108,21 @@ export const portfolioItems = pgTable(
       .references(() => domains.id),
     title: text("title").notNull(),
     description: text("description").notNull().default(""),
-    /** Photographs are moderated before they reach a public profile. */
-    moderationStatus: moderationStatus("moderation_status").notNull().default("pending"),
+    /** Short lines a customer skims: materials, size, how long it took. */
+    highlights: text("highlights").array().notNull().default(sql`'{}'`),
+    /** The long description, as sanitised HTML. See `lib/html.ts`. */
+    details: text("details").notNull().default(""),
+
+    /**
+     * **Published on posting, not on approval.**
+     *
+     * This defaulted to `pending`, and a vendor who photographed a finished
+     * kitchen saw nothing on their profile until somebody at Decora Shine
+     * looked — which made the feature feel broken and the profiles look
+     * empty. Ops keep the lever, in the other direction: `rejected` takes
+     * something down, with a note the vendor reads.
+     */
+    moderationStatus: moderationStatus("moderation_status").notNull().default("approved"),
     /** Where the job was, when the vendor says. */
     cityId: fk("city_id").references(() => cities.id),
     /** Written for the vendor. Required when work is sent back or taken down. */

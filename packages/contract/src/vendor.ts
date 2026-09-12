@@ -97,13 +97,27 @@ export const submitVendorDocumentSchema = z.object({
   files: z.array(mediaIdSchema).min(1, "Attach the document").max(6),
 });
 
-/** A completed job, posted for review. Photos are `portfolio_item` uploads. */
+/**
+ * A completed job. Photos are `portfolio_item` uploads.
+ *
+ * Public as soon as it is posted — ops take things down rather than let them
+ * through — so what arrives here is what a customer will read.
+ */
 export const portfolioDraftSchema = z.object({
   /** One of the trades the vendor is approved for. */
   domainId: idSchema,
   cityId: idSchema.nullish(),
   title: shortText(120),
+  /** The one-line summary, in plain text. */
   description: z.string().trim().max(1000).default(""),
+  /** Short lines a customer skims. Six is already more than anybody reads. */
+  highlights: z.array(z.string().trim().max(80)).max(6).default([]),
+  /**
+   * The long description, as HTML from the editor. Sanitised by the API
+   * before it is stored — see `lib/html.ts` — so the limit is generous
+   * rather than exact: markup costs characters a reader never sees.
+   */
+  details: z.string().max(20000).default(""),
   media: z.array(mediaIdSchema).min(1, "Add at least one photo").max(10),
 });
 

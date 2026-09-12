@@ -355,6 +355,8 @@ export const portfolioItems: PortfolioItem[] = seeds.flatMap((s) =>
     domainId: p.domainId,
     title: p.title,
     description: p.description,
+    highlights: [],
+    details: "",
     media: [ph(p.domainId.replace("dom-", ""), p.seed, p.title)],
     moderationStatus: "approved" as const,
     cityId: s.cityId,

@@ -129,9 +129,42 @@ export default async function ProfessionalPage({ params }: { params: Promise<Par
                           <h3 className="mt-2.5 font-sans text-[15px] font-semibold text-ink">
                             {item.title}
                           </h3>
-                          <p className="mt-1.5 text-[14px] sm:text-[13px] leading-relaxed text-ink-3">
-                            {item.description}
-                          </p>
+                          {item.description ? (
+                            <p className="mt-1.5 text-[14px] sm:text-[13px] leading-relaxed text-ink-3">
+                              {item.description}
+                            </p>
+                          ) : null}
+
+                          {item.highlights.length > 0 ? (
+                            <ul className="mt-2.5 grid gap-1">
+                              {item.highlights.map((line) => (
+                                <li
+                                  key={line}
+                                  className="flex gap-1.5 text-[13.5px] leading-snug text-ink-2 sm:text-[12.5px]"
+                                >
+                                  <span aria-hidden="true" className="text-brand">
+                                    •
+                                  </span>
+                                  {line}
+                                </li>
+                              ))}
+                            </ul>
+                          ) : null}
+
+                          {/*
+                            The vendor's own words, as HTML.
+
+                            Sanitised by the API before it was ever stored — see
+                            `lib/html.ts` — so this renders what a reviewer of
+                            that allowlist agreed to render, not whatever a
+                            vendor's browser happened to send.
+                          */}
+                          {item.details ? (
+                            <div
+                              className="prose-vendor mt-3 text-[14px] leading-relaxed text-ink-2 sm:text-[13px]"
+                              dangerouslySetInnerHTML={{ __html: item.details }}
+                            />
+                          ) : null}
                         </figcaption>
                       </figure>
                     ))}
@@ -143,7 +176,7 @@ export default async function ProfessionalPage({ params }: { params: Promise<Par
                 <>
                   <h2 className="mt-12 text-[24px]">Achievements</h2>
                   <p className="mt-2 text-[15px] sm:text-[14px] text-ink-3">
-                    Awards, certifications and memberships, checked by our team before they appear.
+                    Awards, certifications and memberships, as the professional posted them.
                   </p>
                   <ul className="mt-6 grid gap-4 sm:grid-cols-2">
                     {pro.achievements.map((achievement) => (
