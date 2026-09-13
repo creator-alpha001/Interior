@@ -63,7 +63,9 @@ export function CitySwitcher({
         >
           <path d="M8 1a4.5 4.5 0 00-4.5 4.5C3.5 9 8 15 8 15s4.5-6 4.5-9.5A4.5 4.5 0 008 1zm0 6.2a1.7 1.7 0 110-3.4 1.7 1.7 0 010 3.4z" />
         </svg>
-        <span className="hidden sm:inline">{selected?.name ?? "All cities"}</span>
+        {/* Always named. Icon-only on phones, it was a pin that said nothing
+            about which city the prices on screen belonged to. */}
+        <span className="max-w-[8rem] truncate">{selected?.name ?? "All cities"}</span>
       </button>
 
       {open ? (

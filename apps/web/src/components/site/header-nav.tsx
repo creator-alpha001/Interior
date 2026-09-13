@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import type { City } from "@repo/types";
+import { signOutAction } from "@/app/(site)/login/actions";
 import { AccountMenu } from "@/components/site/account-menu";
 import { CitySwitcher } from "@/components/site/city-switcher";
 import { SearchBox } from "@/components/site/search-box";
@@ -77,9 +78,12 @@ export function HeaderNav({
 
   return (
     <>
-      {/* ---------------- Utility bar ---------------- */}
-      <div className="hidden bg-brand text-white sm:block">
-        <div className="mx-auto flex h-10 w-full max-w-7xl items-center gap-4 px-5 sm:px-8">
+      {/* ---------------- Utility bar ----------------
+          On phones too. It was `hidden sm:block`, which left a phone with no
+          visible way to sign in, see who was signed in, or change city —
+          all of it one tap into a menu nobody knew held it. */}
+      <div className="bg-brand text-white">
+        <div className="mx-auto flex h-10 w-full max-w-7xl items-center gap-4 px-3 sm:px-8">
           <p className="hidden min-w-0 items-center gap-2 truncate text-[13px] text-white/75 md:flex">
             <span className="font-medium text-white">Homes that feel like you</span>
             <span className="text-white/35" aria-hidden="true">
@@ -96,7 +100,7 @@ export function HeaderNav({
             >
               For professionals
             </Link>
-            <span className="mx-1 h-4 w-px bg-white/25" aria-hidden="true" />
+            <span className="mx-0.5 h-4 w-px bg-white/25 sm:mx-1" aria-hidden="true" />
             <AccountMenu
               tone="dark"
               signedInAsClient={signedInAsClient}
@@ -110,18 +114,23 @@ export function HeaderNav({
 
       {/* ---------------- Main bar ---------------- */}
       <header className="sticky top-0 z-50 border-b border-line bg-paper/90 backdrop-blur-md">
-        <div className="mx-auto flex h-[68px] w-full max-w-7xl items-center gap-3 px-5 sm:px-8 xl:gap-5">
+        <div className="mx-auto flex h-[64px] w-full max-w-7xl items-center gap-2 px-3 sm:h-[68px] sm:gap-3 sm:px-8 xl:gap-5">
           {/* The brand's own mark and wordmark, cut from the logo artwork into
               `public/brand`. Side by side rather than the stacked original,
-              which at header height would shrink the name past reading. */}
-          <Link href="/" aria-label="Decora Shine home" className="flex shrink-0 items-center gap-2">
+              which at header height would shrink the name past reading.
+
+              Sized down on phones: at full size the logo, "Get quotes",
+              search and the menu button came to more than 375px, and the
+              button that fell off the edge was the menu — the only way to
+              the navigation. */}
+          <Link href="/" aria-label="Decora Shine home" className="flex min-w-0 shrink items-center gap-1.5 sm:gap-2">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src="/brand/decora-shine-mark.png"
               alt=""
               width={231}
               height={256}
-              className="h-10 w-auto"
+              className="h-8 w-auto shrink-0 sm:h-10"
             />
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
@@ -129,7 +138,7 @@ export function HeaderNav({
               alt="Decora Shine"
               width={667}
               height={96}
-              className="h-[19px] w-auto sm:h-[23px]"
+              className="h-[15px] w-auto min-w-0 sm:h-[23px]"
             />
           </Link>
 
@@ -195,11 +204,11 @@ export function HeaderNav({
 
           <SearchBox className="ml-auto hidden w-56 lg:block 2xl:w-72" />
 
-          <div className="ml-auto flex shrink-0 items-center gap-1.5 lg:ml-0">
+          <div className="ml-auto flex shrink-0 items-center gap-0.5 sm:gap-1.5 lg:ml-0">
             <ButtonLink
               href="/submit-requirement"
               size="sm"
-              className="shrink-0 whitespace-nowrap px-3.5 sm:px-5"
+              className="shrink-0 whitespace-nowrap px-3 sm:px-5"
             >
               <span className="sm:hidden">Get quotes</span>
               <span className="hidden sm:inline">Get free quotes</span>
@@ -208,7 +217,7 @@ export function HeaderNav({
             <Link
               href="/search"
               aria-label="Search"
-              className="grid h-11 w-11 place-items-center rounded-full text-ink-2 hover:bg-surface-2 lg:hidden"
+              className="grid h-10 w-10 place-items-center rounded-full text-ink-2 hover:bg-surface-2 sm:h-11 sm:w-11 lg:hidden"
             >
               <svg viewBox="0 0 16 16" className="h-4 w-4 fill-current" aria-hidden="true">
                 <path d="M7 1a6 6 0 104.2 10.3l3.3 3.2 1-1-3.2-3.3A6 6 0 007 1zm0 1.5A4.5 4.5 0 112.5 7 4.5 4.5 0 017 2.5z" />
@@ -216,7 +225,7 @@ export function HeaderNav({
             </Link>
 
             <button
-              className="grid h-11 w-11 place-items-center rounded-full text-ink-2 hover:bg-surface-2 xl:hidden"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-full text-ink-2 hover:bg-surface-2 sm:h-11 sm:w-11 xl:hidden"
               onClick={() => setOpen((v) => !v)}
               aria-label="Menu"
               aria-expanded={open}
@@ -301,6 +310,16 @@ export function HeaderNav({
                     >
                       Professional portal <span className="text-ink-4">— preview</span>
                     </Link>
+                  ) : null}
+                  {signedInAsClient || completingSignIn ? (
+                    <form action={signOutAction}>
+                      <button
+                        type="submit"
+                        className="w-full rounded-lg px-2 py-2 text-left text-[15px] text-ink-3 hover:bg-surface-2"
+                      >
+                        Sign out
+                      </button>
+                    </form>
                   ) : null}
                 </div>
 

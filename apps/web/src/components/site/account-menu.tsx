@@ -4,6 +4,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@repo/ui";
+import { signOutAction } from "@/app/(site)/login/actions";
 
 /**
  * The header's identity slot.
@@ -125,7 +126,7 @@ export function AccountMenu({
         >
           <path d="M10 10a3 3 0 100-6 3 3 0 000 6zm0 2c-3 0-6 1.5-6 4v1h12v-1c0-2.5-3-4-6-4z" />
         </svg>
-        <span className={dark ? "hidden sm:inline" : "hidden lg:inline"}>
+        <span className={dark ? "max-w-[7rem] truncate" : "hidden lg:inline"}>
           {signedInAsClient
             ? // The first name, because a header is not the place for "Priya
               // Sharma Kulkarni" and the full name is on the account page.
@@ -155,6 +156,19 @@ export function AccountMenu({
               />
             </Group>
           ) : null}
+
+          {/* Signing out lived only on the account page, so somebody anywhere
+              else on the site had to know to go there first. */}
+          <div className="mt-1.5 border-t border-line pt-1.5">
+            <form action={signOutAction}>
+              <button
+                type="submit"
+                className="block w-full rounded-lg px-3 py-2 text-left text-[14.5px] text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink sm:text-[13.5px]"
+              >
+                Sign out
+              </button>
+            </form>
+          </div>
 
           {/* Only where there is no backend: these are the seed-data walkthrough,
               and saying so is the difference between a preview and a pretence. */}
