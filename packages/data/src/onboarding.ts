@@ -16,9 +16,11 @@ import { partnerTerms } from "@repo/mock";
 import { api, nullWhenMissing } from "./client";
 import { callingApiAsUser, currentProfessionalId, currentStaffUserId } from "./session";
 import { delay, nextId, nowIso, store } from "./store";
-import { paperworkStateFor } from "./verification";
 
 export async function getPartnerTerms(): Promise<PartnerTerms> {
+  if (await callingApiAsUser()) {
+    return api<PartnerTerms>("/vendor/terms");
+  }
   return delay(partnerTerms);
 }
 
@@ -85,16 +87,13 @@ export async function getVendorOnboardingFor(
     },
     {
       key: "identity",
-      label: "Verified by our team",
-      description:
-        "Your ID and business documents, checked by our team. Due within 7 days of your signed original reaching us.",
+      label: "Required documents",
+      description: "Your required ID and business documents, submitted for our team to check.",
       done: pro.verificationStatus === "verified",
-      // Not a condition for leads: the signed original is. Late documents pause
-      // leads through the eligibility rule instead.
-      blocking: false,
+      blocking: true,
       hint:
         pro.verificationStatus === "pending"
-          ? "Our team is reviewing your documents."
+          ? "Submit every required document on this page to receive leads."
           : pro.verificationStatus === "suspended"
             ? "Your account is under review. Nothing will be assigned meanwhile."
             : null,
@@ -119,16 +118,11 @@ export async function getVendorOnboardingFor(
     },
     {
       key: "agreement",
-      label: "Partner agreement signed and received",
-      description: `Version ${partnerTerms.version}, accepted online, signed on paper, and the original with our team.`,
-      done: hasSignedPartnerAgreementSync(professionalId) && agreement?.hardcopyStatus === "received",
+      label: "Partner agreement signed",
+      description: `Version ${partnerTerms.version}, accepted online during your application.`,
+      done: hasSignedPartnerAgreementSync(professionalId),
       blocking: true,
-      hint:
-        agreement?.status !== "signed"
-          ? "Accept the terms online first."
-          : agreement.hardcopyStatus === "received"
-            ? null
-            : "Send us the signed original. Leads start when it arrives.",
+      hint: agreement?.status !== "signed" ? "Accept the terms online first." : null,
     },
     {
       key: "portfolio",
@@ -141,18 +135,16 @@ export async function getVendorOnboardingFor(
   ];
 
   const blocking = steps.filter((s) => s.blocking && !s.done);
-  const paperwork = paperworkStateFor(professionalId);
   const closed = pro.verificationStatus === "suspended" || pro.verificationStatus === "blacklisted";
 
-  // Mirrors the API's eligibility view: verified with a signed agreement, or
-  // pending with the signed original received and documents not overdue.
+  // Mirrors the API's eligibility view: verified with a signed current
+  // agreement and the required documents submitted.
   const canReceiveLeads =
     !closed &&
     approvedTrades.length > 0 &&
     areas.length > 0 &&
     hasSignedPartnerAgreementSync(professionalId) &&
-    (pro.verificationStatus === "verified" ||
-      (paperwork.agreementComplete && !paperwork.documentsOverdue));
+    pro.verificationStatus === "verified";
 
   return delay({
     professionalId,
@@ -164,11 +156,11 @@ export async function getVendorOnboardingFor(
       ? null
       : blocking[0]
         ? blocking[0].key === "agreement"
-          ? "The signed original of the partner agreement has not reached us yet."
+          ? "Accept the current partner agreement to receive leads."
           : `Outstanding: ${blocking.map((s) => s.label.toLowerCase()).join(", ")}.`
         : closed
           ? "Your account is suspended."
-          : "Your ID documents are overdue, so new leads are paused.",
+          : "Submit every required document to receive leads.",
     agreement,
     terms: partnerTerms,
   });
@@ -251,7 +243,7 @@ export async function signPartnerAgreement(
     userId: "user-admin",
     type: "agreement_signed",
     title: `${store.professionals.find((p) => p.id === professionalId)?.companyName ?? "A vendor"} signed the partner agreement`,
-    body: `Version ${partnerTerms.version}. They can now be assigned leads.`,
+    body: `Version ${partnerTerms.version}. Required documents are still needed before lead assignment.`,
     entityType: "agreement",
     entityId: agreement.id,
     isRead: false,

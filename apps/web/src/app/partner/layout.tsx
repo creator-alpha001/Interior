@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { authenticationRequired, getActor, getMyVerification } from "@repo/data";
+import { authenticationRequired, getActor, getMyVerification, getSessionUser } from "@repo/data";
 import { VendorShell } from "@/components/partner/vendor-shell";
 
 export const metadata: Metadata = {
@@ -37,6 +37,10 @@ export default async function PartnerLayout({ children }: { children: React.Reac
   if (!actor && authenticationRequired()) redirect("/login");
   if (actor && actor.role !== "professional") {
     redirect(actor.role === "client" ? "/account" : "/");
+  }
+  if (actor) {
+    const sessionUser = await getSessionUser();
+    if (sessionUser && !sessionUser.passwordSet) redirect("/set-password");
   }
 
   /*

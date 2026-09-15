@@ -310,8 +310,8 @@ export interface SignPartnerAgreementInput {
 /**
  * A vendor signing the platform's terms.
  *
- * Signing is what unlocks lead assignment, so this is a legal record rather
- * than a checkbox. Every clause is stored individually — consent that cannot be
+ * Signing is the agreement half of lead eligibility, so this is a legal record
+ * rather than a checkbox. Every clause is stored individually — consent that cannot be
  * shown clause by clause is not much use the day somebody disputes it — and the
  * IP and user agent are captured here from the request, not accepted from the
  * signatory, because a value they supply is not evidence of anything.
@@ -364,6 +364,7 @@ export async function signPartnerAgreement(
         acknowledgedClauses: input.acknowledgedClauses,
         signedFromIp: context.ip ?? null,
         signedUserAgent: context.userAgent ?? null,
+        documentUrl: terms.documentUrl,
       })
       .returning();
 
@@ -384,7 +385,7 @@ export async function signPartnerAgreement(
         userId: staff[0].userId,
         type: "agreement_signed",
         title: `${pro?.companyName ?? "A vendor"} signed the partner agreement`,
-        body: `Version ${terms.version}. They can now be assigned leads.`,
+        body: `Version ${terms.version}. Required documents are still needed before lead assignment.`,
         entityType: "agreement",
         entityId: agreement!.id,
       });

@@ -73,6 +73,8 @@ export const otpChallengeSchema = z.object({
 const sessionFields = {
   sessionToken: z.string().optional(),
   expiresAt: timestampSchema.optional(),
+  /** True only until a customer or professional chooses their first password. */
+  passwordSetupRequired: z.boolean(),
 };
 
 export const authSessionSchema = z.discriminatedUnion("role", [

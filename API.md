@@ -131,6 +131,8 @@ answers 404 rather than 403 — a 403 would confirm it exists.
 | POST | `/me/tickets` | `SupportTicket` |
 | POST | `/me/tickets/:id/replies` | `TicketReply` |
 | GET | `/me/referrals` | `ReferralSummary` |
+| POST | `/me/professional-application` | `ProfessionalApplicationView` — includes current terms version and recorded online acceptance |
+| DELETE | `/me/professional-application` | Withdraws the current open application |
 
 **The message endpoints never return `platform_vendor` messages.** That is
 enforced twice: the query filters on channel, and the table has a check
@@ -176,6 +178,7 @@ professional id.
 | GET | `/vendor/portfolio` | `PortfolioItem[]` |
 | GET | `/vendor/performance` | `VendorPerformance` |
 | GET | `/vendor/onboarding` | `VendorOnboarding` |
+| GET | `/vendor/terms` | `PartnerTerms` — current agreement terms; public |
 | POST | `/vendor/onboarding/agreement` | `PartnerAgreement` |
 
 ### Three rules the backend owns
@@ -191,10 +194,11 @@ drift. The same customer can therefore be sealed on one service and released on
 another, which is correct: a vendor booked for the painting has no business
 seeing the address because somebody else's furniture visit was confirmed.
 
-**Signing gates assignment.** A professional with no signed current-version
-partner agreement appears in no vendor pool, however verified their account or
-approved their trades. `canReceiveLeads` and the pool filter both read the
-`eligible_vendors` view, so they cannot disagree.
+**Verification gates assignment.** A professional with an approved trade but
+without a signed current-version agreement and all required documents appears
+in no vendor pool. Approval lets the vendor use the shell and post work while
+the checklist remains visible; `canReceiveLeads` and the pool filter both read
+the `eligible_vendors` view, so they cannot disagree.
 
 **Submitting evidence is not finishing.** `POST .../proof` marks a stage
 *submitted*. Only an approval from ops moves the completion the customer sees.
@@ -208,20 +212,26 @@ been removed along with its dead UI — it let somebody declare themselves done.
 | Method | Path | Response |
 | --- | --- | --- |
 | POST | `/auth/otp/request` | `{ challengeId, expiresInSeconds }` — body `{ mobile }` |
-| POST | `/auth/otp/verify` | `Actor`, and sets the session cookie — body `{ challengeId, code, name?, cityId?, linkToken? }` |
-| POST | `/auth/google` | `{ status, session?, linkToken?, email?, name? }` — body `{ idToken }` |
-| POST | `/auth/google/complete` | `Actor`, and sets the session cookie — body `{ linkToken, name?, cityId? }` |
+| POST | `/auth/otp/verify` | `Actor` plus `passwordSetupRequired`, and sets the session cookie — body `{ challengeId, code, name?, cityId?, linkToken? }` |
+| POST | `/auth/google` | `{ status, session?, linkToken?, email?, name? }` — body `{ idToken }`; a new or unverified identity returns a link token for WhatsApp OTP completion |
+| POST | `/auth/google/complete` | Deprecated compatibility route; current clients must verify WhatsApp OTP through `/auth/otp/verify` |
+| POST | `/auth/password/login` | `Actor` plus `passwordSetupRequired`, and sets the session cookie — body `{ mobile, password }` |
+| POST | `/auth/password/reset` | Replaces the password after a WhatsApp OTP and signs in — body `{ challengeId, code, password }` |
 | POST | `/auth/staff/login` | `Actor`, and sets the session cookie — body `{ email, password, totp? }` |
 | POST | `/auth/logout` | `{ ok }` — revokes the session and forgets this device's push token |
-| GET | `/me` | `SessionUser` — `{ actor, name, mobile, mobileVerified, cityId, avatarUrl }`, or 401 |
+| GET | `/me` | `SessionUser` — `{ actor, name, mobile, mobileVerified, cityId, avatarUrl, passwordSet }`, or 401 |
 | PATCH | `/me/profile` | `SessionUser` — body `{ name?, cityId? }`; `cityId: null` clears it |
+| POST | `/me/password` | `{ ok: true }` — sets or replaces the signed-in customer/professional password |
 | POST | `/me/mobile/request` | `{ challengeId, expiresInSeconds }` — body `{ mobile }` |
 | POST | `/me/mobile/confirm` | `SessionUser` — body `{ challengeId, code }` |
 
-### A number and a city are optional
+### Password setup and mobile verification
 
-`users.mobile` and `users.city_id` are both nullable, and `GET /me` reports both
-honestly — `mobile: null`, `cityId: null`, `mobileVerified: false`.
+The first mobile OTP sign-in returns `passwordSetupRequired: true`. The web app
+redirects to `/set-password`; the mobile app opens its password screen. Once a
+password is saved, subsequent sign-ins use `/auth/password/login` without a new
+OTP. Forgot-password uses `/auth/password/reset`, which always requires a fresh
+WhatsApp (or explicitly selected SMS) code.
 
 This was not always so, and the reason it changed is worth keeping. `mobile` was
 NOT NULL on the argument that ops ring every customer about their lead, so an

@@ -1,5 +1,4 @@
 import type { Metadata } from "next";
-import { redirect } from "next/navigation";
 import Link from "next/link";
 import { LoginForm } from "@/components/auth/login-form";
 import { pendingGoogleLink } from "./actions";
@@ -36,23 +35,18 @@ export default async function LoginPage({
 }) {
   // Reading a cookie makes this dynamic, which is correct: a half-finished
   // sign-in is per-person and must never be cached into somebody else's page.
-  // A Google sign-in mid-flight belongs on /welcome, not here. Someone landing
-  // back on the sign-in page with one pending would otherwise be offered a
-  // fresh sign-in while a half-finished one was still waiting.
-  if (await pendingGoogleLink()) redirect("/welcome");
-
   const sp = await searchParams;
+  const pendingGoogle = await pendingGoogleLink();
   const asProfessional = sp.as === "professional";
   const signingUp = sp.mode === "signup";
 
   /**
    * The city is asked for here rather than guessed.
    *
-   * `actorForMobile` on the server falls back to the first active city when
-   * none is given, which is silent and almost always wrong — prices, vendors
-   * and availability are all per city, so an account created in the wrong one
-   * shows the wrong catalogue and gets matched to professionals who do not work
-   * there. The header switcher is prefilled as the likely answer.
+   * The server stores no city when none is selected. Guessing would be silent
+   * and almost always wrong — prices, vendors and availability are all per city,
+   * so an account created in the wrong one gets the wrong catalogue. The header
+   * switcher is prefilled as the likely answer.
    */
   const [cities, selectedCity] = await Promise.all([listCities(), getSelectedCity()]);
 
@@ -71,11 +65,11 @@ export default async function LoginPage({
     : {
         eyebrow: signingUp ? "Create an account" : "Welcome back",
         heading: signingUp
-          ? "Create your account with your mobile number"
-          : "Sign in with your mobile number",
+          ? "Verify your mobile number"
+          : "Sign in with your mobile number and password",
         blurb: signingUp
-          ? "There is nothing to fill in beyond your number. We send a one-time code, and the account exists the moment you enter it — no password to choose or remember."
-          : "Your requirements, quotes, agreements and project updates all live in one place. No password to remember — we send a one-time code to your phone.",
+          ? "We send a one-time WhatsApp code. Once the number is verified, you create a password for faster sign-ins in future."
+          : "Use your password for everyday sign-in. If this is your first visit, verify your number once with a WhatsApp code and create a password.",
         points: [
           "Compare quotes side by side whenever you like",
           "Track every project through to handover",
@@ -152,6 +146,8 @@ export default async function LoginPage({
               defaultCityId={selectedCity?.id}
               next={nextPath}
               intent={asProfessional ? "professional" : undefined}
+              initialMethod={signingUp || sp.mode === "google" ? "otp" : "password"}
+              pendingGoogle={pendingGoogle}
               /* A vendor's account already has a city; asking again would be
                  asking them to re-answer something ops recorded. */
               askForCity={!asProfessional}
@@ -181,7 +177,7 @@ export default async function LoginPage({
                   <RegisterRow
                     href="/login?mode=signup"
                     title="Create an account with your number"
-                    body="Enter your mobile above and the account is made when you confirm the code. There is nothing else to fill in."
+                    body="Verify your mobile with a WhatsApp code, then choose a password for future sign-ins."
                     quiet={signingUp}
                   />
                   <RegisterRow

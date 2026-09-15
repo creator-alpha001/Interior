@@ -12,10 +12,9 @@ export const VERIFICATION_HREF = "/partner/onboarding";
  *
  * Two questions, answered from the record rather than the status alone: are
  * they receiving leads, and is there something for them to do? A vendor whose
- * signed original has reached us is working; what they owe after that is the ID
- * documents, on a deadline, and missing it pauses new leads. Those are different
- * situations from "not started" and "waiting on our review", and each needs its
- * own advice.
+ * The first-step online agreement and required identity documents are the
+ * completion rule. Paper copies can still be collected in the portal, but they
+ * do not block the verified badge or lead eligibility.
  */
 type Standing =
   | { kind: "verified" }
@@ -24,14 +23,14 @@ type Standing =
   | { kind: "action"; steps: string[]; waiting: string[] }
   /** Not receiving leads yet, everything is with our team. */
   | { kind: "waiting"; waiting: string[] }
-  /** Receiving leads; ID documents due by a date. */
+  /** Retained for backwards-compatible rendering of old API responses. */
   | { kind: "due"; dueBy: string; steps: string[] }
-  /** ID documents overdue; new leads paused. */
+  /** Retained for backwards-compatible rendering of old API responses. */
   | { kind: "paused"; dueBy: string | null; steps: string[] }
-  /** Receiving leads; documents all sent, badge still to come. */
+  /** Retained for backwards-compatible rendering of old API responses. */
   | { kind: "active"; steps: string[]; waiting: string[] }
   | { kind: "ready" }
-  /** Verified before paperwork was required, and still owing some. */
+  /** Retained for backwards-compatible rendering of old API responses. */
   | { kind: "paperwork"; steps: string[] };
 
 export function standingOf(verification: VendorVerification): Standing {
@@ -47,32 +46,6 @@ export function standingOf(verification: VendorVerification): Standing {
 
   if (agreement?.status !== "signed" || agreement.termsVersion !== terms.version) {
     steps.push("accept the partner terms");
-  }
-
-  switch (agreement?.signedCopyStatus) {
-    case "accepted":
-      break;
-    case "submitted":
-      waiting.push("our team is checking your signed agreement");
-      break;
-    case "rejected":
-      steps.push("upload the signed agreement again, as our team sent it back");
-      break;
-    default:
-      // Nothing to sign until our team has uploaded the document, and that is
-      // not the vendor's to fix.
-      if (terms.documentUrl) steps.push("download, sign and upload the agreement");
-      else waiting.push("our team is preparing the agreement document for you to sign");
-  }
-
-  switch (agreement?.hardcopyStatus) {
-    case "received":
-      break;
-    case "dispatched":
-      waiting.push("your signed original is on its way to us");
-      break;
-    default:
-      steps.push("send us the signed original");
   }
 
   for (const slot of verification.documents) {
@@ -100,17 +73,6 @@ export function standingOf(verification: VendorVerification): Standing {
 
   if (verification.verificationStatus === "verified") {
     return steps.length > 0 ? { kind: "paperwork", steps } : { kind: "verified" };
-  }
-
-  if (verification.agreementComplete) {
-    if (verification.documentsOverdue) {
-      return { kind: "paused", dueBy: verification.documentsDueBy, steps: documentSteps };
-    }
-    if (verification.documentsDueBy) {
-      return { kind: "due", dueBy: verification.documentsDueBy, steps: documentSteps };
-    }
-    if (steps.length === 0 && waiting.length === 0) return { kind: "ready" };
-    return { kind: "active", steps, waiting };
   }
 
   if (steps.length > 0) return { kind: "action", steps, waiting };
@@ -200,7 +162,7 @@ function describe(standing: Exclude<Standing, { kind: "verified" }>): {
     case "action":
       return {
         title: "You are not receiving leads yet",
-        body: `Leads start as soon as your signed original reaches us. Next, ${standing.steps[0]}.${more(
+        body: `Leads start after verification. Next, ${standing.steps[0]}.${more(
           standing.steps.length - 1,
           "step",
         )}`,
@@ -213,7 +175,7 @@ function describe(standing: Exclude<Standing, { kind: "verified" }>): {
       const first = standing.waiting[0]!;
       return {
         title: "Nothing for you to do right now",
-        body: `${first.charAt(0).toUpperCase()}${first.slice(1)}. Leads start as soon as your signed original reaches us.`,
+        body: `${first.charAt(0).toUpperCase()}${first.slice(1)}. Leads start after all required documents are submitted.`,
         cta: "See progress",
         frame: "border-brand-line bg-brand-soft",
         accent: "text-brand",
@@ -245,14 +207,14 @@ function describe(standing: Exclude<Standing, { kind: "verified" }>): {
 
     case "active":
       return {
-        title: "You are receiving leads",
+        title: "Verification in progress",
         body:
           standing.steps.length > 0
-            ? `For your Verified badge, ${standing.steps[0]}.`
-            : `${standing.waiting[0]!.charAt(0).toUpperCase()}${standing.waiting[0]!.slice(1)}. Your Verified badge follows once everything is accepted.`,
-        cta: standing.steps.length > 0 ? "Complete verification" : "See progress",
-        frame: "border-brand-line bg-brand-soft",
-        accent: "text-brand",
+            ? `Next, ${standing.steps[0]}.`
+            : `${standing.waiting[0]!.charAt(0).toUpperCase()}${standing.waiting[0]!.slice(1)}.`,
+        cta: "Complete verification",
+        frame: "border-warning/30 bg-warning-soft",
+        accent: "text-warning",
       };
 
     case "ready":
@@ -266,9 +228,9 @@ function describe(standing: Exclude<Standing, { kind: "verified" }>): {
 
     case "paperwork":
       return {
-        title: "Please send us your signed agreement and documents",
-        body: `Your account is verified, but we do not hold your paperwork yet. Next, ${standing.steps[0]}.`,
-        cta: "Send paperwork",
+        title: "Please finish your required documents",
+        body: `Your account is verified, but some paperwork is still outstanding. Next, ${standing.steps[0]}.`,
+        cta: "Send documents",
         frame: "border-clay-line bg-clay-soft",
         accent: "text-clay",
       };

@@ -127,6 +127,27 @@
       "when": 1788643516132,
       "tag": "0017_states_and_districts",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1789489165063,
+      "tag": "0018_user_password_credentials",
+      "breakpoints": true
+    },
+    {
+      "idx": 19,
+      "version": "7",
+      "when": 1789492765063,
+      "tag": "0019_application_partner_agreement",
+      "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1789496365063,
+      "tag": "0020_vendor_verification_on_submission",
+      "breakpoints": true
     }
   ]
 }

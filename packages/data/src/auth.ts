@@ -27,6 +27,8 @@ export interface OtpRequested {
 
 export interface SignedIn {
   actor: Actor;
+  /** New OTP-created accounts must choose this before continuing. */
+  passwordSetupRequired: boolean;
   /**
    * The session cookie to set on the browser's response, verbatim.
    *
@@ -37,7 +39,11 @@ export interface SignedIn {
   setCookie: string | null;
 }
 
-async function post<T>(path: string, body: unknown): Promise<{ data: T; setCookie: string | null }> {
+async function post<T>(
+  path: string,
+  body: unknown,
+  cookie?: string,
+): Promise<{ data: T; setCookie: string | null }> {
   if (!USING_API) {
     throw new ApiError(
       0,
@@ -52,7 +58,11 @@ async function post<T>(path: string, body: unknown): Promise<{ data: T; setCooki
   try {
     response = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        Accept: "application/json",
+        ...(cookie ? { cookie } : {}),
+      },
       body: JSON.stringify(body),
       cache: "no-store",
     });
@@ -90,25 +100,37 @@ export async function verifyOtp(input: {
   /** Set only on the one code that finishes a first Google sign-in. */
   linkToken?: string;
 }): Promise<SignedIn> {
-  const { data, setCookie } = await post<Actor>("/auth/otp/verify", input);
-  return { actor: data, setCookie };
+  const { data, setCookie } = await post<Actor & { passwordSetupRequired: boolean }>(
+    "/auth/otp/verify",
+    input,
+  );
+  return { actor: data, passwordSetupRequired: data.passwordSetupRequired, setCookie };
 }
 
 /**
  * The two ways a Google sign-in can end.
  *
- * `signed_in` is the ordinary case for anyone who has done this once before.
- * `profile_required` is the first time only: Google has said who they are, and
- * there is still no account here. `linkToken` is what proves that to
- * `completeGoogleSignUp`, which is the only thing that call actually needs.
+ * `signed_in` is the ordinary case once a linked Google identity has a verified
+ * mobile. Pending identities return `profile_required` or `mobile_required`
+ * and carry a link token that the OTP verification call consumes.
  */
 export type GoogleSignIn =
-  | { status: "signed_in"; actor: Actor; setCookie: string | null }
-  | { status: "profile_required"; linkToken: string; email?: string; name?: string };
+  | {
+      status: "signed_in";
+      actor: Actor;
+      passwordSetupRequired: boolean;
+      setCookie: string | null;
+    }
+  | {
+      status: "profile_required" | "mobile_required";
+      linkToken: string;
+      email?: string;
+      name?: string;
+    };
 
 interface GoogleResult {
-  status: "signed_in" | "profile_required";
-  session?: Actor;
+  status: "signed_in" | "profile_required" | "mobile_required";
+  session?: Actor & { passwordSetupRequired: boolean };
   linkToken?: string;
   email?: string;
   name?: string;
@@ -118,12 +140,17 @@ export async function signInWithGoogle(idToken: string): Promise<GoogleSignIn> {
   const { data, setCookie } = await post<GoogleResult>("/auth/google", { idToken });
 
   if (data.status === "signed_in" && data.session) {
-    return { status: "signed_in", actor: data.session, setCookie };
+    return {
+      status: "signed_in",
+      actor: data.session,
+      passwordSetupRequired: data.session.passwordSetupRequired,
+      setCookie,
+    };
   }
 
-  if (data.status === "profile_required" && data.linkToken) {
+  if ((data.status === "profile_required" || data.status === "mobile_required") && data.linkToken) {
     return {
-      status: "profile_required",
+      status: data.status,
       linkToken: data.linkToken,
       email: data.email,
       name: data.name,
@@ -136,21 +163,41 @@ export async function signInWithGoogle(idToken: string): Promise<GoogleSignIn> {
   throw new ApiError(0, "bad_response", "That sign-in came back incomplete. Please try again.");
 }
 
-/**
- * Turns a proved Google identity into an account.
- *
- * `city` is the only thing the screen asks for and even that is optional, so
- * this can be called with nothing but the token. Returns a session exactly like
- * a verified OTP does — the account is real from this moment, with whatever
- * gaps its owner chose to leave.
- */
+/** Compatibility call for the retired Google-only completion endpoint. */
 export async function completeGoogleSignUp(input: {
   linkToken: string;
   name?: string;
   cityId?: string;
 }): Promise<SignedIn> {
-  const { data, setCookie } = await post<Actor>("/auth/google/complete", input);
-  return { actor: data, setCookie };
+  const { data, setCookie } = await post<Actor & { passwordSetupRequired: boolean }>(
+    "/auth/google/complete",
+    input,
+  );
+  return { actor: data, passwordSetupRequired: data.passwordSetupRequired, setCookie };
+}
+
+export async function signInWithPassword(mobile: string, password: string): Promise<SignedIn> {
+  const { data, setCookie } = await post<Actor & { passwordSetupRequired: boolean }>(
+    "/auth/password/login",
+    { mobile, password },
+  );
+  return { actor: data, passwordSetupRequired: data.passwordSetupRequired, setCookie };
+}
+
+export async function resetPassword(input: {
+  challengeId: string;
+  code: string;
+  password: string;
+}): Promise<SignedIn> {
+  const { data, setCookie } = await post<Actor & { passwordSetupRequired: boolean }>(
+    "/auth/password/reset",
+    input,
+  );
+  return { actor: data, passwordSetupRequired: data.passwordSetupRequired, setCookie };
+}
+
+export async function setMyPassword(cookie: string, password: string): Promise<void> {
+  await post<{ ok: true }>("/me/password", { password }, cookie);
 }
 
 export async function staffLogin(input: {
@@ -158,8 +205,11 @@ export async function staffLogin(input: {
   password: string;
   totp?: string;
 }): Promise<SignedIn> {
-  const { data, setCookie } = await post<Actor>("/auth/staff/login", input);
-  return { actor: data, setCookie };
+  const { data, setCookie } = await post<Actor & { passwordSetupRequired: boolean }>(
+    "/auth/staff/login",
+    input,
+  );
+  return { actor: data, passwordSetupRequired: false, setCookie };
 }
 
 export async function signOut(cookie: string | undefined): Promise<void> {

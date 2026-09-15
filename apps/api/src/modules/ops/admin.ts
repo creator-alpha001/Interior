@@ -316,9 +316,9 @@ export async function setVendorStatus(
   status: (typeof t.professionals.$inferSelect)["verificationStatus"],
 ): Promise<void> {
   /*
-   * Verified is earned, not set. The tag tells customers we hold a signed
-   * original and documents for this business, and it is what puts them in a
-   * lead pool, so nobody can grant it with a button while anything is missing.
+   * Verified is earned, not set. The tag tells customers the online agreement
+   * and required business documents are on record, and it is what puts the
+   * vendor in a lead pool, so nobody can grant it while anything is missing.
    * Suspending, blacklisting and moving back to pending stay unconditional.
    */
   if (status === "verified") {

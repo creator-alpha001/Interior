@@ -99,16 +99,16 @@ export async function getOnboarding(professionalId: string): Promise<VendorOnboa
     },
     {
       key: "identity",
-      label: "Verified badge",
+      label: "Required documents",
       description:
-        "Your ID and business documents, checked by our team. Due within 7 days of your signed original reaching us.",
+        "Your required ID and business documents, submitted for our team to check.",
       done: pro.professional.verificationStatus === "verified",
-      // Not a condition for leads since 0015 — the signed original is. Late
-      // documents pause leads through the eligibility view instead.
-      blocking: false,
+      // Required documents are the condition for the verified badge and leads;
+      // optional paperwork never blocks either.
+      blocking: true,
       hint:
         pro.professional.verificationStatus === "pending"
-          ? "Send your ID documents on this page. New leads pause if they are late."
+          ? "Submit every required document on this page to receive leads."
           : null,
     },
     {
@@ -139,15 +139,13 @@ export async function getOnboarding(professionalId: string): Promise<VendorOnboa
     },
     {
       key: "agreement",
-      label: "Partner agreement signed and received",
-      description: `Version ${terms.version}, accepted online, signed on paper, and the original with our team.`,
-      done: signed && agreement?.hardcopyStatus === "received",
+      label: "Partner agreement signed",
+      description: `Version ${terms.version}, accepted online during your application.`,
+      done: signed,
       blocking: true,
       hint: !signed
         ? "Accept the terms online first."
-        : agreement?.hardcopyStatus === "received"
-          ? null
-          : "Send us the signed original. Leads start when it arrives.",
+        : null,
     },
   ];
 
@@ -167,9 +165,7 @@ export async function getOnboarding(professionalId: string): Promise<VendorOnboa
         : pro.professional.verificationStatus === "suspended" ||
             pro.professional.verificationStatus === "blacklisted"
           ? "Your account is suspended."
-          : // Every blocking step is done, so the eligibility view is holding
-            // them back on the one rule the steps do not show: late documents.
-            "Your ID documents are overdue, so new leads are paused.",
+        : "Submit every required document to receive leads.",
     agreement,
     terms,
   };

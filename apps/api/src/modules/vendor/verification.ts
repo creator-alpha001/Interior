@@ -1,12 +1,10 @@
 /**
  * Vendor verification: the paperwork between "approved" and "verified".
  *
- * Approval says a person may work here. Verification says we hold what makes
- * that enforceable: the standard agreement signed on paper, the original in our
- * hands, and documents identifying the business that signed it. Since 0015 a
- * pending vendor enters lead pools once the signed original is received, and
- * leaves them if their ID documents are not all sent within 7 days; the badge
- * waits for everything to be accepted.
+ * Approval says a person may work here. Verification says we hold the online
+ * agreement acceptance and the required business documents. A paper copy or
+ * couriered original is optional follow-up paperwork and must never block
+ * posting work or lead eligibility.
  *
  * `outstandingFor` is the one definition of "complete". The vendor's checklist,
  * the reviewer's checklist and the refusal to verify somebody early all read it,
@@ -29,7 +27,6 @@ import { groupMediaByOwner } from "../../lib/media";
 import { publicUrlFor } from "../../lib/storage";
 import { attachMedia } from "../uploads/repository";
 import { getCurrentTerms } from "./onboarding";
-import { documentsDueBy } from "./paperwork";
 
 /** `media_assets.owner_type` for the photographed pages of a signed agreement. */
 const SIGNED_COPY_OWNER = "partner_agreement_copy";
@@ -150,24 +147,14 @@ export async function getVerification(professionalId: string): Promise<VendorVer
 
   const outstanding = outstandingFor(terms, agreement, documents);
 
-  // Leads start on the signed original; the documents then have a deadline.
-  // The same rule decides eligibility in the `eligible_vendors` view.
+  // Lead eligibility is decided by the same agreement/document rule in the
+  // `eligible_vendors` view. Paper copies are deliberately not part of it.
   const agreementComplete = Boolean(
     agreement &&
       agreement.status === "signed" &&
-      agreement.termsVersion === terms.version &&
-      agreement.hardcopyStatus === "received",
+      agreement.termsVersion === terms.version,
   );
-  const documentsMissing = documents.some(
-    (slot) =>
-      slot.required &&
-      slot.document?.status !== "submitted" &&
-      slot.document?.status !== "accepted",
-  );
-  const dueBy =
-    agreementComplete && documentsMissing && pro.verificationStatus === "pending"
-      ? documentsDueBy(agreement!.hardcopyReceivedAt)
-      : null;
+  const dueBy = null;
 
   return {
     professionalId,
@@ -192,12 +179,10 @@ export async function verificationGaps(professionalId: string): Promise<string[]
 /**
  * Verifies a pending vendor the moment nothing is outstanding.
  *
- * Every item has already been accepted by a person by the time this can pass —
- * the signed copy and each document are reviewed, and the original is marked
- * received by hand — so a further "now press Verified" is a step that only
- * ever delays a vendor who has done everything asked of them. Called after each
- * action that can complete the set, including the vendor accepting the terms,
- * which may be the last thing done.
+ * Every required item has been submitted (or accepted) by the time this can
+ * pass, so a further "now press Verified" button would only delay a vendor who
+ * has done everything asked of them. Called after each action that can complete
+ * the set, including document submission.
  *
  * Only from pending. A suspended or blacklisted vendor whose paperwork is in
  * order stays where ops put them.
@@ -241,34 +226,16 @@ function outstandingFor(
     gaps.push(`Accept version ${terms.version} of the partner terms online`);
   }
 
-  switch (agreement?.signedCopyStatus) {
-    case "accepted":
-      break;
-    case "submitted":
-      gaps.push("The signed agreement is waiting for our review");
-      break;
-    case "rejected":
-      gaps.push("The signed agreement was sent back and needs uploading again");
-      break;
-    default:
-      gaps.push("Upload the signed agreement");
-  }
-
-  if (agreement?.hardcopyStatus !== "received") {
-    gaps.push(
-      agreement?.hardcopyStatus === "dispatched"
-        ? "The signed original has not reached us yet"
-        : "Send us the signed original",
-    );
-  }
-
   for (const slot of documents) {
-    if (!slot.required || slot.document?.status === "accepted") continue;
+    if (
+      !slot.required ||
+      slot.document?.status === "accepted" ||
+      slot.document?.status === "submitted"
+    )
+      continue;
     const status = slot.document?.status;
     gaps.push(
-      status === "submitted"
-        ? `${slot.label}: waiting for our review`
-        : status === "rejected"
+      status === "rejected"
           ? `${slot.label}: sent back, upload it again`
           : `Upload your ${slot.label.charAt(0).toLowerCase()}${slot.label.slice(1)}`,
     );
@@ -414,6 +381,11 @@ export async function submitDocument(
 
     await attachMedia(tx, input.files, DOCUMENT_OWNER, row!.id, "vendor_document", pro.userId);
   });
+
+  // Required documents count as complete when submitted. Re-evaluate the
+  // vendor immediately so the lead-pool view reflects the final upload
+  // without waiting for a separate admin action or background job.
+  await verifyIfComplete(professionalId);
 
   return getVerification(professionalId);
 }

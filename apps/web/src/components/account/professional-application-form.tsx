@@ -2,7 +2,7 @@
 
 import { useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
-import type { City, Domain, ProfessionalApplication } from "@repo/types";
+import type { City, Domain, PartnerTerms, ProfessionalApplication } from "@repo/types";
 import { Button, Card, cn } from "@repo/ui";
 import { submitApplicationAction } from "@/app/(site)/account/become-a-professional/actions";
 
@@ -22,12 +22,14 @@ export function ProfessionalApplicationForm({
   defaultContactMobile,
   /** Set when answering a change request, so nothing is retyped. */
   previous,
+  terms,
 }: {
   domains: Domain[];
   cities: City[];
   defaultContactName: string;
   defaultContactMobile: string | null;
   previous?: ProfessionalApplication;
+  terms: PartnerTerms;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
@@ -46,6 +48,10 @@ export function ProfessionalApplicationForm({
   const [domainIds, setDomainIds] = useState<string[]>(previous?.requestedDomainIds ?? []);
   const [cityIds, setCityIds] = useState<string[]>(previous?.serviceCityIds ?? []);
   const [areaNote, setAreaNote] = useState(previous?.serviceAreaNote ?? "");
+  const [signatoryName, setSignatoryName] = useState(defaultContactName);
+  const [signatoryRole, setSignatoryRole] = useState("Owner / authorised signatory");
+  const [signatureText, setSignatureText] = useState("");
+  const [acknowledgedClauses, setAcknowledgedClauses] = useState<string[]>([]);
 
   const toggle = (list: string[], id: string) =>
     list.includes(id) ? list.filter((x) => x !== id) : [...list, id];
@@ -59,7 +65,11 @@ export function ProfessionalApplicationForm({
     bio.trim().length >= 30 &&
     yearsValid &&
     domainIds.length > 0 &&
-    cityIds.length > 0;
+    cityIds.length > 0 &&
+    signatoryName.trim().length >= 2 &&
+    signatoryRole.trim().length >= 2 &&
+    signatureText.trim().length >= 3 &&
+    terms.acknowledgements.every((clause) => acknowledgedClauses.includes(clause.key));
 
   function submit() {
     setError(undefined);
@@ -74,6 +84,11 @@ export function ProfessionalApplicationForm({
         requestedDomainIds: domainIds,
         serviceCityIds: cityIds,
         serviceAreaNote: areaNote.trim(),
+        termsVersion: terms.version,
+        signatoryName: signatoryName.trim(),
+        signatoryRole: signatoryRole.trim(),
+        signatureText: signatureText.trim(),
+        acknowledgedClauses,
       });
 
       if (result.error) {
@@ -265,6 +280,84 @@ export function ProfessionalApplicationForm({
             ? `A few sentences at least — ${30 - bio.trim().length} more characters.`
             : "Good. Specifics get read properly."}
         </p>
+      </div>
+
+      <div className="mt-7 rounded-xl border border-line bg-surface p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <p className="text-[11px] font-semibold uppercase tracking-[0.14em] text-brand">
+              First-step agreement · version {terms.version}
+            </p>
+            <h3 className="mt-1 font-display text-[21px]">{terms.title}</h3>
+            <p className="mt-2 text-[14px] leading-relaxed text-ink-3">{terms.summary}</p>
+          </div>
+          {terms.documentUrl ? (
+            <a
+              href={terms.documentUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="text-[13px] font-medium text-brand underline underline-offset-2"
+            >
+              Download agreement
+            </a>
+          ) : null}
+        </div>
+        <div className="mt-4 space-y-3 border-t border-line pt-4">
+          {terms.sections.map((section) => (
+            <div key={section.heading}>
+              <p className="text-[13px] font-medium text-ink">{section.heading}</p>
+              <p className="mt-1 text-[13px] leading-relaxed text-ink-3">{section.body}</p>
+            </div>
+          ))}
+        </div>
+        <div className="mt-5 space-y-2 border-t border-line pt-4">
+          {terms.acknowledgements.map((clause) => {
+            const checked = acknowledgedClauses.includes(clause.key);
+            return (
+              <label key={clause.key} className="flex gap-2.5 text-[13.5px] leading-relaxed text-ink-2">
+                <input
+                  type="checkbox"
+                  checked={checked}
+                  onChange={() =>
+                    setAcknowledgedClauses((current) =>
+                      checked
+                        ? current.filter((key) => key !== clause.key)
+                        : [...current, clause.key],
+                    )
+                  }
+                  className="mt-1 accent-brand"
+                />
+                <span>{clause.label}</span>
+              </label>
+            );
+          })}
+        </div>
+        <div className="mt-5 grid gap-4 sm:grid-cols-2">
+          <Field
+            id="agreement-signatory-name"
+            label="Signatory name"
+            value={signatoryName}
+            onChange={setSignatoryName}
+            placeholder="Name on the agreement"
+          />
+          <Field
+            id="agreement-signatory-role"
+            label="Role / authority"
+            value={signatoryRole}
+            onChange={setSignatoryRole}
+            placeholder="Owner, partner or director"
+          />
+          <div className="sm:col-span-2">
+            <Field
+              id="agreement-signature"
+              label="Typed signature"
+              value={signatureText}
+              onChange={setSignatureText}
+              placeholder="Type your full name as your signature"
+              hint="This records your online acceptance. A paper copy is optional and does not block verification."
+            />
+          </div>
+        </div>
       </div>
 
       {error ? (

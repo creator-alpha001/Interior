@@ -195,6 +195,11 @@ export async function submitVendorDocument(input: VendorDocumentInput): Promise<
   });
   store.verificationFiles[id] = input.files;
 
+  // Required documents count as complete when submitted. Mirror the API by
+  // promoting a pending professional immediately once the final required slot
+  // is present; review can continue without withholding lead eligibility.
+  verifyIfCompleteSync(professionalId);
+
   return delay(buildVerification(professionalId));
 }
 
@@ -334,10 +339,10 @@ export function verificationGapsFor(professionalId: string): string[] {
   return buildVerification(professionalId).outstanding;
 }
 
-/** Days after the signed original arrives within which ID documents are due. Same as the API. */
+/** Retained for compatibility with older callers; current verification has no paper-copy deadline. */
 export const DOCUMENT_GRACE_DAYS = 7;
 
-/** Where a seeded vendor's leads stand on paperwork, for the seed branches of onboarding and the dashboard. */
+/** Where a seeded vendor's leads stand on paperwork, for compatibility with older callers. */
 export function paperworkStateFor(professionalId: string): {
   agreementComplete: boolean;
   documentsDueBy: string | null;
@@ -440,56 +445,28 @@ function buildVerification(professionalId: string): VendorVerification {
   if (!agreement || agreement.status !== "signed" || agreement.termsVersion !== partnerTerms.version) {
     outstanding.push(`Accept version ${partnerTerms.version} of the partner terms online`);
   }
-  if (agreement?.signedCopyStatus !== "accepted") {
-    outstanding.push(
-      agreement?.signedCopyStatus === "submitted"
-        ? "The signed agreement is waiting for our review"
-        : agreement?.signedCopyStatus === "rejected"
-          ? "The signed agreement was sent back and needs uploading again"
-          : "Upload the signed agreement",
-    );
-  }
-  if (agreement?.hardcopyStatus !== "received") {
-    outstanding.push(
-      agreement?.hardcopyStatus === "dispatched"
-        ? "The signed original has not reached us yet"
-        : "Send us the signed original",
-    );
-  }
   for (const slot of documents) {
-    if (!slot.required || slot.document?.status === "accepted") continue;
+    if (
+      !slot.required ||
+      slot.document?.status === "accepted" ||
+      slot.document?.status === "submitted"
+    )
+      continue;
     const status = slot.document?.status;
     outstanding.push(
-      status === "submitted"
-        ? `${slot.label}: waiting for our review`
-        : status === "rejected"
+      status === "rejected"
           ? `${slot.label}: sent back, upload it again`
           : `Upload your ${slot.label.charAt(0).toLowerCase()}${slot.label.slice(1)}`,
     );
   }
 
-  // Mirrors the API: leads on the signed original, documents due 7 days after.
+  // Mirrors the API: online agreement plus every required document submitted.
   const agreementComplete = Boolean(
     agreement &&
       agreement.status === "signed" &&
-      agreement.termsVersion === partnerTerms.version &&
-      agreement.hardcopyStatus === "received",
+      agreement.termsVersion === partnerTerms.version,
   );
-  const documentsMissing = documents.some(
-    (slot) =>
-      slot.required &&
-      slot.document?.status !== "submitted" &&
-      slot.document?.status !== "accepted",
-  );
-  const documentsDueBy =
-    agreementComplete &&
-    documentsMissing &&
-    pro.verificationStatus === "pending" &&
-    agreement?.hardcopyReceivedAt
-      ? new Date(
-          new Date(agreement.hardcopyReceivedAt).getTime() + DOCUMENT_GRACE_DAYS * 86_400_000,
-        ).toISOString()
-      : null;
+  const documentsDueBy = null;
 
   return {
     professionalId,

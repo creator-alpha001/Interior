@@ -20,10 +20,9 @@ import {
 /**
  * The paperwork between approval and the verified tag.
  *
- * Three things, in the order they happen: the printed agreement signed and
- * photographed, the original sent to us, and the documents identifying the
- * business. Each shows what our team decided and why — "sent back" with nothing
- * attached leaves a vendor no way to fix it.
+ * Required documents are tracked here after the first-step agreement. Paper
+ * copies remain available as optional follow-up records, but never block
+ * posting work, verification or leads.
  */
 export function VerificationPanel({ verification }: { verification: VendorVerification }) {
   const verified = verification.verificationStatus === "verified";
@@ -47,10 +46,8 @@ export function VerificationPanel({ verification }: { verification: VendorVerifi
         </p>
         <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">
           {verified
-            ? complete
-              ? "Our team holds your signed agreement and has checked your documents. Customers see the verified badge on your profile."
-              : "You are verified. Please send the paperwork below too, so your agreement is on record."
-            : "You start receiving leads as soon as your signed original reaches us. Send your ID documents within 7 days of that, or new leads pause until you do. Your Verified badge follows automatically once everything is accepted."}
+            ? "Your first-step agreement and every required document are on record. Customers see the verified badge on your profile."
+            : "You can post work now. Submit every required document below; your account becomes verified and eligible for leads as soon as the required set is submitted."}
         </p>
         {complete ? (
           verified ? null : (
@@ -113,7 +110,7 @@ function SignedCopyStep({ verification }: { verification: VendorVerification }) 
   }
 
   return (
-    <Step number={1} title="Sign the printed agreement" badge={<ReviewBadge status={status} />}>
+    <Step number={1} title="Optional: send a signed paper copy" badge={<ReviewBadge status={status} />}>
       {terms.documentUrl ? (
         <a
           href={terms.documentUrl}
@@ -261,14 +258,14 @@ function HardcopyStep({ verification }: { verification: VendorVerification }) {
     );
 
   return (
-    <Step number={2} title="Send us the signed original" badge={badge}>
+    <Step number={2} title="Optional: send us the signed original" badge={badge}>
       <p className="whitespace-pre-line text-[13px] leading-relaxed text-ink-2">
         {terms.hardcopyInstructions ||
           "Courier the signed original to our office, or hand it over in person if you are nearby. Our team will confirm the address."}
       </p>
       <p className="mt-2 text-[12.5px] text-ink-4">
-        You start receiving leads as soon as the original reaches us. The photographs let us
-        check it quickly; the original is what we keep on file. Keep a photocopy for yourself.
+        This is optional follow-up paperwork. Your online agreement and required identity documents
+        are what determine verification and lead eligibility.
       </p>
 
       {status === "received" ? (
@@ -373,7 +370,9 @@ function HardcopyStep({ verification }: { verification: VendorVerification }) {
 
 function DocumentsStep({ verification }: { verification: VendorVerification }) {
   const required = verification.documents.filter((d) => d.required);
-  const accepted = required.filter((d) => d.document?.status === "accepted").length;
+  const accepted = required.filter(
+    (d) => d.document?.status === "accepted" || d.document?.status === "submitted",
+  ).length;
 
   return (
     <Step
@@ -381,13 +380,13 @@ function DocumentsStep({ verification }: { verification: VendorVerification }) {
       title="Business documents"
       badge={
         <Badge tone={accepted === required.length ? "positive" : "neutral"}>
-          {accepted} of {required.length} accepted
+          {accepted} of {required.length} submitted
         </Badge>
       }
     >
       <p className="text-[13px] leading-relaxed text-ink-2">
-        Clear photos or PDFs, with every corner visible. Only our team sees these. They are due
-        within 7 days of your signed original reaching us.
+        Clear photos or PDFs, with every corner visible. Only our team sees these. Every required
+        document must be submitted before your account can receive leads.
       </p>
       {verification.documentsOverdue ? (
         <p className="mt-2 rounded-md bg-danger-soft px-3 py-2 text-[13px] text-danger">

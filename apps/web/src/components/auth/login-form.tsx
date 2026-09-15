@@ -6,7 +6,9 @@ import type { City } from "@repo/types";
 import { Button, cn } from "@repo/ui";
 import {
   clearGoogleLinkAction,
+  passwordLoginAction,
   requestOtpAction,
+  resetPasswordAction,
   verifyOtpAction,
   type GoogleState,
   type OtpState,
@@ -16,7 +18,9 @@ import { GoogleSignInButton } from "./google-button";
 import { OtherChannelButton, sentVia } from "./otp-channel";
 
 /**
- * A mobile number, always. Google, optionally, to skip the code next time.
+ * A mobile number for the first proof, then a password for returning users.
+ * Google is an additional sign-in that still requires the same WhatsApp proof
+ * before it is linked to an account.
  *
  * Most customers arrive on a phone and will not remember a password for a
  * service they use twice a year, and most vendors are tradespeople who would
@@ -25,10 +29,10 @@ import { OtherChannelButton, sentVia } from "./otp-channel";
  * vendor's margin, so it should not be reachable by whoever ends up with a
  * recycled SIM.
  *
- * Google does not remove the number, and cannot: `users.mobile` is NOT NULL and
- * ops ring every customer about their lead. What it removes is repeating the
- * code. A Google account nobody has linked yet lands in the same OTP stage as
- * everyone else, carrying a link token; after that one code, it is one tap.
+ * Google does not replace the number proof. A Google account nobody has linked
+ * yet lands in the same OTP stage as everyone else, carrying a link token; a
+ * legacy linked account without a verified number does the same. After that
+ * one code, returning Google sign-in is one tap.
  */
 export function LoginForm({
   cities = [],
@@ -36,6 +40,8 @@ export function LoginForm({
   next,
   intent,
   askForCity = true,
+  initialMethod = "password",
+  pendingGoogle,
 }: {
   cities?: City[];
   defaultCityId?: string;
@@ -72,11 +78,18 @@ export function LoginForm({
    */
   intent?: SignInIntent;
   askForCity?: boolean;
+  initialMethod?: "password" | "otp";
+  pendingGoogle?: GoogleState | null;
 }) {
   const nextPath = next;
-  const [stage, setStage] = useState<"mobile" | "otp">("mobile");
+  const [stage, setStage] = useState<"password" | "mobile" | "otp">(
+    pendingGoogle ? "mobile" : initialMethod === "otp" ? "mobile" : "password",
+  );
+  const [recovering, setRecovering] = useState(false);
   const [mobile, setMobile] = useState("");
-  const [name, setName] = useState("");
+  const [name, setName] = useState(pendingGoogle?.name ?? "");
+  const [password, setPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
   const [cityId, setCityId] = useState(defaultCityId ?? cities[0]?.id ?? "");
   const [otp, setOtp] = useState(["", "", "", "", "", ""]);
   const [seconds, setSeconds] = useState(0);
@@ -93,6 +106,20 @@ export function LoginForm({
 
   const mobileValid = /^[0-9]{10}$/.test(mobile);
   const code = otp.join("");
+
+  function loginWithPassword() {
+    if (!mobileValid || !password || pending) return;
+    setError(null);
+    startTransition(async () => {
+      const result = await passwordLoginAction({
+        mobile,
+        password,
+        next: nextPath,
+        intent,
+      });
+      if (result?.error) setError(result.error);
+    });
+  }
 
   /** `channel` omitted means WhatsApp. A resend keeps the channel it was on. */
   function sendCode(channel?: OtpChannel) {
@@ -149,6 +176,26 @@ export function LoginForm({
     setError(null);
 
     startTransition(async () => {
+      if (recovering) {
+        if (password.length < 12) {
+          setError("Use at least 12 characters for your new password.");
+          return;
+        }
+        if (password !== confirmPassword) {
+          setError("Those passwords do not match.");
+          return;
+        }
+        const result = await resetPasswordAction({
+          challengeId: challenge.challengeId!,
+          code,
+          password,
+          next: nextPath,
+          intent,
+        });
+        if (result?.error) setError(result.error);
+        return;
+      }
+
       // On success this redirects and never returns.
       const result = await verifyOtpAction({
         challengeId: challenge.challengeId!,
@@ -175,15 +222,93 @@ export function LoginForm({
 
   return (
     <div className="rounded-xl border border-line bg-surface p-6 sm:p-8">
-      {stage === "mobile" ? (
+      {stage === "password" ? (
+        <>
+          <h2 className="font-display text-[24px]">Sign in with your password</h2>
+          <p className="mt-2 text-[14.5px] sm:text-[13.5px] text-ink-3">
+            Use the password you created after verifying this mobile number.
+          </p>
+
+          <label htmlFor="login-mobile" className="mt-6 block text-[14px] font-medium text-ink">
+            Mobile number
+          </label>
+          <div className="mt-2 flex items-center rounded-lg border border-line bg-paper focus-within:border-brand">
+            <span className="pl-3.5 text-[15px] text-ink-4">+91</span>
+            <input
+              id="login-mobile"
+              value={mobile}
+              onChange={(e) => setMobile(e.target.value.replace(/\D/g, "").slice(0, 10))}
+              placeholder="98XXXXXXXX"
+              inputMode="numeric"
+              autoComplete="username"
+              className="h-12 w-full bg-transparent px-2.5 text-[15px] outline-none"
+            />
+          </div>
+
+          <label htmlFor="login-password" className="mt-4 block text-[14px] font-medium text-ink">
+            Password
+          </label>
+          <input
+            id="login-password"
+            type="password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && loginWithPassword()}
+            autoComplete="current-password"
+            className="mt-2 h-12 w-full rounded-lg border border-line bg-paper px-3.5 text-[15px] outline-none focus:border-brand"
+          />
+
+          {error ? <p role="alert" className="mt-4 text-[13.5px] text-danger">{error}</p> : null}
+          <Button onClick={loginWithPassword} disabled={!mobileValid || !password || pending} size="lg" className="mt-5 w-full">
+            {pending ? "Signing in…" : "Sign in"}
+          </Button>
+
+          <div className="mt-4 flex justify-between text-[13px]">
+            <button type="button" className="text-brand" onClick={() => { setRecovering(true); setStage("mobile"); setError(null); }}>
+              Forgot password?
+            </button>
+            <button type="button" className="text-brand" onClick={() => { setRecovering(false); setStage("mobile"); setError(null); }}>
+              First time? Use WhatsApp code
+            </button>
+          </div>
+
+          <GoogleSignInButton next={nextPath} intent={intent} onError={setError} />
+        </>
+      ) : stage === "mobile" ? (
         <>
           <h2 className="font-display text-[24px]">
-            Enter your mobile number
+            {pendingGoogle
+              ? "Verify the mobile number for this Google account"
+              : recovering
+                ? "Reset your password"
+                : "Verify your mobile number"}
           </h2>
           <p className="mt-2 text-[14.5px] sm:text-[13.5px] text-ink-3">
-            We will send a 6-digit code on WhatsApp to verify it is you. No WhatsApp? You can
-            have it by SMS on the next step.
+            We will send a 6-digit code on WhatsApp. After it is verified, you can use your
+            password for future sign-ins.
           </p>
+
+          {pendingGoogle?.email ? (
+            <>
+              <p className="mt-3 rounded-lg bg-brand-soft px-3 py-2 text-[13px] text-brand">
+                Google confirmed {pendingGoogle.email}. Now verify the mobile number belonging to
+                your Decora Shine account.
+              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  startTransition(async () => {
+                    await clearGoogleLinkAction();
+                    window.location.href = "/login";
+                  })
+                }
+                disabled={pending}
+                className="mt-2 text-[13px] text-ink-3 underline hover:text-ink disabled:opacity-60"
+              >
+                Use a different Google account
+              </button>
+            </>
+          ) : null}
 
           <div className="mt-6">
             <label htmlFor="mobile" className="text-[14px] sm:text-[13px] font-medium text-ink">
@@ -255,7 +380,9 @@ export function LoginForm({
           </Button>
 
 
-          <GoogleSignInButton next={nextPath} intent={intent} onError={setError} />
+          {!recovering && !pendingGoogle ? (
+            <GoogleSignInButton next={nextPath} intent={intent} onError={setError} />
+          ) : null}
 
           <p className="mt-6 text-center text-[12.5px] sm:text-[11.5px] leading-relaxed text-ink-4">
             By continuing you agree to our terms and privacy policy. We never share your number with
@@ -267,7 +394,7 @@ export function LoginForm({
           <button
             type="button"
             onClick={() => {
-              setStage("mobile");
+              setStage(recovering || pendingGoogle ? "mobile" : "password");
               setError(null);
             }}
             className="text-[14px] sm:text-[13px] text-ink-3 hover:text-ink"
@@ -311,6 +438,34 @@ export function LoginForm({
             ))}
           </div>
 
+          {recovering ? (
+            <>
+              <label htmlFor="new-password" className="mt-5 block text-[14px] font-medium text-ink">
+                New password
+              </label>
+              <input
+                id="new-password"
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="new-password"
+                className="mt-2 h-12 w-full rounded-lg border border-line bg-paper px-3.5 outline-none focus:border-brand"
+              />
+              <label htmlFor="confirm-password" className="mt-4 block text-[14px] font-medium text-ink">
+                Confirm new password
+              </label>
+              <input
+                id="confirm-password"
+                type="password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                autoComplete="new-password"
+                className="mt-2 h-12 w-full rounded-lg border border-line bg-paper px-3.5 outline-none focus:border-brand"
+              />
+              <p className="mt-2 text-[12.5px] text-ink-4">Use at least 12 characters.</p>
+            </>
+          ) : null}
+
           {error ? (
             <p role="alert" className="mt-4 rounded-lg bg-danger-soft px-3 py-2.5 text-[13.5px] text-danger">
               {error}
@@ -318,7 +473,7 @@ export function LoginForm({
           ) : null}
 
           <Button onClick={verify} disabled={code.length !== 6 || pending} size="lg" className="mt-5 w-full">
-            {pending ? "Verifying…" : "Verify and continue"}
+            {pending ? "Verifying…" : recovering ? "Reset password and sign in" : "Verify and continue"}
           </Button>
 
           <div className="mt-4 flex flex-wrap items-center justify-center gap-x-5 gap-y-2 text-[14px] sm:text-[13px] text-ink-3">

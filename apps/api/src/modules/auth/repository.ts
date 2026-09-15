@@ -25,7 +25,13 @@ export async function actorForMobile(
   profile: { name?: string; cityId?: string },
 ): Promise<Actor> {
   const existing = await findActorByMobile(mobile);
-  if (existing) return existing;
+  if (existing) {
+    // A number typed in by ops is not proof that the account holder owns it.
+    // A successful OTP is that proof, so upgrade legacy rows that predate the
+    // verified timestamp while keeping the account and all of its relations.
+    await markMobileVerified(existing.userId, mobile);
+    return existing;
+  }
 
   return createClient({
     name: profile.name,
@@ -36,17 +42,9 @@ export async function actorForMobile(
 }
 
 /**
- * The account behind a Google identity that has never signed in here.
- *
- * Where `actorForMobile` starts from a proved phone number, this starts from a
- * proved Google subject and may have nothing else at all — no number, and no
- * city if the person chose not to say. Both are nullable columns now, so this
- * is one insert rather than a negotiation.
- *
- * The identity row is written inside the same transaction as the user. Split
- * across two, a failure between them leaves an account nobody can sign into:
- * Google is the only credential it has, and the row that says so is the one
- * that did not get written.
+ * Legacy helper for callers that already own a verified Google subject.
+ * Current sign-in routes create the account from a verified mobile and then
+ * attach the Google identity in the same OTP completion request.
  */
 export async function createClientForIdentity(
   identity: { provider: "google" | "apple"; subject: string; email: string },
@@ -258,6 +256,46 @@ export async function findActorByIdentity(
       );
   }
   return actor;
+}
+
+/** Records that a successful OTP proved the account's existing number. */
+export async function markMobileVerified(userId: string, mobile: string): Promise<void> {
+  const now = new Date().toISOString();
+  await db
+    .update(t.users)
+    .set({ mobileVerifiedAt: now, updatedAt: now })
+    .where(
+      and(
+        eq(t.users.id, userId),
+        eq(t.users.mobile, mobile),
+        isNull(t.users.mobileVerifiedAt),
+        isNull(t.users.deletedAt),
+      ),
+    );
+}
+
+/** Whether a linked identity still needs a WhatsApp-proved mobile number. */
+export async function identityNeedsMobile(
+  provider: "google" | "apple",
+  subject: string,
+): Promise<boolean> {
+  const [row] = await db
+    .select({ mobileVerifiedAt: t.users.mobileVerifiedAt })
+    .from(t.authIdentities)
+    .innerJoin(t.users, eq(t.users.id, t.authIdentities.userId))
+    .where(
+      and(
+        eq(t.authIdentities.provider, provider),
+        eq(t.authIdentities.subject, subject),
+        isNull(t.authIdentities.deletedAt),
+        isNull(t.users.deletedAt),
+      ),
+    )
+    .limit(1);
+
+  // Null means the account was created through an older Google-only path. It
+  // still has to prove a number before Google becomes a remembered sign-in.
+  return Boolean(row && row.mobileVerifiedAt === null);
 }
 
 /**

@@ -11,7 +11,7 @@ import { routes } from "@repo/contract";
 import { requireProfessional } from "../lib/guard";
 import * as vendor from "../modules/vendor/repository";
 import * as write from "../modules/vendor/mutations";
-import { getOnboarding } from "../modules/vendor/onboarding";
+import { getCurrentTerms, getOnboarding } from "../modules/vendor/onboarding";
 import * as verification from "../modules/vendor/verification";
 import * as showcase from "../modules/vendor/showcase";
 
@@ -25,6 +25,11 @@ export async function registerVendorRoutes(app: FastifyInstance) {
       reply.header("Cache-Control", "no-store, private");
     }
   });
+
+  // Applicants read the current agreement before submitting their first form.
+  // This route is intentionally public; signing and all vendor data remain
+  // behind the professional guard below.
+  app.get(routes.partnerTerms.path, async () => getCurrentTerms());
 
   /* ---------------- leads ---------------- */
 

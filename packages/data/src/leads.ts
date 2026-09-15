@@ -11,7 +11,7 @@ import type {
   SiteAccessibilityTag,
   Urgency,
 } from "@repo/types";
-import { ApiError, api } from "./client";
+import { ApiError, USING_API, api } from "./client";
 import { toAgreementView, toLeadView, toProjectView } from "./mappers";
 import { callingApiAsUser, currentAgentId, currentClientId, currentUserId } from "./session";
 import { delay, nextId, nowIso, store } from "./store";
@@ -296,7 +296,10 @@ export async function submitRequirement(
    */
   options: { cookie?: string } = {},
 ): Promise<LeadView> {
-  if (await callingApiAsUser()) {
+  // During the verification action the freshly issued cookie is on the
+  // response, not yet on this request. An explicit cookie therefore opts into
+  // the API path even though `callingApiAsUser()` cannot see it yet.
+  if (USING_API && (options.cookie || (await callingApiAsUser()))) {
     return api<LeadView>("/me/requirements", {
       method: "POST",
       body: {

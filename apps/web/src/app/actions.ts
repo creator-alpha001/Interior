@@ -1,7 +1,6 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import {
   ApiError,
@@ -22,7 +21,7 @@ import {
   verifyOtp,
 } from "@repo/data";
 import type { OtpChannel, RequirementInput, ReviewInput, TicketInput } from "@repo/data";
-import { applyCityCookie } from "./(site)/login/actions";
+import { adoptSession, applyCityCookie } from "./(site)/login/actions";
 
 /**
  * Server actions are the seam the API sits behind. Screens call these; whether
@@ -62,6 +61,7 @@ export async function createRequirementAction(
   channel?: OtpChannel,
 ): Promise<RequirementResult | never> {
   let cookie: string | undefined;
+  let passwordSetupRequired = false;
 
   if (authenticationRequired() && !(await getActor())) {
     if (!verification) {
@@ -81,25 +81,19 @@ export async function createRequirementAction(
     }
 
     try {
-      const { setCookie } = await verifyOtp({
+      const result = await verifyOtp({
         challengeId: verification.challengeId,
         code: verification.code,
         name: input.name,
       });
+      passwordSetupRequired = result.passwordSetupRequired;
 
-      if (setCookie) {
-        const [pair] = setCookie.split(";");
+      if (result.setCookie) {
+        await adoptSession(result.setCookie);
+        const [pair] = result.setCookie.split(";");
         const [cookieName, ...rest] = (pair ?? "").split("=");
         if (cookieName && rest.length > 0) {
           const value = rest.join("=");
-          (await cookies()).set({
-            name: cookieName.trim(),
-            value,
-            httpOnly: true,
-            sameSite: "lax",
-            secure: process.env.NODE_ENV === "production",
-            path: "/",
-          });
           // Passed explicitly to the submit below: the cookie was set on the
           // *response*, and this request's own cookie store is what the data
           // layer would otherwise read.
@@ -119,7 +113,12 @@ export async function createRequirementAction(
     return { error: messageFor(error, "We could not save that just now.") };
   }
 
-  redirect(`/account/requirements/${leadId}?new=1`);
+  const destination = `/account/requirements/${leadId}?new=1`;
+  redirect(
+    passwordSetupRequired
+      ? `/set-password?next=${encodeURIComponent(destination)}`
+      : destination,
+  );
 }
 
 function messageFor(error: unknown, fallback: string): string {

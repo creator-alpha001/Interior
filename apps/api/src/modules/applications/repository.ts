@@ -101,6 +101,8 @@ function mapApplication(row: typeof t.professionalApplications.$inferSelect) {
     requestedDomainIds: row.requestedDomainIds,
     serviceCityIds: row.serviceCityIds,
     serviceAreaNote: row.serviceAreaNote,
+    agreementTermsVersion: row.agreementTermsVersion,
+    agreementSignedAt: row.agreementSignedAt,
     status: row.status,
     submittedAt: row.submittedAt,
     decidedAt: row.decidedAt,

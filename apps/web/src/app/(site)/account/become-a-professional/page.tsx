@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import {
   getSessionUser,
+  getPartnerTerms,
   listCities,
   listDomains,
   myProfessionalApplication,
@@ -45,11 +46,12 @@ export default async function BecomeAProfessionalPage({
    */
   const sentHereBySignIn = (await searchParams).from === "signin";
 
-  const [existing, domains, cities, sessionUser] = await Promise.all([
+  const [existing, domains, cities, sessionUser, terms] = await Promise.all([
     myProfessionalApplication(),
     listDomains(),
     listCities(),
     getSessionUser(),
+    getPartnerTerms(),
   ]);
 
   const application = existing?.application;
@@ -83,8 +85,9 @@ export default async function BecomeAProfessionalPage({
           <ButtonLink href="/partner">Go to the professional portal</ButtonLink>
         </div>
         <p className="mt-4 text-[13px] leading-relaxed text-ink-4">
-          There are a few setup steps waiting — the partner agreement, your documents and your bank
-          details. Leads start once those are done.
+          Your partner agreement was accepted with the application. Keep submitting the required
+          identity and business documents in the professional portal; leads start once verification
+          is complete.
         </p>
       </Card>
     );
@@ -213,6 +216,7 @@ export default async function BecomeAProfessionalPage({
         defaultContactName={sessionUser?.name ?? ""}
         defaultContactMobile={sessionUser?.mobile ?? null}
         previous={changesRequested ? application : undefined}
+        terms={terms}
       />
     </div>
   );

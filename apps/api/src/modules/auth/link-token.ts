@@ -31,6 +31,8 @@ export interface PendingIdentity {
   subject: string;
   email: string;
   name?: string;
+  /** Set when an already-linked Google identity is completing mobile setup. */
+  existingUserId?: string;
 }
 
 interface Envelope extends PendingIdentity {
@@ -90,5 +92,6 @@ export function readLinkToken(token: string): PendingIdentity {
     subject: envelope.subject,
     email: envelope.email,
     name: envelope.name,
+    existingUserId: envelope.existingUserId,
   };
 }

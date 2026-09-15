@@ -2,11 +2,13 @@
  * Sign in, sign out, and "who am I".
  *
  * Two flows that never mix: customers and vendors use a mobile number and a
- * code sent on WhatsApp or by SMS; staff use a password and a TOTP code. Ops accounts can see every
- * customer's phone number and every vendor's margin, so they should not be
+ * password after the first WhatsApp (or SMS fallback) verification; staff use
+ * a password and a TOTP code. Ops accounts can see every customer's phone
+ * number and every vendor's margin, so they should not be
  * reachable by whoever ends up with a recycled mobile number.
  */
 import type { FastifyInstance } from "fastify";
+import type { Actor } from "@repo/types";
 import { routes } from "@repo/contract";
 import { config } from "../lib/config";
 import { NotAuthenticatedError } from "../lib/errors";
@@ -15,10 +17,17 @@ import { createChallenge, verifyChallenge } from "../modules/auth/otp";
 import {
   actorForMobile,
   authenticateStaff,
-  createClientForIdentity,
   findActorByIdentity,
+  findActorByMobile,
+  identityNeedsMobile,
   linkIdentity,
+  markMobileVerified,
 } from "../modules/auth/repository";
+import {
+  authenticateUserPassword,
+  hasUserPassword,
+  setUserPassword,
+} from "../modules/auth/password";
 import {
   assertMobileAvailable,
   attachVerifiedMobile,
@@ -31,6 +40,7 @@ import {
   createSession,
   resolveSession,
   revokeSession,
+  revokeAllSessions,
   sessionCookieOptions,
   sessionTokenFrom,
   wantsTokenInBody,
@@ -44,6 +54,25 @@ import {
 import { closeAccount } from "../modules/auth/closure";
 import { requireUser } from "../lib/guard";
 import { deliverOtp } from "../lib/otp-delivery";
+
+async function sessionBody(
+  actor: Actor,
+  session: { token: string; expiresAt: Date },
+  includeToken: boolean,
+) {
+  const passwordSetupRequired =
+    actor.role === "client" || actor.role === "professional"
+      ? !(await hasUserPassword(actor.userId))
+      : false;
+
+  return {
+    ...actor,
+    passwordSetupRequired,
+    ...(includeToken
+      ? { sessionToken: session.token, expiresAt: session.expiresAt.toISOString() }
+      : {}),
+  };
+}
 
 export async function registerAuthRoutes(app: FastifyInstance) {
   /* ---------------- mobile OTP ---------------- */
@@ -74,18 +103,10 @@ export async function registerAuthRoutes(app: FastifyInstance) {
   /**
    * Google sign-in.
    *
-   * Ends in one of two places. A Google account already linked to somebody is a
-   * complete sign-in and behaves exactly like a verified OTP. One that is not
-   * gets a link token and is sent to `/auth/google/complete`, which needs
-   * nothing else to make the account — a city if they will give one, and that
-   * is all.
-   *
-   * It used to ask for a mobile number here and refuse to go on without it.
-   * That was `users.mobile` being NOT NULL, dressed up as a product decision:
-   * somebody who had just authenticated with Google was shown a phone field and
-   * a Send code button and no way past either. Ops do still need a number to
-   * work a lead, and they still get one — the requirement form asks, and the
-   * account can add a verified number whenever its owner is ready.
+   * A linked identity with a verified mobile is a complete sign-in. A new or
+   * legacy Google identity without a verified mobile gets a short-lived link
+   * token and must finish through `/auth/otp/verify`, where WhatsApp proves the
+   * number before the identity is remembered.
    *
    * What it deliberately does not do is match on email. A Google address can be
    * changed by its owner and can be reissued to a different person years later,
@@ -107,15 +128,16 @@ export async function registerAuthRoutes(app: FastifyInstance) {
     const identity = await verifyGoogleIdToken(idToken, config.googleClientIds);
     const actor = await findActorByIdentity("google", identity.subject);
 
-    if (!actor) {
+    if (!actor || (await identityNeedsMobile("google", identity.subject))) {
       reply.header("Cache-Control", "no-store");
       return {
-        status: "profile_required" as const,
+        status: actor ? ("mobile_required" as const) : ("profile_required" as const),
         linkToken: issueLinkToken({
           provider: "google",
           subject: identity.subject,
           email: identity.email,
           name: identity.name,
+          ...(actor ? { existingUserId: actor.userId } : {}),
         }),
         email: identity.email,
         name: identity.name,
@@ -132,57 +154,21 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
     return {
       status: "signed_in" as const,
-      session: wantsTokenInBody(request)
-        ? { ...actor, sessionToken: session.token, expiresAt: session.expiresAt.toISOString() }
-        : actor,
+      session: await sessionBody(actor, session, wantsTokenInBody(request)),
     };
   });
 
   /**
-   * Making the account behind a Google identity that has just been proved.
-   *
-   * The link token is the whole authorisation. It is signed by us, it names the
-   * Google subject, and it expires in fifteen minutes — so this route cannot be
-   * used to create an account for a Google identity nobody has authenticated.
-   *
-   * Everything else is optional, and the route works with nothing but the
-   * token. That is the change: signup no longer has a required field that a
-   * person might not want to answer, and "I would rather look around first" is
-   * a supported answer rather than a dead end.
+   * Compatibility endpoint retained for older clients. It cannot create a
+   * Google-only account; current clients finish with a WhatsApp OTP instead.
    */
-  app.post(routes.completeGoogleSignUp.path, async (request, reply) => {
-    const { linkToken, name, cityId } = routes.completeGoogleSignUp.body!.parse(request.body);
-
-    await consume(`google:ip:${request.ip}`, LIMITS.otpVerifyPerIp);
-
-    // A forged or expired token fails here, before anything is written.
-    const pending = readLinkToken(linkToken);
-
-    /**
-     * Between the token being issued and this call, the same Google account may
-     * already have been through here — a double-submitted form, or a second tab.
-     * Signing that person in is the right answer to "make me an account" when
-     * the account now exists; creating a second one is not, and the unique index
-     * on (provider, subject) would refuse it anyway.
-     */
-    const actor =
-      (await findActorByIdentity(pending.provider, pending.subject)) ??
-      (await createClientForIdentity(
-        { provider: pending.provider, subject: pending.subject, email: pending.email },
-        { name: name ?? pending.name, cityId },
-      ));
-
-    const session = await createSession(actor.userId, {
-      userAgent: request.headers["user-agent"],
-      ip: request.ip,
-    });
-
-    reply.setCookie(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
-    reply.header("Cache-Control", "no-store");
-
-    return wantsTokenInBody(request)
-      ? { ...actor, sessionToken: session.token, expiresAt: session.expiresAt.toISOString() }
-      : actor;
+  app.post(routes.completeGoogleSignUp.path, async () => {
+    // Kept as a compatibility route for older clients, but never allow it to
+    // create a Google-only account. The current flow must prove a mobile number
+    // through `/auth/otp/verify` with the pending link token.
+    throw new NotAuthenticatedError(
+      "Verify a mobile number on WhatsApp before completing Google sign-in",
+    );
   });
 
   app.post(routes.verifyOtp.path, async (request, reply) => {
@@ -204,7 +190,31 @@ export async function registerAuthRoutes(app: FastifyInstance) {
      */
     const pending = linkToken ? readLinkToken(linkToken) : null;
 
-    const actor = await actorForMobile(mobile, { name: name ?? pending?.name, cityId });
+    let actor: Actor;
+    if (pending?.existingUserId) {
+      const mobileActor = await findActorByMobile(mobile);
+
+      if (mobileActor && mobileActor.userId !== pending.existingUserId) {
+        throw new NotAuthenticatedError("Use the mobile number already verified on this account");
+      }
+
+      if (mobileActor) {
+        // This also upgrades a legacy unverified mobile timestamp.
+        actor = await actorForMobile(mobile, { name: name ?? pending.name, cityId });
+      } else {
+        // The Google account predates the mobile requirement and has no number
+        // to match. Attach the newly proved number to that exact account rather
+        // than creating a throwaway client that could never own the identity.
+        const linkedActor = await findActorByIdentity(pending.provider, pending.subject);
+        if (!linkedActor || linkedActor.userId !== pending.existingUserId) {
+          throw new NotAuthenticatedError("That Google sign-in is no longer available");
+        }
+        await attachVerifiedMobile(linkedActor.userId, mobile);
+        actor = linkedActor;
+      }
+    } else {
+      actor = await actorForMobile(mobile, { name: name ?? pending?.name, cityId });
+    }
 
     if (pending) {
       await linkIdentity(actor.userId, {
@@ -212,6 +222,14 @@ export async function registerAuthRoutes(app: FastifyInstance) {
         subject: pending.subject,
         email: pending.email,
       });
+
+      // A second tab may finish the same Google flow at the same time. The
+      // unique constraint keeps the identity from moving, and this read makes
+      // sure the session is not issued to the losing account if that happened.
+      const linked = await findActorByIdentity(pending.provider, pending.subject);
+      if (!linked || linked.userId !== actor.userId) {
+        throw new NotAuthenticatedError("That Google sign-in was completed elsewhere");
+      }
     }
 
     const session = await createSession(actor.userId, {
@@ -228,9 +246,54 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
     // The mobile apps cannot use the cookie, so they ask for the token and send
     // it back as `Authorization: Bearer`. Same session row, same revocation.
-    return wantsTokenInBody(request)
-      ? { ...actor, sessionToken: session.token, expiresAt: session.expiresAt.toISOString() }
-      : actor;
+    return sessionBody(actor, session, wantsTokenInBody(request));
+  });
+
+  /* ---------------- customer and professional passwords ---------------- */
+
+  app.post(routes.passwordLogin.path, async (request, reply) => {
+    const { mobile, password } = routes.passwordLogin.body!.parse(request.body);
+
+    await consume(`password:mobile:${mobile}`, LIMITS.staffLoginPerEmail);
+    await consume(`password:ip:${request.ip}`, LIMITS.staffLoginPerIp);
+
+    const actor = await authenticateUserPassword(mobile, password);
+    const session = await createSession(actor.userId, {
+      userAgent: request.headers["user-agent"],
+      ip: request.ip,
+    });
+
+    await reset(`password:mobile:${mobile}`);
+    reply.setCookie(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
+    reply.header("Cache-Control", "no-store");
+    return sessionBody(actor, session, wantsTokenInBody(request));
+  });
+
+  app.post(routes.resetPassword.path, async (request, reply) => {
+    const { challengeId, code, password } = routes.resetPassword.body!.parse(request.body);
+
+    await consume(`otp:verify:${request.ip}`, LIMITS.otpVerifyPerIp);
+    const { mobile } = await verifyChallenge(challengeId, code);
+    const actor = await findActorByMobile(mobile);
+    if (!actor) {
+      throw new NotAuthenticatedError("There is no account for that mobile number");
+    }
+    await markMobileVerified(actor.userId, mobile);
+
+    // A recovered password is a new credential. Revoke sessions on other
+    // devices in case the reset was prompted by a lost or shared device, then
+    // issue one fresh session to the person who proved the number.
+    await setUserPassword(actor.userId, password);
+    await revokeAllSessions(actor.userId);
+    const session = await createSession(actor.userId, {
+      userAgent: request.headers["user-agent"],
+      ip: request.ip,
+    });
+
+    await reset(`otp:mobile:${mobile}`);
+    reply.setCookie(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
+    reply.header("Cache-Control", "no-store");
+    return sessionBody(actor, session, wantsTokenInBody(request));
   });
 
   /* ---------------- staff ---------------- */
@@ -252,9 +315,7 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
     reply.setCookie(SESSION_COOKIE, session.token, sessionCookieOptions(session.expiresAt));
     reply.header("Cache-Control", "no-store");
-    return wantsTokenInBody(request)
-      ? { ...actor, sessionToken: session.token, expiresAt: session.expiresAt.toISOString() }
-      : actor;
+    return sessionBody(actor, session, wantsTokenInBody(request));
   });
 
   /* ---------------- session ---------------- */
@@ -306,6 +367,20 @@ export async function registerAuthRoutes(app: FastifyInstance) {
 
     reply.header("Cache-Control", "no-store, private");
     return session;
+  });
+
+  app.post(routes.setPassword.path, async (request, reply) => {
+    const session = await resolveSession(sessionTokenFrom(request));
+    if (!session) throw new NotAuthenticatedError();
+    if (session.actor.role === "admin" || session.actor.role === "sales_agent") {
+      throw new NotAuthenticatedError("Staff passwords are managed from the ops panel");
+    }
+
+    const { password } = routes.setPassword.body!.parse(request.body);
+    await setUserPassword(session.actor.userId, password);
+
+    reply.header("Cache-Control", "no-store");
+    return { ok: true };
   });
 
   /**

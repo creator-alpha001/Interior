@@ -7,7 +7,10 @@ import {
   SESSION_COOKIE,
   completeGoogleSignUp,
   requestOtp,
+  resetPassword,
+  setMyPassword,
   signInWithGoogle,
+  signInWithPassword,
   signOut,
   verifyOtp,
   type OtpChannel,
@@ -53,14 +56,41 @@ export async function requestOtpAction(mobile: string, channel?: OtpChannel): Pr
  * copies of "set an httpOnly cookie", and the copy that drifts is the one that
  * silently stops marking it `secure`.
  */
-async function adoptSession(setCookie: string | null): Promise<void> {
+export async function adoptSession(setCookie: string | null): Promise<void> {
   if (!setCookie) return;
 
-  // Parsed only far enough to hand the value to Next's cookie store; the
-  // attributes the API set are reapplied rather than reinvented.
-  const [pair] = setCookie.split(";");
+  /*
+   * Preserve the API's expiry as well as the token.
+   *
+   * This used to copy only the name and value. A cookie with no `expires` or
+   * `maxAge` is a browser-session cookie, so closing the browser silently
+   * signed the person out even though the database session was still valid.
+   * The API owns the lifetime; this server action merely moves the cookie from
+   * the API's response onto the website's own domain.
+   */
+  const parts = setCookie.split(";").map((part) => part.trim());
+  const [pair, ...attributes] = parts;
   const [name, ...rest] = (pair ?? "").split("=");
   if (!name || rest.length === 0) return;
+
+  let expires: Date | undefined;
+  let maxAge: number | undefined;
+
+  for (const attribute of attributes) {
+    const [rawName, ...rawValue] = attribute.split("=");
+    const attributeName = rawName?.trim().toLowerCase();
+    const value = rawValue.join("=").trim();
+
+    if (attributeName === "expires") {
+      const parsed = new Date(value);
+      if (!Number.isNaN(parsed.getTime())) expires = parsed;
+    }
+
+    if (attributeName === "max-age") {
+      const parsed = Number.parseInt(value, 10);
+      if (Number.isFinite(parsed)) maxAge = parsed;
+    }
+  }
 
   (await cookies()).set({
     name: name.trim(),
@@ -69,6 +99,8 @@ async function adoptSession(setCookie: string | null): Promise<void> {
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
     path: "/",
+    expires,
+    maxAge,
   });
 }
 
@@ -211,7 +243,12 @@ export async function verifyOtpAction(input: {
   let destination: string;
 
   try {
-    const { actor, setCookie } = await verifyOtp(input);
+    const pendingGoogle = await pendingGoogleLink();
+    const { actor, passwordSetupRequired, setCookie } = await verifyOtp({
+      ...input,
+      linkToken: input.linkToken ?? pendingGoogle?.linkToken,
+      name: input.name ?? pendingGoogle?.name,
+    });
     await adoptSession(setCookie);
 
     // Browsing follows the city they just chose. See `applyCityCookie`.
@@ -220,7 +257,14 @@ export async function verifyOtpAction(input: {
     // Whether or not this carried a link token: the sign-in is over either way,
     // and leaving the cookie behind would offer to resume a finished one.
     await forgetGoogleLink();
-    destination = destinationFor(actor.role, input.next, input.intent);
+    const onward = destinationFor(
+      actor.role,
+      input.next ?? pendingGoogle?.next,
+      input.intent ?? pendingGoogle?.intent,
+    );
+    destination = passwordSetupRequired
+      ? `/set-password?next=${encodeURIComponent(onward)}`
+      : onward;
   } catch (error) {
     return { error: messageFor(error, "That code did not work.") };
   }
@@ -311,10 +355,9 @@ export interface GoogleState {
 /**
  * Signs in with a Google ID token the browser obtained.
  *
- * Returns rather than redirects when there is no account yet, because there is
- * a step left — though a much smaller one than there used to be. It asked for a
- * mobile number and would not continue without one; now it asks where somebody
- * is, says why that matters, and takes "not now" for an answer.
+ * Redirects to the WhatsApp verification step when the Google identity is new
+ * or still has no verified mobile. A signed-in identity with a verified mobile
+ * goes straight to its role destination (or the first-password step).
  */
 export async function googleSignInAction(
   idToken: string,
@@ -326,7 +369,7 @@ export async function googleSignInAction(
   try {
     const result = await signInWithGoogle(idToken);
 
-    if (result.status === "profile_required") {
+    if (result.status !== "signed_in") {
       await rememberGoogleLink({
         linkToken: result.linkToken,
         email: result.email,
@@ -334,21 +377,74 @@ export async function googleSignInAction(
         next,
         intent,
       });
-      // Off the sign-in page entirely. Staying there left somebody who had just
-      // authenticated looking at a heading telling them to sign in, beside a
-      // header still offering a Sign in link — a state with no way to tell
-      // whether Google had worked.
-      destination = "/welcome";
-      return redirect(destination);
+      // Google proved the account; WhatsApp now proves which platform account
+      // it belongs to. The pending token remains in an httpOnly cookie and is
+      // consumed by `verifyOtpAction`, never exposed to the browser.
+      destination = "/login?mode=google";
+    } else {
+      await adoptSession(result.setCookie);
+      const onward = destinationFor(result.actor.role, next, intent);
+      destination = result.passwordSetupRequired
+        ? `/set-password?next=${encodeURIComponent(onward)}`
+        : onward;
     }
-
-    await adoptSession(result.setCookie);
-    destination = destinationFor(result.actor.role, next, intent);
   } catch (error) {
     return { error: messageFor(error, "That Google sign-in did not work.") };
   }
 
   redirect(destination);
+}
+
+export async function passwordLoginAction(input: {
+  mobile: string;
+  password: string;
+  next?: string;
+  intent?: SignInIntent;
+}): Promise<{ error: string } | never> {
+  let destination: string;
+  try {
+    const { actor, setCookie } = await signInWithPassword(input.mobile, input.password);
+    await adoptSession(setCookie);
+    destination = destinationFor(actor.role, input.next, input.intent);
+  } catch (error) {
+    return { error: messageFor(error, "That mobile number or password did not work.") };
+  }
+  redirect(destination);
+}
+
+export async function resetPasswordAction(input: {
+  challengeId: string;
+  code: string;
+  password: string;
+  next?: string;
+  intent?: SignInIntent;
+}): Promise<{ error: string } | never> {
+  let destination: string;
+  try {
+    const { actor, setCookie } = await resetPassword(input);
+    await adoptSession(setCookie);
+    destination = destinationFor(actor.role, input.next, input.intent);
+  } catch (error) {
+    return { error: messageFor(error, "We could not reset that password.") };
+  }
+  redirect(destination);
+}
+
+export async function setPasswordAction(
+  password: string,
+  next?: string,
+): Promise<{ error: string } | never> {
+  const jar = await cookies();
+  const token = jar.get(SESSION_COOKIE)?.value;
+  if (!token) redirect("/login");
+
+  try {
+    await setMyPassword(`${SESSION_COOKIE}=${token}`, password);
+  } catch (error) {
+    return { error: messageFor(error, "We could not save that password.") };
+  }
+
+  redirect(next?.startsWith("/") && !next.startsWith("//") ? next : "/");
 }
 
 /**

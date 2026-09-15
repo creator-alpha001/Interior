@@ -65,7 +65,18 @@ export function wantsTokenInBody(request: FastifyRequest): boolean {
   return value?.toLowerCase() === "mobile";
 }
 
-const SESSION_DAYS = 30;
+/*
+ * A session is a remembered sign-in, not an OTP with a longer timer.
+ *
+ * The token is opaque, stored only in an httpOnly cookie or the phone's secure
+ * storage, and can be revoked immediately on explicit sign-out, suspension or
+ * account closure. Keeping a short 30-day absolute expiry on top of those
+ * controls made active customers and vendors repeatedly prove who they were.
+ * Ten years is an effectively persistent upper bound while still avoiding an
+ * unbounded database timestamp; the revocation checks below remain the real
+ * lifetime control.
+ */
+const SESSION_DAYS = 3650;
 
 /**
  * SHA-256 rather than argon2 here, deliberately.
@@ -118,12 +129,20 @@ export async function resolveSession(token: string | undefined): Promise<Session
       clientId: t.clients.id,
       professionalId: t.professionals.id,
       salesAgentId: t.salesAgents.id,
+      passwordCredentialId: t.userPasswordCredentials.id,
     })
     .from(t.sessions)
     .innerJoin(t.users, eq(t.users.id, t.sessions.userId))
     .leftJoin(t.clients, eq(t.clients.userId, t.users.id))
     .leftJoin(t.professionals, eq(t.professionals.userId, t.users.id))
     .leftJoin(t.salesAgents, eq(t.salesAgents.userId, t.users.id))
+    .leftJoin(
+      t.userPasswordCredentials,
+      and(
+        eq(t.userPasswordCredentials.userId, t.users.id),
+        isNull(t.userPasswordCredentials.deletedAt),
+      ),
+    )
     .where(
       and(
         eq(t.sessions.tokenHash, hashToken(token)),
@@ -166,6 +185,7 @@ export async function resolveSession(token: string | undefined): Promise<Session
      */
     cityId: row.user.cityId,
     avatarUrl: row.user.avatarUrl,
+    passwordSet: row.passwordCredentialId !== null,
   };
 }
 

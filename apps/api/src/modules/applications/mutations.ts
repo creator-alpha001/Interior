@@ -29,6 +29,16 @@ export interface ApplicationInput {
   requestedDomainIds: string[];
   serviceCityIds: string[];
   serviceAreaNote?: string;
+  termsVersion: string;
+  signatoryName: string;
+  signatoryRole: string;
+  signatureText: string;
+  acknowledgedClauses: string[];
+}
+
+export interface ApplicationRequestContext {
+  ip?: string;
+  userAgent?: string;
 }
 
 /**
@@ -44,6 +54,7 @@ export interface ApplicationInput {
 export async function submitApplication(
   userId: string,
   input: ApplicationInput,
+  requestContext: ApplicationRequestContext = {},
 ): Promise<ProfessionalApplicationView> {
   const [user] = await db
     .select()
@@ -65,6 +76,23 @@ export async function submitApplication(
 
   const domainIds = await validDomainIds(input.requestedDomainIds);
   const cityIds = await validCityIds(input.serviceCityIds);
+
+  const [terms] = await db
+    .select()
+    .from(t.partnerTerms)
+    .where(eq(t.partnerTerms.isCurrent, true))
+    .limit(1);
+  if (!terms) throw new NotFoundError("The partner terms");
+  if (input.termsVersion !== terms.version) {
+    throw new ValidationError(
+      "These partner terms have changed. Refresh the agreement and accept the current version before submitting.",
+    );
+  }
+  const requiredClauses = terms.acknowledgements.map((clause) => clause.key);
+  const acknowledged = [...new Set(input.acknowledgedClauses)];
+  if (requiredClauses.some((key) => !acknowledged.includes(key))) {
+    throw new ValidationError("Acknowledge every required partner-agreement clause");
+  }
 
   const existing = await db
     .select()
@@ -90,6 +118,14 @@ export async function submitApplication(
     requestedDomainIds: domainIds,
     serviceCityIds: cityIds,
     serviceAreaNote: input.serviceAreaNote?.trim() ?? "",
+    agreementTermsVersion: terms.version,
+    agreementSignatureText: input.signatureText.trim(),
+    agreementSignatoryName: input.signatoryName.trim(),
+    agreementSignatoryRole: input.signatoryRole.trim(),
+    agreementAcknowledgedClauses: acknowledged,
+    agreementSignedAt: new Date().toISOString(),
+    agreementSignedFromIp: requestContext.ip ?? null,
+    agreementSignedUserAgent: requestContext.userAgent ?? null,
     updatedAt: new Date().toISOString(),
   };
 
@@ -271,6 +307,36 @@ async function approveInto(
     now: string;
   },
 ): Promise<void> {
+  const [terms] = await tx
+    .select()
+    .from(t.partnerTerms)
+    .where(eq(t.partnerTerms.isCurrent, true))
+    .limit(1);
+  if (!terms) throw new NotFoundError("The partner terms");
+  const hasPreSignedAgreement = Boolean(
+    application.agreementTermsVersion &&
+      application.agreementSignatureText &&
+      application.agreementSignatoryName &&
+      application.agreementSignatoryRole &&
+      application.agreementAcknowledgedClauses.length > 0,
+  );
+  // Rows created before the first-step agreement shipped can still be
+  // approved; the vendor portal will ask those legacy applicants to sign.
+  // New submissions always have these fields because submitApplication
+  // validates them against the current terms above.
+  if (application.agreementTermsVersion && application.agreementTermsVersion !== terms.version) {
+    throw new ConflictError(
+      "These partner terms changed while the application was waiting. Ask the applicant to refresh and resubmit it.",
+    );
+  }
+  const requiredClauses = terms.acknowledgements.map((clause) => clause.key);
+  if (
+    hasPreSignedAgreement &&
+    requiredClauses.some((key) => !application.agreementAcknowledgedClauses.includes(key))
+  ) {
+    throw new ConflictError("This application is missing a required partner-agreement acknowledgement");
+  }
+
   const [professional] = await tx
     .insert(t.professionals)
     .values({
@@ -284,6 +350,25 @@ async function approveInto(
     .returning({ id: t.professionals.id });
 
   const professionalId = professional!.id;
+
+  // The signature was captured with the first-step application. Materialise
+  // the live partner agreement now that ops have approved the vendor, so the
+  // onboarding and eligibility views can consume one canonical record.
+  if (hasPreSignedAgreement) {
+    await tx.insert(t.partnerAgreements).values({
+      professionalId,
+      termsVersion: terms.version,
+      status: "signed",
+      signatureText: application.agreementSignatureText,
+      signatoryName: application.agreementSignatoryName,
+      signatoryRole: application.agreementSignatoryRole,
+      signedAt: application.agreementSignedAt ?? context.now,
+      acknowledgedClauses: application.agreementAcknowledgedClauses,
+      signedFromIp: application.agreementSignedFromIp,
+      signedUserAgent: application.agreementSignedUserAgent,
+      documentUrl: terms.documentUrl,
+    });
+  }
 
   await tx.insert(t.professionalDomains).values(
     context.grantedDomainIds.map((domainId) => ({

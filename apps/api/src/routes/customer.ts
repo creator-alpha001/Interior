@@ -177,7 +177,10 @@ export async function registerCustomerRoutes(app: FastifyInstance) {
     const userId = await requireUser(request);
     const input = routes.submitProfessionalApplication.body!.parse(request.body);
     reply.status(201);
-    return applicationWrite.submitApplication(userId, input);
+    return applicationWrite.submitApplication(userId, input, {
+      ip: request.ip,
+      userAgent: request.headers["user-agent"],
+    });
   });
 
   app.delete(routes.withdrawProfessionalApplication.path, async (request) => {

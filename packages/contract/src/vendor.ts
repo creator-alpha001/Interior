@@ -25,6 +25,7 @@ import {
   vendorVerificationSchema,
   vendorAchievementKindSchema,
   vendorAchievementSchema,
+  partnerTermsSchema,
 } from "@repo/types/schema";
 import { okSchema } from "./responses";
 import { idSchema, mediaIdSchema, rupeesSchema, shortText } from "./common";
@@ -136,6 +137,15 @@ export const achievementDraftSchema = z.object({
 const idParam = z.object({ id: idSchema });
 
 export const vendorRoutes = {
+  /** Current terms are public so an applicant can read and accept them before
+   * becoming a professional (the signed agreement is captured on application). */
+  partnerTerms: route({
+    method: "GET",
+    path: "/vendor/terms",
+    audience: "public",
+    query: z.object({}),
+    response: partnerTermsSchema,
+  }),
   vendorLeads: route({
     method: "GET",
     path: "/vendor/leads",

@@ -165,6 +165,7 @@ function demoSessionUser(): SessionUser {
     // so the prompts that chase those do not fire all over a demo.
     mobile: "919919344871",
     mobileVerified: true,
+    passwordSet: true,
     cityId: demoCityId(),
     avatarUrl: null,
   };

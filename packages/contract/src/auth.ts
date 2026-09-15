@@ -60,26 +60,20 @@ export const googleSignInSchema = z.object({
 /**
  * What happened, and what the caller has to do next.
  *
- * Two outcomes rather than one, because there is no account yet the first time:
- * Google says who somebody is, not where they are or what to call them. That
- * second outcome is `profile_required`, and its only mandatory input is the
- * link token — the caller may send a city and a name, or neither.
- *
- * It used to be `mobile_required`, and it meant it: `users.mobile` was NOT NULL,
- * so somebody who had just authenticated was shown a phone field with no way
- * past it. The rename is the point of the change rather than a tidy-up. A
- * number is now asked for after the account exists, by `/me/mobile/request`,
- * where declining costs nothing.
+ * `signed_in` is returned only after a linked identity has a verified mobile.
+ * `profile_required` is a new Google identity; `mobile_required` is a legacy
+ * linked identity that still needs WhatsApp verification. Both pending states
+ * carry a short-lived link token for `/auth/otp/verify`.
  *
  * A flat object with a `status` rather than a union of two shapes: this crosses
  * into a generated OpenAPI document and a Dart client, and both handle one
  * object with optional fields far better than they handle anyOf.
  */
 export const googleSignInResultSchema = z.object({
-  status: z.enum(["signed_in", "profile_required"]),
+  status: z.enum(["signed_in", "profile_required", "mobile_required"]),
   /** Present when `status` is `signed_in`. */
   session: authSessionSchema.optional(),
-  /** Present when `status` is `profile_required`. Pass it to `/auth/google/complete`. */
+  /** Present for either pending status. Pass it to `/auth/otp/verify`. */
   linkToken: z.string().optional(),
   /** From the Google account, so the next screen can greet them by name. */
   email: z.string().optional(),
@@ -89,15 +83,9 @@ export const googleSignInResultSchema = z.object({
 /**
  * Turning a verified Google identity into an account.
  *
- * Everything except the token is optional, and that is the whole design. The
- * screen this backs asks for a city and explains why it matters — prices,
- * professionals and availability are all per city — but a person who would
- * rather look around first presses past it and gets an account anyway, with a
- * null city that the catalogue reads as "show me everywhere".
- *
- * No mobile field. Adding one here would recreate the wall this replaced, one
- * optional field at a time; the number has its own verified route for after
- * they have a reason to give it.
+ * Legacy compatibility shape for the retired Google-only completion endpoint.
+ * Current clients use `otpVerifySchema.linkToken` so every new Google account
+ * has a WhatsApp-proved mobile before it receives a session.
  */
 export const googleCompleteSchema = z.object({
   linkToken: z.string().max(2048),
@@ -156,6 +144,18 @@ export const staffLoginSchema = z.object({
 
 /** Setting a password is where the strength rule belongs. */
 export const setPasswordSchema = z.object({
+  password: z.string().min(12).max(200),
+});
+
+export const passwordLoginSchema = z.object({
+  mobile: mobileSchema,
+  // Checking accepts any non-empty candidate; strength belongs to setting.
+  password: z.string().min(1).max(200),
+});
+
+export const passwordResetSchema = z.object({
+  challengeId: z.string().uuid(),
+  code: z.string().regex(/^\d{6}$/, "The code is six digits"),
   password: z.string().min(12).max(200),
 });
 
@@ -225,6 +225,22 @@ export const authRoutes = {
     summary: "Exchange a code for a session cookie, creating the account if new",
     response: authSessionSchema,
   }),
+  passwordLogin: route({
+    method: "POST",
+    path: "/auth/password/login",
+    audience: "public",
+    body: passwordLoginSchema,
+    summary: "Sign in a customer or professional with mobile number and password",
+    response: authSessionSchema,
+  }),
+  resetPassword: route({
+    method: "POST",
+    path: "/auth/password/reset",
+    audience: "public",
+    body: passwordResetSchema,
+    summary: "Consume a mobile OTP, replace the password and sign in",
+    response: authSessionSchema,
+  }),
   staffLogin: route({
     method: "POST",
     path: "/auth/staff/login",
@@ -256,6 +272,14 @@ export const authRoutes = {
     body: profileUpdateSchema,
     summary: "Set or change the name and city on the signed-in account",
     response: sessionUserSchema,
+  }),
+  setPassword: route({
+    method: "POST",
+    path: "/me/password",
+    audience: "public",
+    body: setPasswordSchema,
+    summary: "Set or replace the signed-in customer or professional password",
+    response: okSchema,
   }),
 
   /**

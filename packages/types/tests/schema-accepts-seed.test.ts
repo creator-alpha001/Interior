@@ -71,6 +71,7 @@ const collections: Array<[string, z.ZodTypeAny, unknown[]]> = [
   ["salesUsers", schema.userSchema, seed.salesUsers],
   ["servicePackages", schema.servicePackageSchema, seed.servicePackages],
   ["supportTickets", schema.supportTicketSchema, seed.supportTickets],
+  ["states", schema.stateSchema, seed.states],
   ["testimonials", schema.testimonialSchema, seed.testimonials],
   ["users", schema.userSchema, seed.users],
 ];

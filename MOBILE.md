@@ -551,19 +551,34 @@ Store the token in `flutter_secure_storage` (Keychain / Keystore). Never in
 
 ```
 Splash → GET /me
-  401         → Phone entry → POST /auth/otp/request → OTP → POST /auth/otp/verify
-  actor.role  → 'client'       → customer shell
-                'professional' → vendor shell (→ onboarding gate, 6.2)
-                'sales_agent' | 'admin' → refuse, with "staff sign in on the web"
+  401         → Mobile + password → POST /auth/password/login
+              → first time / forgot password → WhatsApp OTP
+              → POST /auth/otp/verify or /auth/password/reset
+              → if passwordSetupRequired, POST /me/password
+  Google     → POST /auth/google
+              → linked + verified mobile: session
+              → new / legacy link: mobile + WhatsApp OTP with linkToken
+  actor.role → 'client'       → customer shell
+               'professional' → vendor shell (→ verification checklist, 6.2)
+               'sales_agent' | 'admin' → refuse, with "staff sign in on the web"
 ```
 
 Points that are easy to get wrong, each of which the web has already been bitten
 by or has a rule about:
 
 - **An unrecognised number creates a customer account.** Signing up and signing
-  in are one action. The screen must not have a "Sign up" button; it has a name
-  and city field that appear only after the code verifies for a new number,
-  matching `POST /auth/otp/verify`'s optional `name` and `cityId`.
+  in are one action. The screen must not have a "Sign up" button; after the
+  code verifies, the API returns `passwordSetupRequired: true` and the screen
+  asks for a password. The optional `name` and `cityId` are sent with OTP
+  verification for a new number.
+- **Password sign-in is the normal return path.** `POST /auth/password/login`
+  accepts the verified mobile and password. `Forgot password?` sends a fresh
+  WhatsApp code and `POST /auth/password/reset` replaces the credential and
+  revokes older sessions.
+- **Google never bypasses mobile proof.** A new or legacy Google identity gets
+  a short-lived `linkToken`; the app asks for a mobile number, verifies it by
+  WhatsApp through `POST /auth/otp/verify`, and only then remembers the Google
+  identity. A linked identity with a verified number can sign in directly.
 - **The six-digit input must accept a whole-code paste.** The web hit exactly
   this: SMS autofill drops all six digits into the first field and five vanish.
   Use one field with `autofillHints: [AutofillHints.oneTimeCode]` and draw six
@@ -633,15 +648,13 @@ whole phase.
 
 `Dashboard · Leads · Projects · Visits · More`
 
-**The onboarding gate comes before all of it.** An unsigned professional is in
-no pool, however verified — so the shell renders the gate, not an empty
-dashboard. `GET /vendor/onboarding` returns six steps (`profile`, `identity`,
-`trades`, `service_areas`, `portfolio`, `agreement` — there is deliberately no
-`bank` step; see question 5); render them as the
-prototype's stepped ledger, with the partner agreement as the terminal step and
-`POST /vendor/onboarding/agreement` behind a clause-by-clause acknowledgement.
-An unsigned vendor seeing "0 leads" is the single worst first impression this
-app can make; they must see what is missing and how to finish it.
+**Approval opens the vendor shell; verification gates leads.** After admin
+approval, `GET /vendor/onboarding` returns the visible checklist. The agreement
+is accepted and signed during the first application step (current terms,
+signatory and clause acknowledgements), while `POST /vendor/onboarding/agreement`
+remains available for legacy/online signing. The vendor can post work after
+approval, sees a persistent prompt for required documents, and enters the lead
+pool only after the current agreement and every required document are complete.
 
 | Screen | Endpoints | State | Notes |
 | --- | --- | --- | --- |
@@ -719,7 +732,7 @@ until somebody photographs it, and should render as one rather than as nothing.
 
 ### 6.3 The requirement flow, which is the app's most important screen
 
-Six steps, and the order is not arbitrary — it is what the web learned:
+Six customer-request steps, and the order is not arbitrary — it is what the web learned:
 
 ```
 1  Which trades?            multi-select; each becomes a lead_domain

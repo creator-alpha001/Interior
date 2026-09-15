@@ -30,6 +30,7 @@ export default async function AccountLayout({ children }: { children: React.Reac
   if (actor && actor.role !== "client") redirect(actor.role === "professional" ? "/partner" : "/");
 
   const sessionUser = await getSessionUser();
+  if (actor && sessionUser && !sessionUser.passwordSet) redirect("/set-password");
 
   const [leads, agreements, notifications] = await Promise.all([
     listLeadsForClient(),

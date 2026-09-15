@@ -91,6 +91,9 @@ export const professionalApplicationSchema = baseRecordSchema.extend({
   requestedDomainIds: z.array(idSchema),
   serviceCityIds: z.array(idSchema),
   serviceAreaNote: z.string(),
+  /** The partner terms accepted before ops review the application. */
+  agreementTermsVersion: z.string().nullable().optional(),
+  agreementSignedAt: z.string().nullable().optional(),
   status: professionalApplicationStatusSchema,
   submittedAt: z.string(),
   decidedAt: z.string().nullable(),
@@ -219,4 +222,6 @@ export const sessionUserSchema = z.object({
    */
   cityId: idSchema.nullable(),
   avatarUrl: z.string().nullable(),
+  /** Whether mobile-number password sign-in is available for this account. */
+  passwordSet: z.boolean(),
 });

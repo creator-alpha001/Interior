@@ -29,6 +29,11 @@ export interface ProfessionalApplicationInput {
   requestedDomainIds: string[];
   serviceCityIds: string[];
   serviceAreaNote?: string;
+  termsVersion: string;
+  signatoryName: string;
+  signatoryRole: string;
+  signatureText: string;
+  acknowledgedClauses: string[];
 }
 
 export type ApplicationDecision =
@@ -115,6 +120,8 @@ export async function submitProfessionalApplication(
     requestedDomainIds: [...new Set(input.requestedDomainIds)],
     serviceCityIds: [...new Set(input.serviceCityIds)],
     serviceAreaNote: input.serviceAreaNote?.trim() ?? "",
+    agreementTermsVersion: input.termsVersion,
+    agreementSignedAt: nowIso(),
   };
 
   if (open) {

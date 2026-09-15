@@ -110,8 +110,8 @@ export function GoogleSignInButton({ next, intent, onError }: Props) {
       setBusy(true);
       void googleSignInAction(response.credential, next, intent)
         .then((result) => {
-          // Both outcomes redirect inside the action — to /account when the
-          // account exists, to /welcome when there is still one to make — so
+          // Both outcomes redirect inside the action — to the account when it
+          // exists, or back to the WhatsApp linking step for a new account — so
           // anything that resolves here is a failure.
           if (result?.error) onError(result.error);
         })

@@ -156,6 +156,18 @@ export const professionalApplications = pgTable(
     requestedDomainIds: jsonb("requested_domain_ids").$type<string[]>().notNull().default([]),
     serviceCityIds: jsonb("service_city_ids").$type<string[]>().notNull().default([]),
     serviceAreaNote: text("service_area_note").notNull().default(""),
+    /** Signed online before the application reaches the review queue. */
+    agreementTermsVersion: varchar("agreement_terms_version", { length: 20 }),
+    agreementSignatureText: text("agreement_signature_text"),
+    agreementSignatoryName: text("agreement_signatory_name"),
+    agreementSignatoryRole: text("agreement_signatory_role"),
+    agreementAcknowledgedClauses: jsonb("agreement_acknowledged_clauses")
+      .$type<string[]>()
+      .notNull()
+      .default([]),
+    agreementSignedAt: ts("agreement_signed_at"),
+    agreementSignedFromIp: varchar("agreement_signed_from_ip", { length: 45 }),
+    agreementSignedUserAgent: text("agreement_signed_user_agent"),
     status: professionalApplicationStatus("status").notNull().default("submitted"),
     submittedAt: ts("submitted_at").notNull().defaultNow(),
     decidedAt: ts("decided_at"),
@@ -245,6 +257,29 @@ export const sessions = pgTable(
 );
 
 /**
+ * Password credentials for customers and professionals.
+ *
+ * Separate from `staff_credentials`: staff authentication has its own email,
+ * password and TOTP policy, and must never become reachable through the public
+ * mobile-number flow.
+ */
+export const userPasswordCredentials = pgTable(
+  "user_password_credentials",
+  {
+    id: primaryId(),
+    userId: fk("user_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    passwordHash: text("password_hash").notNull(),
+    passwordChangedAt: ts("password_changed_at").notNull().defaultNow(),
+    failedAttempts: smallint("failed_attempts").notNull().default(0),
+    lockedUntil: ts("locked_until"),
+    ...timestamps,
+  },
+  (t) => [uniqueIndex("uq_user_password_credentials_user").on(t.userId)],
+);
+
+/**
  * One in-flight OTP.
  *
  * The code is stored as an argon2 hash: a leaked backup must not hand somebody
@@ -280,11 +315,9 @@ export const otpChallenges = pgTable(
  * A Google account's address can change, and two people can hold the same
  * address years apart; the subject cannot and does not.
  *
- * A row here is a complete way in on its own. It used to be half of one: a
- * first Google sign-in still had to verify a mobile number before the account
- * existed, because `users.mobile` was NOT NULL. That cost the signup of anyone
- * unwilling to hand over a phone number to a site they were still evaluating,
- * to buy a number ops would have confirmed on the call anyway.
+ * A row identifies a Google sign-in, but it is remembered only after the
+ * account has a WhatsApp-proved mobile number. New and legacy identities are
+ * both routed through the OTP-linking step before receiving a durable session.
  */
 export const authIdentities = pgTable(
   "auth_identities",

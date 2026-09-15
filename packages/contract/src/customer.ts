@@ -155,6 +155,11 @@ export const professionalApplicationInputSchema = z.object({
   requestedDomainIds: z.array(idSchema).min(1).max(12),
   serviceCityIds: z.array(idSchema).min(1).max(20),
   serviceAreaNote: z.string().trim().max(1000).default(""),
+  termsVersion: shortText(20),
+  signatoryName: shortText(120),
+  signatoryRole: shortText(80),
+  signatureText: z.string().trim().min(3).max(120),
+  acknowledgedClauses: z.array(z.string().max(60)).min(1),
 });
 
 const idParam = z.object({ id: idSchema });
